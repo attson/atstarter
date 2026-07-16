@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"atstarter/internal/cmdparse"
 	"atstarter/internal/detector"
@@ -75,9 +76,26 @@ func (a *App) ListProjects() ([]store.Project, error) {
 	return cfg.Projects, nil
 }
 
+// expandHome 把开头的 ~ 或 ~/... 展开为用户家目录。
+// 其它形式(绝对路径、相对路径、~user)原样返回。空字符串原样返回。
+func expandHome(path string) string {
+	if path != "~" && !strings.HasPrefix(path, "~/") {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	if path == "~" {
+		return home
+	}
+	return filepath.Join(home, path[2:])
+}
+
 // normalizePath 返回清理过的绝对路径,作为项目去重与存储的规范形式。
-// 失败(极少见,如 os.Getwd 出错)时退回 filepath.Clean。
+// 先展开 ~,再取绝对路径。失败(极少见,如 os.Getwd 出错)时退回 filepath.Clean。
 func normalizePath(path string) string {
+	path = expandHome(path)
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return filepath.Clean(path)
@@ -111,8 +129,21 @@ func (a *App) AddProject(path string) (store.Project, error) {
 }
 
 // ScanWorkspaces 扫描给定根目录,返回候选(不自动保存)。
+// 每个根目录先展开 ~,让手输的 ~/xxx 也能扫描。
 func (a *App) ScanWorkspaces(roots []string) []store.Project {
-	return scanner.Scan(roots)
+	expanded := make([]string, len(roots))
+	for i, r := range roots {
+		expanded[i] = expandHome(r)
+	}
+	return scanner.Scan(expanded)
+}
+
+// PickDirectory 调起系统原生文件夹选择器,返回选中的目录绝对路径。
+// 用户取消时返回空字符串(无错误)。
+func (a *App) PickDirectory() (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "选择工作区根目录",
+	})
 }
 
 // AddScanned 批量保存用户勾选的候选项目。

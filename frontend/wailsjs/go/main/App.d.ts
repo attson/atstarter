@@ -15,6 +15,8 @@ export function GetWorkspaces():Promise<Array<string>>;
 
 export function ListProjects():Promise<Array<store.Project>>;
 
+export function PickDirectory():Promise<string>;
+
 export function RemoveProject(arg1:string):Promise<void>;
 
 export function ScanWorkspaces(arg1:Array<string>):Promise<Array<store.Project>>;

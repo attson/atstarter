@@ -26,6 +26,10 @@ export function ListProjects() {
   return window['go']['main']['App']['ListProjects']();
 }
 
+export function PickDirectory() {
+  return window['go']['main']['App']['PickDirectory']();
+}
+
 export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
 }

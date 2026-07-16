@@ -99,3 +99,44 @@ func TestAppAddProjectNormalizesPath(t *testing.T) {
 		t.Errorf("stored Path = %q, want cleaned abs %q", list[0].Path, filepath.Clean(dir))
 	}
 }
+
+func TestExpandHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("no home dir")
+	}
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"~", home},
+		{"~/GolandProjects", filepath.Join(home, "GolandProjects")},
+		{"~/a/b", filepath.Join(home, "a", "b")},
+		{"/absolute/path", "/absolute/path"}, // 非 ~ 前缀原样返回
+		{"relative/x", "relative/x"},
+		{"~notme/x", "~notme/x"}, // ~ 后非 / 的不展开(不是当前用户家目录写法)
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := expandHome(c.in); got != c.want {
+			t.Errorf("expandHome(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestScanWorkspacesExpandsHome(t *testing.T) {
+	// 在临时"家目录"下造一个含 go 项目的工作区,用 ~ 路径扫描应能找到。
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeFile(t, filepath.Join(home, "ws", "proj", "go.mod"), "module x\n")
+	writeFile(t, filepath.Join(home, "ws", "proj", "main.go"), "package main\nfunc main(){}\n")
+
+	app := newTestApp(t)
+	got := app.ScanWorkspaces([]string{"~/ws"})
+	if len(got) != 1 {
+		t.Fatalf("expected 1 candidate under ~/ws, got %d: %+v", len(got), got)
+	}
+	if got[0].Name != "proj" || got[0].DetectedType != "go" {
+		t.Errorf("candidate = %+v", got[0])
+	}
+}
