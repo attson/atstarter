@@ -1,21 +1,75 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'</script>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import ProjectList from './components/ProjectList.vue'
+import ProjectDetail from './components/ProjectDetail.vue'
+import EditProjectDialog from './components/EditProjectDialog.vue'
+import ScanDialog from './components/ScanDialog.vue'
+import {
+  ListProjects, AddProject, StartProject, StopProject,
+  GetStatus, UpdateProjectCommand, UpdateProject,
+} from '../wailsjs/go/main/App'
+
+const projects = ref([])
+const selectedId = ref('')
+const statuses = ref({})
+const showEdit = ref(false)
+const showScan = ref(false)
+
+const selected = computed(() => projects.value.find((p) => p.id === selectedId.value))
+const selectedStatus = computed(() => statuses.value[selectedId.value])
+
+async function refresh() {
+  projects.value = (await ListProjects()) || []
+  if (!selectedId.value && projects.value.length) selectedId.value = projects.value[0].id
+}
+
+async function pollStatuses() {
+  const next = {}
+  for (const p of projects.value) next[p.id] = await GetStatus(p.id)
+  statuses.value = next
+}
+
+async function onAdd() {
+  const dir = prompt('输入项目目录绝对路径')
+  if (!dir) return
+  await AddProject(dir)
+  await refresh()
+}
+
+async function onStart() { await StartProject(selectedId.value); await pollStatuses() }
+async function onStop() { await StopProject(selectedId.value); await pollStatuses() }
+
+async function onSaveEdit(payload) {
+  const updated = await UpdateProjectCommand(selectedId.value, payload.commandLine)
+  updated.name = payload.name
+  updated.cwd = payload.cwd
+  await UpdateProject(updated)
+  showEdit.value = false
+  await refresh()
+}
+
+let timer
+onMounted(async () => {
+  await refresh()
+  await pollStatuses()
+  timer = setInterval(pollStatuses, 1500)
+})
+onUnmounted(() => clearInterval(timer))
+</script>
 
 <template>
-  <img id="logo" alt="Wails logo" src="./assets/images/logo-universal.png"/>
-  <HelloWorld/>
+  <div class="app">
+    <ProjectList :projects="projects" :selectedId="selectedId" :statuses="statuses"
+      @select="selectedId = $event" @add="onAdd" @scan="showScan = true" />
+    <ProjectDetail :project="selected" :status="selectedStatus"
+      @start="onStart" @stop="onStop" @edit="showEdit = true" />
+    <EditProjectDialog :show="showEdit" :project="selected"
+      @close="showEdit = false" @save="onSaveEdit" />
+    <ScanDialog :show="showScan" @close="showScan = false" @added="refresh" />
+  </div>
 </template>
 
 <style>
-#logo {
-  display: block;
-  width: 50%;
-  height: 50%;
-  margin: auto;
-  padding: 10% 0 0;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-  background-origin: content-box;
-}
+html, body, #app { height: 100%; margin: 0; }
+.app { display: flex; height: 100vh; font-family: system-ui, sans-serif; }
 </style>
