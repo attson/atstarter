@@ -2,6 +2,7 @@ package runner
 
 import (
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -139,6 +140,86 @@ func TestStatusCallbackFiresOnStateChange(t *testing.T) {
 			}
 		case <-deadline:
 			t.Fatal("did not receive exited status via callback")
+		}
+	}
+}
+
+// TestFastExitProcessLogsAreFullyCaptured 复现:进程快速退出时,
+// wait() 不能在 pump 读完管道前关闭管道,否则日志丢失。
+// 模拟真实场景——进程秒退后,前端才拉 Logs() 历史快照。
+func TestFastExitProcessLogsAreFullyCaptured(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell command is unix-specific")
+	}
+	r := New(1000)
+	r.SetEmitter(func(LogLine) {})
+
+	// 立刻打印 10 行到 stdout 和 stderr 后马上退出(退出码非零,模拟编译失败)。
+	spec := Spec{
+		ID:      "fast",
+		Command: "sh",
+		Args:    []string{"-c", "for i in 1 2 3 4 5 6 7 8 9 10; do echo out$i; echo err$i 1>&2; done; exit 1"},
+		Dir:     t.TempDir(),
+	}
+	if err := r.Start(spec); err != nil {
+		t.Fatal(err)
+	}
+
+	// 等进程退出。
+	waitStatus(t, r, "fast", StatusExited, 5*time.Second)
+
+	// 进程退出后拉历史日志快照:必须包含全部 20 行输出(10 stdout + 10 stderr)
+	// 加 1 行退出标记。轮询等标记落入缓冲。
+	var logs []string
+	deadline := time.After(2 * time.Second)
+	for {
+		logs = r.Logs("fast")
+		if len(logs) >= 21 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("expected 21 lines (20 output + exit marker), got %d: %v", len(logs), logs)
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	// 全部输出行 + 退出标记都应在。
+	joined := strings.Join(logs, "\n")
+	for _, want := range []string{"out1", "out10", "err1", "err10", "exited with code 1"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("missing log line %q; captured: %v", want, logs)
+		}
+	}
+}
+
+// TestExitAppendsMarkerToLogs 验证:进程退出后,日志尾部追加一行退出标记,
+// 让日志区能自证结局(尤其是无输出后秒退的情况)。
+func TestExitAppendsMarkerToLogs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell command is unix-specific")
+	}
+	r := New(1000)
+	r.SetEmitter(func(LogLine) {})
+
+	// 非零退出、无 stdout 输出(模拟缺子命令秒退)。
+	spec := Spec{ID: "ex", Command: "sh", Args: []string{"-c", "exit 3"}, Dir: t.TempDir()}
+	if err := r.Start(spec); err != nil {
+		t.Fatal(err)
+	}
+	waitStatus(t, r, "ex", StatusExited, 5*time.Second)
+
+	// 轮询等尾行落入缓冲(退出标记是在 wait 里 add 的,可能略晚于状态)。
+	var logs []string
+	deadline := time.After(2 * time.Second)
+	for {
+		logs = r.Logs("ex")
+		if len(logs) > 0 && strings.Contains(logs[len(logs)-1], "exited with code 3") {
+			return // 成功
+		}
+		select {
+		case <-deadline:
+			t.Fatalf("expected exit marker with code 3 in logs, got: %v", logs)
+		case <-time.After(20 * time.Millisecond):
 		}
 	}
 }

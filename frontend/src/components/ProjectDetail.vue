@@ -18,7 +18,7 @@ const emit = defineEmits(['start', 'stop', 'edit'])
         <button @click="emit('edit')">编辑</button>
       </div>
     </div>
-    <LogPanel :projectId="project.id" />
+    <LogPanel :projectId="project.id" :status="status" />
   </div>
   <div class="detail empty" v-else>选择一个项目</div>
 </template>

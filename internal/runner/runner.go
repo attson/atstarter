@@ -5,6 +5,7 @@ package runner
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"sync"
@@ -146,24 +147,33 @@ func (r *Runner) pump(id string, m *managed, pipe interface{ Read([]byte) (int, 
 	}
 }
 
-// wait 等待进程结束并更新状态。
+// wait 等待进程结束并更新状态,并向日志追加一行退出标记。
 func (r *Runner) wait(id string, m *managed) {
 	err := m.cmd.Wait()
 	r.mu.Lock()
+	var marker string
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
 			m.status.State = StatusExited
 			m.status.ExitCode = ee.ExitCode()
+			marker = fmt.Sprintf("[process exited with code %d]", ee.ExitCode())
 		} else {
 			m.status.State = StatusError
+			marker = fmt.Sprintf("[process error: %v]", err)
 		}
 	} else {
 		m.status.State = StatusExited
 		m.status.ExitCode = 0
+		marker = "[process exited with code 0]"
 	}
 	st := m.status // 值拷贝
 	fn := r.onStatus
+	emit := r.emit
 	r.mu.Unlock()
+
+	// 追加退出标记到日志缓冲并推送(让日志区自证结局)。
+	m.logs.add(marker)
+	emit(LogLine{ID: id, Stream: "stderr", Text: marker})
 	fn(id, st) // 锁外调用
 }
 
