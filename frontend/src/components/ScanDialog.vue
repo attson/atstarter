@@ -47,8 +47,8 @@ async function add() {
         <label v-for="c in candidates" :key="c.id" class="row">
           <input type="checkbox" v-model="checked[c.id]" />
           <span class="nm">{{ c.name }}</span>
-          <span class="ty">{{ c.detectedType }}</span>
-          <code>{{ c.command }} {{ (c.args || []).join(' ') }}</code>
+          <span class="ty" :class="{ unknown: c.detectedType === 'unknown' }">{{ c.detectedType }}</span>
+          <code>{{ [c.command, ...(c.args || [])].join(' ').trim() || '—' }}</code>
         </label>
       </div>
       <div class="btns">
@@ -69,6 +69,11 @@ async function add() {
 .root-actions .primary { background: #e8f0fe; }
 .results { max-height: 320px; overflow-y: auto; border: 1px solid #eee; }
 .row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; font-size: 13px; }
-.ty { color: #666; }
+.nm { flex: 0 0 200px; color: #1a1a1a; font-weight: 500; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.ty { flex: 0 0 90px; color: #2e7d32; font-size: 12px; }
+.ty.unknown { color: #999; }
+.row code { flex: 1; color: #555; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
 .btns { display: flex; justify-content: flex-end; gap: 8px; }
 </style>

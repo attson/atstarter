@@ -3,3 +3,6 @@ frontend/dist/
 frontend/node_modules/
 node_modules/
 /atstarter
+.idea/
+frontend/package.json.md5
+.playwright-mcp/
