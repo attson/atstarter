@@ -70,8 +70,19 @@ func (a *App) ListProjects() ([]store.Project, error) {
 	return cfg.Projects, nil
 }
 
+// normalizePath 返回清理过的绝对路径,作为项目去重与存储的规范形式。
+// 失败(极少见,如 os.Getwd 出错)时退回 filepath.Clean。
+func normalizePath(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return filepath.Clean(path)
+	}
+	return abs
+}
+
 // AddProject 识别目录并保存为项目。
 func (a *App) AddProject(path string) (store.Project, error) {
+	path = normalizePath(path)
 	if _, err := os.Stat(path); err != nil {
 		return store.Project{}, errors.New("path not found: " + path)
 	}
@@ -102,6 +113,7 @@ func (a *App) ScanWorkspaces(roots []string) []store.Project {
 // AddScanned 批量保存用户勾选的候选项目。
 func (a *App) AddScanned(projects []store.Project) error {
 	for _, p := range projects {
+		p.Path = normalizePath(p.Path)
 		if err := a.store.Add(p); err != nil {
 			return err
 		}
