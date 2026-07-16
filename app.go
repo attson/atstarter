@@ -52,6 +52,11 @@ func (a *App) startup(ctx context.Context) {
 			"stream": l.Stream, "text": l.Text,
 		})
 	})
+	a.runner.SetStatusListener(func(id string, st runner.Status) {
+		runtime.EventsEmit(a.ctx, "status:"+id, map[string]interface{}{
+			"state": string(st.State), "pid": st.PID, "exitCode": st.ExitCode,
+		})
+	})
 }
 
 // shutdown 由 Wails 在退出时调用,停掉所有进程。

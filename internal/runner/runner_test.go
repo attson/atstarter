@@ -109,6 +109,40 @@ func TestStopKillsProcessTree(t *testing.T) {
 	// 进程组信号的正确性由 process_unix.go 的实现保证(kill 负 pgid)。
 }
 
+func TestStatusCallbackFiresOnStateChange(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell command is unix-specific")
+	}
+	r := New(100)
+	r.SetEmitter(func(LogLine) {})
+
+	statuses := make(chan Status, 20)
+	r.SetStatusListener(func(id string, st Status) {
+		if id == "s1" {
+			statuses <- st
+		}
+	})
+
+	spec := Spec{ID: "s1", Command: "sh", Args: []string{"-c", "echo hi"}, Dir: t.TempDir()}
+	if err := r.Start(spec); err != nil {
+		t.Fatal(err)
+	}
+
+	// 应最终收到一个 exited 状态。
+	deadline := time.After(5 * time.Second)
+	sawExited := false
+	for !sawExited {
+		select {
+		case st := <-statuses:
+			if st.State == StatusExited {
+				sawExited = true
+			}
+		case <-deadline:
+			t.Fatal("did not receive exited status via callback")
+		}
+	}
+}
+
 // waitStatus 轮询直到状态达到 want 或超时。
 func waitStatus(t *testing.T, r *Runner, id string, want State, d time.Duration) {
 	t.Helper()

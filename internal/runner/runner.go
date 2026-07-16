@@ -45,10 +45,11 @@ type Status struct {
 
 // Runner 管理多个受管进程。并发安全。
 type Runner struct {
-	mu      sync.Mutex
-	procs   map[string]*managed
-	bufSize int
-	emit    func(LogLine)
+	mu       sync.Mutex
+	procs    map[string]*managed
+	bufSize  int
+	emit     func(LogLine)
+	onStatus func(id string, st Status)
 }
 
 type managed struct {
@@ -59,7 +60,12 @@ type managed struct {
 
 // New 构造 Runner。bufSize 是每个项目日志环形缓冲的行数。
 func New(bufSize int) *Runner {
-	return &Runner{procs: map[string]*managed{}, bufSize: bufSize, emit: func(LogLine) {}}
+	return &Runner{
+		procs:    map[string]*managed{},
+		bufSize:  bufSize,
+		emit:     func(LogLine) {},
+		onStatus: func(string, Status) {},
+	}
 }
 
 // SetEmitter 设置日志回调(Wails 层接成事件;测试里接 channel)。
@@ -67,6 +73,13 @@ func (r *Runner) SetEmitter(fn func(LogLine)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.emit = fn
+}
+
+// SetStatusListener 设置状态变化回调(Wails 层接成事件;测试里接 channel)。
+func (r *Runner) SetStatusListener(fn func(id string, st Status)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.onStatus = fn
 }
 
 // Start 启动一个进程。若同 ID 已在运行则返回错误(幂等拒绝)。
@@ -108,7 +121,10 @@ func (r *Runner) Start(spec Spec) error {
 	m.status = Status{State: StatusRunning, PID: cmd.Process.Pid}
 	r.mu.Lock()
 	r.procs[spec.ID] = m
+	runningSt := m.status // 值拷贝
+	fn := r.onStatus
 	r.mu.Unlock()
+	fn(spec.ID, runningSt) // 锁外调用
 
 	go r.pump(spec.ID, m, stdout, "stdout")
 	go r.pump(spec.ID, m, stderr, "stderr")
@@ -134,7 +150,6 @@ func (r *Runner) pump(id string, m *managed, pipe interface{ Read([]byte) (int, 
 func (r *Runner) wait(id string, m *managed) {
 	err := m.cmd.Wait()
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
 			m.status.State = StatusExited
@@ -146,6 +161,10 @@ func (r *Runner) wait(id string, m *managed) {
 		m.status.State = StatusExited
 		m.status.ExitCode = 0
 	}
+	st := m.status // 值拷贝
+	fn := r.onStatus
+	r.mu.Unlock()
+	fn(id, st) // 锁外调用
 }
 
 // Stop 终止进程(整进程组)。未知 ID 或已停止视为成功。

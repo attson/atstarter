@@ -8,6 +8,7 @@ import {
   ListProjects, AddProject, StartProject, StopProject,
   GetStatus, UpdateProjectCommand, UpdateProject,
 } from '../wailsjs/go/main/App'
+import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 
 const projects = ref([])
 const selectedId = ref('')
@@ -18,9 +19,28 @@ const showScan = ref(false)
 const selected = computed(() => projects.value.find((p) => p.id === selectedId.value))
 const selectedStatus = computed(() => statuses.value[selectedId.value])
 
+let statusSubs = []
+
+function resubscribeStatus() {
+  // 先取消旧订阅
+  statusSubs.forEach((ev) => EventsOff(ev))
+  statusSubs = []
+  for (const p of projects.value) {
+    const ev = 'status:' + p.id
+    EventsOn(ev, (payload) => {
+      statuses.value = {
+        ...statuses.value,
+        [p.id]: { State: payload.state, PID: payload.pid, ExitCode: payload.exitCode },
+      }
+    })
+    statusSubs.push(ev)
+  }
+}
+
 async function refresh() {
   projects.value = (await ListProjects()) || []
   if (!selectedId.value && projects.value.length) selectedId.value = projects.value[0].id
+  resubscribeStatus()
 }
 
 async function pollStatuses() {
@@ -54,7 +74,10 @@ onMounted(async () => {
   await pollStatuses()
   timer = setInterval(pollStatuses, 1500)
 })
-onUnmounted(() => clearInterval(timer))
+onUnmounted(() => {
+  clearInterval(timer)
+  statusSubs.forEach((ev) => EventsOff(ev))
+})
 </script>
 
 <template>
