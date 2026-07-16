@@ -152,11 +152,13 @@ func (r *Runner) wait(id string, m *managed) {
 func (r *Runner) Stop(id string) error {
 	r.mu.Lock()
 	m, ok := r.procs[id]
-	r.mu.Unlock()
 	if !ok || m.status.State != StatusRunning || m.cmd.Process == nil {
+		r.mu.Unlock()
 		return nil
 	}
-	killTree(m.cmd.Process.Pid)
+	pid := m.cmd.Process.Pid
+	r.mu.Unlock()
+	killTree(pid)
 	_ = m.cmd.Process.Kill() // 兜底(Windows 占位路径依赖此行)
 	return nil
 }
