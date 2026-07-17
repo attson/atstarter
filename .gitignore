@@ -6,3 +6,4 @@ node_modules/
 .idea/
 frontend/package.json.md5
 .playwright-mcp/
+*-verify.png

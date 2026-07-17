@@ -1,9 +1,12 @@
 html {
     text-align: left;
+    background-color: #ffffff;
+    color: #1a1a1a;
 }
 
 body {
     margin: 0;
+    background-color: #ffffff;
     font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
     "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
     sans-serif;
@@ -20,4 +23,5 @@ body {
 #app {
     height: 100vh;
     text-align: left;
+    background-color: #ffffff;
 }

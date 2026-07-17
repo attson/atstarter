@@ -94,5 +94,5 @@ onUnmounted(() => {
 
 <style>
 html, body, #app { height: 100%; margin: 0; }
-.app { display: flex; height: 100vh; font-family: system-ui, sans-serif; }
+.app { display: flex; height: 100vh; font-family: system-ui, sans-serif; background: #fff; }
 </style>

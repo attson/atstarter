@@ -28,9 +28,9 @@ function dot(state) {
 </template>
 
 <style scoped>
-.list { width: 240px; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-.items { flex: 1; overflow-y: auto; }
-.item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; }
+.list { width: 240px; border-right: 1px solid #ddd; display: flex; flex-direction: column; background: #fff; }
+.items { flex: 1; overflow-y: auto; background: #fff; }
+.item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; background: #fff; }
 .item.active { background: #e8f0fe; }
 .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .actions { display: flex; gap: 8px; padding: 8px; border-top: 1px solid #ddd; }

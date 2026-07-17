@@ -24,10 +24,10 @@ const emit = defineEmits(['start', 'stop', 'edit'])
 </template>
 
 <style scoped>
-.detail { flex: 1; display: flex; flex-direction: column; }
+.detail { flex: 1; display: flex; flex-direction: column; background: #fff; }
 .detail.empty { align-items: center; justify-content: center; color: #888; }
 .bar { display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 14px; border-bottom: 1px solid #ddd; }
+  padding: 10px 14px; border-bottom: 1px solid #ddd; background: #fff; }
 .info { display: flex; flex-direction: column; gap: 4px; }
 .type { color: #666; font-size: 12px; }
 .btns { display: flex; gap: 8px; }
