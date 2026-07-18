@@ -1,6 +1,10 @@
 <script setup>
 import { ref } from 'vue'
+import { FolderOpen } from 'lucide-vue-next'
 import { ScanWorkspaces, AddScanned, PickDirectory } from '../../wailsjs/go/main/App'
+import AppButton from './ui/AppButton.vue'
+import AppIcon from './ui/AppIcon.vue'
+
 const props = defineProps({ show: Boolean })
 const emit = defineEmits(['close', 'added'])
 
@@ -17,12 +21,11 @@ async function scan() {
 
 async function pickDir() {
   const dir = await PickDirectory()
-  if (!dir) return // 用户取消
-  // 追加到文本框(去重,避免重复行)
+  if (!dir) return
   const lines = rootsText.value.split('\n').map((s) => s.trim()).filter(Boolean)
   if (!lines.includes(dir)) lines.push(dir)
   rootsText.value = lines.join('\n')
-  await scan() // 选中后立即扫描
+  await scan()
 }
 
 async function add() {
@@ -38,36 +41,45 @@ function toggle(id) {
 </script>
 
 <template>
-  <div class="mask" v-if="show" @click.self="emit('close')">
-    <div class="dialog">
-      <h3>扫描工作区</h3>
-      <textarea v-model="rootsText" rows="3"
-        placeholder="每行一个根目录,支持 ~,如&#10;~/GolandProjects&#10;~/WebstormProjects"></textarea>
-      <div class="root-actions">
-        <button @click="pickDir">📁 选择文件夹</button>
-        <button class="primary" @click="scan">扫描</button>
-      </div>
-      <div class="results">
-        <button v-for="c in candidates" :key="c.id" :class="['row', { selected: checked[c.id] }]" @click="toggle(c.id)">
-          <span class="check-mark">{{ checked[c.id] ? '✓' : '' }}</span>
-          <span class="nm">{{ c.name }}</span>
-          <span class="ty" :class="{ unknown: c.detectedType === 'unknown' }">{{ c.detectedType }}</span>
-          <code>{{ [c.command, ...(c.args || [])].join(' ').trim() || '—' }}</code>
-        </button>
-      </div>
-      <div class="btns">
-        <button @click="emit('close')">取消</button>
-        <button @click="add">加入选中</button>
-      </div>
+  <Transition name="dlg-fade">
+    <div class="mask" v-if="show" @click.self="emit('close')">
+      <Transition name="dlg-pop" appear>
+        <div class="dialog">
+          <h3>扫描工作区</h3>
+          <textarea v-model="rootsText" rows="3"
+            placeholder="每行一个根目录，支持 ~，如&#10;~/GolandProjects&#10;~/WebstormProjects"></textarea>
+          <div class="root-actions">
+            <AppButton variant="secondary" @click="pickDir">
+              <template #icon><AppIcon :icon="FolderOpen" :size="14" /></template>
+              选择文件夹
+            </AppButton>
+            <AppButton variant="primary" @click="scan">扫描</AppButton>
+          </div>
+          <div class="results">
+            <button v-for="c in candidates" :key="c.id" :class="['row', { selected: checked[c.id] }]" @click="toggle(c.id)">
+              <span class="check-mark">{{ checked[c.id] ? '✓' : '' }}</span>
+              <span class="nm">{{ c.name }}</span>
+              <span class="ty" :class="{ unknown: c.detectedType === 'unknown' }">{{ c.detectedType }}</span>
+              <code>{{ [c.command, ...(c.args || [])].join(' ').trim() || '—' }}</code>
+            </button>
+          </div>
+          <div class="btns">
+            <AppButton variant="secondary" @click="emit('close')">取消</AppButton>
+            <AppButton variant="primary" @click="add">加入选中</AppButton>
+          </div>
+        </div>
+      </Transition>
     </div>
-  </div>
+  </Transition>
 </template>
 
 <style scoped>
 .mask {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, .46);
+  z-index: var(--z-modal);
+  background: var(--overlay);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -77,73 +89,55 @@ function toggle(id) {
   width: min(760px, calc(100vw - 36px));
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 22px;
-  border: 1px solid #d7dce5;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, .22);
+  gap: var(--space-6);
+  padding: var(--space-9);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
 }
 
 h3 {
-  margin: 0 0 2px;
-  color: #111827;
-  font-size: 18px;
+  margin: 0 0 var(--space-2);
+  color: var(--text);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.005em;
 }
 
 textarea {
   box-sizing: border-box;
   width: 100%;
-  border: 1px solid #cbd5e1;
-  border-radius: 7px;
-  padding: 10px;
-  color: #0f172a;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  color: var(--text);
+  background: var(--bg);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   resize: vertical;
   outline: none;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
 textarea:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px #dbeafe;
+  border-color: var(--text-subtle);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .root-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-3);
 }
 
-.root-actions button,
-.btns button {
-  height: 32px;
-  border: 1px solid #cbd5e1;
-  border-radius: 7px;
-  background: #f8fafc;
-  color: #334155;
-  padding: 0 12px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.root-actions button {
-  flex: 1;
-}
-
-.root-actions .primary,
-.btns button:last-child {
-  color: #ffffff;
-  background: #2563eb;
-  border-color: #2563eb;
-}
+.root-actions > * { flex: 1; }
 
 .results {
   max-height: 340px;
   overflow-y: auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
 }
 
 .row {
@@ -151,24 +145,22 @@ textarea:focus {
   display: grid;
   grid-template-columns: 18px minmax(160px, 220px) 92px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font: inherit;
   text-align: left;
-  background: #ffffff;
-  border-bottom: 1px solid #f1f5f9;
+  background: transparent;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
 
-.row:last-child {
-  border-bottom: 0;
-}
-
-.row.selected {
-  background: #eff6ff;
-}
+.row:last-child { border-bottom: 0; }
+.row:hover { background: var(--elevated); }
+.row.selected { background: var(--elevated); }
 
 .check-mark {
   width: 16px;
@@ -176,48 +168,47 @@ textarea:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  color: #ffffff;
-  background: #ffffff;
-  font-size: 11px;
-  font-weight: 900;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--primary-fg);
+  background: transparent;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
 }
 
 .row.selected .check-mark {
-  border-color: #2563eb;
-  background: #2563eb;
+  border-color: var(--primary);
+  background: var(--primary);
 }
 
 .nm {
-  color: #111827;
-  font-weight: 700;
+  color: var(--text);
+  font-weight: var(--fw-semibold);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ty {
-  color: #2563eb;
-  font-size: 12px;
-  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 
-.ty.unknown {
-  color: #94a3b8;
-}
+.ty.unknown { color: var(--text-subtle); }
 
 .row code {
-  color: #475569;
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
 }
 
 .btns {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-3);
 }
 </style>

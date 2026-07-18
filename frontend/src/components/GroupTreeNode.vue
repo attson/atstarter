@@ -1,4 +1,7 @@
 <script setup>
+import { ChevronDown } from 'lucide-vue-next'
+import AppIcon from './ui/AppIcon.vue'
+
 const props = defineProps({
   node: Object,
   level: Number,
@@ -29,7 +32,7 @@ function lineFor(command) {
 <template>
   <div v-if="node.type === 'directory'" class="group-node">
     <div class="dir-row" :style="{ paddingLeft: `${10 + level * 16}px` }">
-      <span class="chevron">▾</span>
+      <span class="chevron"><AppIcon :icon="ChevronDown" :size="12" /></span>
       <span class="dir-name">{{ node.label }}</span>
       <span class="count">{{ node.count }}</span>
     </div>
@@ -84,36 +87,36 @@ function lineFor(command) {
   display: grid;
   align-items: center;
   min-height: 28px;
-  gap: 7px;
+  gap: var(--space-3);
 }
 
 .dir-row {
   grid-template-columns: 16px minmax(0, 1fr) auto;
-  color: #334155;
-  background: #f8fafc;
-  border-bottom: 1px solid #edf2f7;
-  font-size: 12px;
-  font-weight: 800;
+  color: var(--text-secondary);
+  background: var(--elevated);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
 }
 
 .project-row {
   grid-template-columns: 10px minmax(0, 1fr) auto;
-  color: #111827;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
 }
 
 .chevron,
 .count {
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .project-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: var(--text-subtle);
 }
 
 .dir-name,
@@ -126,14 +129,14 @@ function lineFor(command) {
 }
 
 .type-pill {
-  margin-right: 8px;
-  border: 1px solid #dbeafe;
-  border-radius: 999px;
-  color: #2563eb;
-  background: #ffffff;
+  margin-right: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  background: transparent;
   padding: 1px 7px;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 
 .command-row {
@@ -141,19 +144,22 @@ function lineFor(command) {
   display: grid;
   grid-template-columns: 18px minmax(90px, 140px) minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: var(--space-4);
   min-height: 30px;
   border: 0;
-  border-bottom: 1px solid #f8fafc;
-  background: #ffffff;
-  color: #334155;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
 
+.command-row:hover { background: var(--elevated); }
+
 .command-row.selected {
-  background: #eff6ff;
+  background: var(--elevated);
 }
 
 .check-mark {
@@ -162,27 +168,28 @@ function lineFor(command) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
-  color: #ffffff;
-  background: #ffffff;
-  font-size: 11px;
-  font-weight: 900;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--primary-fg);
+  background: transparent;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
 }
 
 .command-row.selected .check-mark {
-  border-color: #2563eb;
-  background: #2563eb;
+  border-color: var(--primary);
+  background: var(--primary);
 }
 
 .command-name {
-  color: #2563eb;
-  font-size: 12px;
-  font-weight: 800;
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 
 .command-row code {
-  color: #64748b;
-  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
 }
 </style>
