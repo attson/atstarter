@@ -1,4 +1,7 @@
 <script setup>
+import { ChevronRight, ChevronDown } from 'lucide-vue-next'
+import AppIcon from './ui/AppIcon.vue'
+
 const props = defineProps({
   node: Object,
   selectedId: String,
@@ -30,7 +33,9 @@ function hasChildren(node) {
       :style="{ paddingLeft: `${10 + level * 16}px` }"
       @click="emit('toggle', node.id)"
     >
-      <span class="chevron">{{ isExpanded(node) ? '▾' : '▸' }}</span>
+      <span class="chev">
+        <AppIcon :icon="isExpanded(node) ? ChevronDown : ChevronRight" :size="12" />
+      </span>
       <span class="dir-name">{{ node.label }}</span>
       <span class="count">{{ node.count }}</span>
     </button>
@@ -59,11 +64,11 @@ function hasChildren(node) {
         class="project-toggle"
         @click.stop="emit('toggle', node.id)"
       >
-        {{ isExpanded(node) ? '▾' : '▸' }}
+        <AppIcon :icon="isExpanded(node) ? ChevronDown : ChevronRight" :size="12" />
       </button>
-      <span v-else class="project-spacer"></span>
+      <span v-else class="project-spacer" />
       <button class="project-main" @click="emit('select', node.project.id)">
-        <span :class="['status-dot', stateClass((node.status || {}).State)]"></span>
+        <span :class="['status-dot', stateClass((node.status || {}).State)]" />
         <span class="project-copy">
           <span class="project-name">{{ node.project.name }}</span>
         </span>
@@ -88,9 +93,7 @@ function hasChildren(node) {
 </template>
 
 <style scoped>
-.tree-group {
-  min-width: 0;
-}
+.tree-group { min-width: 0; }
 
 .tree-row {
   width: 100%;
@@ -100,6 +103,7 @@ function hasChildren(node) {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
 
 .dir-row {
@@ -107,84 +111,71 @@ function hasChildren(node) {
   grid-template-columns: 18px minmax(0, 1fr) auto;
   align-items: center;
   height: 26px;
-  gap: 4px;
-  color: #334155;
-  font-size: 12px;
-  font-weight: 700;
-  border-radius: 6px;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  border-radius: var(--radius-sm);
+  padding-right: var(--space-3);
 }
 
-.dir-row:hover {
-  background: #f1f5f9;
-}
+.dir-row:hover { background: var(--elevated); }
 
-.chevron,
-.count {
-  color: #64748b;
-}
+.chev, .count { color: var(--text-muted); }
 
 .count {
-  font-weight: 600;
-  font-size: 11px;
-  padding-right: 7px;
+  font-weight: var(--fw-regular);
+  font-size: var(--fs-xs);
+  padding-right: var(--space-3);
 }
 
-.dir-name,
-.project-name {
+.dir-name, .project-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.children {
-  position: relative;
-}
+.children { position: relative; }
 
 .project-row {
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px;
-  min-height: 31px;
+  gap: var(--space-3);
+  min-height: 28px;
   margin: 1px 0;
   padding-top: 2px;
   padding-bottom: 2px;
-  padding-right: 8px;
-  border-radius: 6px;
-  color: #1f2937;
+  padding-right: var(--space-4);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-.project-row:hover {
-  background: #f8fafc;
-}
+.project-row:hover { background: var(--elevated); }
 
 .project-row.active {
-  background: #eef4ff;
-  box-shadow: inset 0 0 0 1px #bfdbfe;
+  background: var(--elevated);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .status-dot.running {
-  background: #16a34a;
-  box-shadow: 0 0 0 3px #dcfce7;
+  background: var(--success);
+  animation: pulse-ring 2s ease-in-out infinite;
 }
 
-.status-dot.bad {
-  background: #ef4444;
-  box-shadow: 0 0 0 3px #fee2e2;
-}
+.status-dot.bad { background: var(--danger); box-shadow: 0 0 0 2.5px var(--danger-soft); }
+.status-dot.stopped { background: var(--text-subtle); }
 
-.status-dot.stopped {
-  background: #94a3b8;
-}
-
-.project-toggle,
-.project-main {
+.project-toggle, .project-main {
   border: 0;
   background: transparent;
   color: inherit;
@@ -195,20 +186,18 @@ function hasChildren(node) {
 .project-toggle {
   width: 14px;
   padding: 0;
-  color: #64748b;
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
 }
 
-.project-spacer {
-  width: 14px;
-}
+.project-spacer { width: 14px; }
 
 .project-main {
   min-width: 0;
   display: grid;
   grid-template-columns: 12px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: var(--space-4);
   padding: 0;
   text-align: left;
 }
@@ -220,8 +209,8 @@ function hasChildren(node) {
 }
 
 .project-name {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
 }
 
 .type-pill {
@@ -229,12 +218,12 @@ function hasChildren(node) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  border: 1px solid #dbeafe;
-  border-radius: 999px;
-  color: #2563eb;
-  background: #ffffff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  background: transparent;
   padding: 1px 7px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 </style>
