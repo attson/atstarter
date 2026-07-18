@@ -100,7 +100,7 @@ const members = computed(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: transparent;
 }
 
 .group-header {
@@ -126,7 +126,7 @@ h1 {
   color: var(--text);
   font-size: var(--fs-lg);
   font-weight: var(--fw-semibold);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.022em;
   line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -152,7 +152,7 @@ p {
   min-height: 0;
   overflow-y: auto;
   padding: var(--space-7) var(--space-8);
-  background: var(--surface);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .015), transparent), var(--surface);
 }
 
 .member-row {
@@ -166,17 +166,18 @@ p {
   padding: var(--space-3) var(--space-5);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--bg);
+  background: var(--elevated-gradient);
   color: var(--text-secondary);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  box-shadow: var(--surface-highlight);
+  transition: background var(--dur-fast) var(--ease-spring), border-color var(--dur-fast) var(--ease-spring);
 }
 
 .member-row:hover {
   border-color: var(--border-strong);
-  background: var(--elevated);
+  background: color-mix(in srgb, var(--elevated) 50%, var(--text) 6%);
 }
 
 .dot {

@@ -79,11 +79,24 @@ onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: #06070a;
+  background: linear-gradient(180deg, #05060a 0%, #050609 100%);
+  position: relative;
+}
+
+.log-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(52, 211, 153, .4), transparent);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .banner {
-  height: 32px;
+  height: 34px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -91,8 +104,9 @@ onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   letter-spacing: 0.03em;
-  border-bottom: 1px solid #14161d;
-  background: #0b0d13;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  background: linear-gradient(180deg, rgba(16, 185, 129, .06), transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -101,17 +115,23 @@ onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
 .banner.running { color: #86efac; }
 .banner.exited-ok { color: #bef264; }
 .banner.exited-bad,
-.banner.error { color: #fca5a5; }
-.banner.stopped { color: #94a3b8; }
+.banner.error {
+  color: #fca5a5;
+  background: linear-gradient(180deg, rgba(244, 63, 94, .08), transparent);
+}
+.banner.stopped {
+  color: #94a3b8;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .02), transparent);
+}
 
 .log-panel {
   flex: 1;
   overflow-y: auto;
-  background: #06070a;
+  background: transparent;
   color: #d1d5db;
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
-  line-height: 1.55;
+  line-height: 1.6;
   padding: var(--space-6) var(--space-7);
   white-space: pre-wrap;
 }

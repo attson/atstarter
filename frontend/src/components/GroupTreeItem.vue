@@ -97,12 +97,12 @@ const members = computed(() => {
   transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-.group-item:hover { background: var(--elevated); }
+.group-item:hover { background: var(--elevated-gradient); }
 
 .group-item.active {
-  background: var(--elevated);
+  background: var(--elevated-gradient);
   color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
+  box-shadow: inset 0 0 0 1px var(--border-strong), var(--surface-highlight);
 }
 
 .toggle, .group-main {
@@ -137,7 +137,7 @@ const members = computed(() => {
   justify-content: center;
   border-radius: var(--radius-sm);
   color: var(--text);
-  background: var(--elevated);
+  background: var(--elevated-gradient);
   border: 1px solid var(--border-strong);
 }
 
@@ -190,7 +190,7 @@ const members = computed(() => {
   transition: background var(--dur-fast) var(--ease);
 }
 
-.member-row:hover { background: var(--elevated); }
+.member-row:hover { background: var(--elevated-gradient); }
 
 .member-dot {
   width: 7px;

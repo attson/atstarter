@@ -119,7 +119,7 @@ function hasChildren(node) {
   padding-right: var(--space-3);
 }
 
-.dir-row:hover { background: var(--elevated); }
+.dir-row:hover { background: var(--elevated-gradient); }
 
 .chev, .count { color: var(--text-muted); }
 
@@ -152,12 +152,12 @@ function hasChildren(node) {
   transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-.project-row:hover { background: var(--elevated); }
+.project-row:hover { background: var(--elevated-gradient); }
 
 .project-row.active {
-  background: var(--elevated);
+  background: var(--elevated-gradient);
   color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
+  box-shadow: inset 0 0 0 1px var(--border-strong), var(--surface-highlight);
 }
 
 .status-dot {
@@ -168,11 +168,14 @@ function hasChildren(node) {
 }
 
 .status-dot.running {
-  background: var(--success);
+  background: var(--accent-strong);
   animation: pulse-ring 2s ease-in-out infinite;
 }
 
-.status-dot.bad { background: var(--danger); box-shadow: 0 0 0 2.5px var(--danger-soft); }
+.status-dot.bad {
+  background: var(--danger);
+  box-shadow: 0 0 0 2.5px var(--danger-soft), 0 0 6px rgba(239, 68, 68, .4);
+}
 .status-dot.stopped { background: var(--text-subtle); }
 
 .project-toggle, .project-main {

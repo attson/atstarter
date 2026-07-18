@@ -1,32 +1,65 @@
 html[data-theme="dark"] {
-  --bg: #0a0b0f;
-  --surface: #0c0e13;
-  --elevated: #171921;
-  --border: #1a1c22;
-  --border-strong: #23262f;
+  /* Base */
+  --bg: #0a0d12;
+  --bg-gradient:
+    radial-gradient(120% 80% at 50% 0%, rgba(16, 185, 129, .05) 0%, transparent 55%),
+    linear-gradient(180deg, #0e1116 0%, #0a0d12 60%, #08090d 100%);
+  --surface: #0c0e14;
+  --elevated: rgba(255, 255, 255, .04);
+  --elevated-gradient: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .02));
+  --border: rgba(255, 255, 255, .06);
+  --border-strong: rgba(255, 255, 255, .09);
 
-  --text: #f4f5f7;
-  --text-secondary: #d5d8de;
-  --text-muted: #a6acb9;
-  --text-subtle: #5e6371;
+  /* Text */
+  --text: #f5f7fb;
+  --text-secondary: #d9dee7;
+  --text-muted: #8b93a5;
+  --text-subtle: #6b7285;
 
-  --primary: #f4f5f7;
-  --primary-fg: #0a0b0f;
+  /* Brand wordmark gradient */
+  --brand-gradient: linear-gradient(180deg, #ffffff 0%, #b8bfcf 100%);
 
-  --success: #4ade80;
-  --success-fg: #052e1a;
-  --success-soft: rgba(74, 222, 128, .09);
-  --success-line: rgba(74, 222, 128, .18);
+  /* Accent — used for primary CTAs, brand highlights */
+  --accent: #10b981;
+  --accent-strong: #34d399;
+  --accent-fg: #ffffff;
+  --accent-line: #0d9668;
 
-  --warning: #f2c56b;
-  --warning-soft: rgba(251, 191, 36, .08);
-  --warning-line: rgba(251, 191, 36, .18);
+  /* Primary button */
+  --primary: #10b981;
+  --primary-fg: #ffffff;
+  --primary-gradient: linear-gradient(180deg, #14c98e 0%, #0da572 100%);
+  --primary-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .28),
+    inset 0 -1px 0 rgba(0, 0, 0, .12),
+    0 1px 2px rgba(0, 0, 0, .4),
+    0 6px 16px rgba(16, 185, 129, .3);
+
+  /* Status colors */
+  --success: #34d399;
+  --success-fg: #ffffff;
+  --success-soft: rgba(16, 185, 129, .12);
+  --success-line: rgba(16, 185, 129, .28);
+  --success-gradient: linear-gradient(180deg, rgba(16, 185, 129, .18), rgba(16, 185, 129, .08));
+  --success-glow-a: rgba(52, 211, 153, .5);
+  --success-glow-b: rgba(52, 211, 153, .32);
+
+  --warning: #f5cf7f;
+  --warning-soft: rgba(251, 191, 36, .10);
+  --warning-line: rgba(251, 191, 36, .22);
+  --warning-gradient: linear-gradient(180deg, rgba(251, 191, 36, .14), rgba(251, 191, 36, .06));
 
   --danger: #ef4444;
-  --danger-fg: #fca5a5;
-  --danger-soft: rgba(239, 68, 68, .10);
-  --danger-line: rgba(239, 68, 68, .22);
+  --danger-fg: #fda4af;
+  --danger-soft: rgba(244, 63, 94, .12);
+  --danger-line: rgba(244, 63, 94, .28);
+  --danger-gradient: linear-gradient(180deg, rgba(244, 63, 94, .18), rgba(244, 63, 94, .08));
 
-  --focus-ring: rgba(244, 245, 247, .18);
-  --overlay: rgba(0, 0, 0, .55);
+  /* Surface highlights (inset light on top edge) */
+  --surface-highlight: inset 0 1px 0 rgba(255, 255, 255, .04);
+  --surface-highlight-strong: inset 0 1px 0 rgba(255, 255, 255, .08);
+
+  /* Ambient */
+  --focus-ring: rgba(16, 185, 129, .32);
+  --overlay: rgba(0, 0, 0, .6);
 }
