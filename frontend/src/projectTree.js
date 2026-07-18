@@ -59,24 +59,18 @@ function worktreeInfo(path) {
   return null
 }
 
-function ensureDirectory(rootMap, rootLabel, remaining) {
-  const rootPath = rootLabel
-  if (!rootMap.has(rootPath)) rootMap.set(rootPath, makeDirectory(rootLabel, rootPath))
-  let current = rootMap.get(rootPath)
-  current.count += 1
+function ensureImmediateParent(rootMap, project) {
+  const segments = pathSegments(project.path)
+  segments.pop()
+  const parentLabel = segments[segments.length - 1] || 'Projects'
+  const parentPath = segments.join('/') || parentLabel
 
-  let currentPath = rootPath
-  for (const segment of remaining) {
-    currentPath += '/' + segment
-    let child = current.children.find((node) => node.type === 'directory' && node.path === currentPath)
-    if (!child) {
-      child = makeDirectory(segment, currentPath)
-      current.children.push(child)
-    }
-    child.count += 1
-    current = child
+  if (!rootMap.has(parentPath)) {
+    rootMap.set(parentPath, makeDirectory(parentLabel, parentPath))
   }
-  return current
+  const parent = rootMap.get(parentPath)
+  parent.count += 1
+  return parent
 }
 
 function findProjectNode(nodes, projectPath) {
@@ -110,17 +104,8 @@ function addProject(rootMap, project, status) {
 }
 
 function addNormalProject(rootMap, project, status) {
-  const segments = pathSegments(project.path)
-  const projectName = segments.pop() || project.name
-  const rootLabel = segments.length >= 2 && segments[0] === '~'
-    ? `${segments[0]}/${segments[1]}`
-    : (segments.shift() || 'Projects')
-  const remaining = rootLabel.startsWith('~/') ? segments.slice(2) : segments
-  const rootPath = rootLabel
-
-  const current = ensureDirectory(rootMap, rootLabel, remaining.filter((segment) => segment !== projectName))
-
-  current.children.push(makeProjectNode(project, status))
+  const parent = ensureImmediateParent(rootMap, project)
+  parent.children.push(makeProjectNode(project, status))
 }
 
 function sortTree(nodes) {
