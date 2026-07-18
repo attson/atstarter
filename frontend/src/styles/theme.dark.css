@@ -1,0 +1,32 @@
+html[data-theme="dark"] {
+  --bg: #0a0b0f;
+  --surface: #0c0e13;
+  --elevated: #171921;
+  --border: #1a1c22;
+  --border-strong: #23262f;
+
+  --text: #f4f5f7;
+  --text-secondary: #d5d8de;
+  --text-muted: #a6acb9;
+  --text-subtle: #5e6371;
+
+  --primary: #f4f5f7;
+  --primary-fg: #0a0b0f;
+
+  --success: #4ade80;
+  --success-fg: #052e1a;
+  --success-soft: rgba(74, 222, 128, .09);
+  --success-line: rgba(74, 222, 128, .18);
+
+  --warning: #f2c56b;
+  --warning-soft: rgba(251, 191, 36, .08);
+  --warning-line: rgba(251, 191, 36, .18);
+
+  --danger: #ef4444;
+  --danger-fg: #fca5a5;
+  --danger-soft: rgba(239, 68, 68, .10);
+  --danger-line: rgba(239, 68, 68, .22);
+
+  --focus-ring: rgba(244, 245, 247, .18);
+  --overlay: rgba(0, 0, 0, .55);
+}
