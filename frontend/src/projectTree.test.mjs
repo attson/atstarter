@@ -36,17 +36,17 @@ const statuses = {
 
 const tree = buildProjectTree(projects, statuses, '')
 assert.equal(tree.length, 2)
-assert.equal(tree[0].label, '~/GolandProjects')
+assert.equal(tree[0].label, 'GolandProjects')
 assert.equal(tree[0].count, 2)
 assert.equal(tree[0].children[0].type, 'project')
 assert.equal(tree[0].children[0].project.name, 'ad-ai-toolkit')
 assert.equal(tree[0].children[0].status.State, 'running')
-assert.equal(tree[1].label, '~/WebstormProjects')
+assert.equal(tree[1].label, 'WebstormProjects')
 assert.equal(tree[1].count, 1)
 
 const filtered = buildProjectTree(projects, statuses, 'serve')
 assert.equal(filtered.length, 1)
-assert.equal(filtered[0].label, '~/GolandProjects')
+assert.equal(filtered[0].label, 'GolandProjects')
 assert.equal(filtered[0].children.length, 1)
 assert.equal(filtered[0].children[0].project.id, 'toolkit')
 
@@ -60,10 +60,21 @@ const nested = buildProjectTree([
     detectedType: 'go',
   },
 ], {}, '')
-assert.equal(nested[0].label, '~/GolandProjects')
-assert.equal(nested[0].children[0].label, 'company')
-assert.equal(nested[0].children[0].children[0].label, 'payments')
-assert.equal(nested[0].children[0].children[0].children[0].project.name, 'billing-api')
+// Deep paths collapse to their immediate parent only — no grandparent chain.
+assert.equal(nested.length, 1)
+assert.equal(nested[0].label, 'payments')
+assert.equal(nested[0].children[0].type, 'project')
+assert.equal(nested[0].children[0].project.name, 'billing-api')
+
+// Two projects with the same immediate parent name but different full paths
+// render as separate groups (distinguished by full path key).
+const siblingParents = buildProjectTree([
+  { id: 'a1', name: 'app', path: '/home/attson/team-a/services/app' },
+  { id: 'b1', name: 'app', path: '/home/attson/team-b/services/app' },
+], {}, '')
+assert.equal(siblingParents.length, 2)
+assert.deepEqual(siblingParents.map((n) => n.label), ['services', 'services'])
+assert.notEqual(siblingParents[0].path, siblingParents[1].path)
 
 const withWorktrees = buildProjectTree([
   {
@@ -91,6 +102,7 @@ const withWorktrees = buildProjectTree([
     detectedType: 'go',
   },
 ], {}, '')
+assert.equal(withWorktrees[0].label, 'GolandProjects')
 const platform = withWorktrees[0].children.find((node) => node.type === 'project' && node.project.id === 'platform')
 assert.ok(platform)
 assert.equal(platform.count, 2)
