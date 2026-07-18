@@ -1,5 +1,9 @@
 <script setup>
 import { computed } from 'vue'
+import { Play, Square, Pencil, Trash2 } from 'lucide-vue-next'
+import AppButton from './ui/AppButton.vue'
+import AppPill from './ui/AppPill.vue'
+import AppIcon from './ui/AppIcon.vue'
 
 const props = defineProps({ group: Object, projects: Array })
 const emit = defineEmits(['start', 'stop', 'edit', 'remove', 'select-command'])
@@ -48,16 +52,28 @@ const members = computed(() => {
       <div class="info">
         <div class="title-line">
           <h1>{{ group.name }}</h1>
-          <span class="group-pill">group</span>
-          <span class="count-pill">{{ (group.items || []).length }} commands</span>
+          <AppPill variant="neutral">group</AppPill>
+          <AppPill variant="stopped">{{ (group.items || []).length }} commands</AppPill>
         </div>
         <p>启动、停止或检查这组项目命令。</p>
       </div>
       <div class="btns">
-        <button class="action secondary" @click="emit('edit', group)">Edit</button>
-        <button class="action danger" @click="emit('stop', group.id)">Stop</button>
-        <button class="action primary" @click="emit('start', group.id)">Start</button>
-        <button class="action secondary" @click="emit('remove', group.id)">Remove</button>
+        <AppButton variant="secondary" @click="emit('edit', group)">
+          <template #icon><AppIcon :icon="Pencil" :size="14" /></template>
+          Edit
+        </AppButton>
+        <AppButton variant="secondary" @click="emit('remove', group.id)">
+          <template #icon><AppIcon :icon="Trash2" :size="14" /></template>
+          Remove
+        </AppButton>
+        <AppButton variant="danger" @click="emit('stop', group.id)">
+          <template #icon><AppIcon :icon="Square" :size="14" /></template>
+          Stop
+        </AppButton>
+        <AppButton variant="success" @click="emit('start', group.id)">
+          <template #icon><AppIcon :icon="Play" :size="14" /></template>
+          Start
+        </AppButton>
       </div>
     </header>
 
@@ -68,7 +84,7 @@ const members = computed(() => {
         class="member-row"
         @click="emit('select-command', { projectId: member.project.id, commandId: member.command.id || 'default' })"
       >
-        <span class="dot"></span>
+        <span class="dot" />
         <span class="project-name">{{ member.project.name }}</span>
         <span class="command-name">{{ member.command.name }}</span>
         <code>{{ lineFor(member.command) }}</code>
@@ -84,107 +100,59 @@ const members = computed(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--bg);
 }
 
 .group-header {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) auto;
   align-items: start;
-  gap: 20px;
-  padding: 18px 20px;
-  border-bottom: 1px solid #d7dce5;
+  gap: var(--space-8);
+  padding: var(--space-7) var(--space-8);
+  border-bottom: 1px solid var(--border);
 }
 
-.info {
-  min-width: 0;
-}
+.info { min-width: 0; }
 
 .title-line {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-4);
 }
 
 h1 {
   margin: 0;
-  color: #111827;
-  font-size: 22px;
-  line-height: 1.1;
+  color: var(--text);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.015em;
+  line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 p {
-  margin: 8px 0 0;
-  color: #64748b;
-  font-size: 13px;
-}
-
-.group-pill,
-.count-pill {
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.group-pill {
-  color: #1d4ed8;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-}
-
-.count-pill {
-  color: #475569;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
+  margin: var(--space-4) 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-base);
 }
 
 .btns {
   display: flex;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 8px;
-  max-width: 340px;
-}
-
-.action {
-  height: 34px;
-  border-radius: 7px;
-  padding: 0 12px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.action.primary {
-  color: #ffffff;
-  background: #16a34a;
-  border: 1px solid #16a34a;
-}
-
-.action.secondary {
-  color: #334155;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-}
-
-.action.danger {
-  color: #991b1b;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
+  gap: var(--space-3);
+  max-width: 420px;
 }
 
 .members {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 18px;
-  background: #f8fafc;
+  padding: var(--space-7) var(--space-8);
+  background: var(--surface);
 }
 
 .member-row {
@@ -193,65 +161,65 @@ p {
   display: grid;
   grid-template-columns: 10px minmax(160px, 240px) minmax(90px, 140px) minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  margin-bottom: 7px;
-  padding: 7px 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  background: #ffffff;
-  color: #334155;
+  gap: var(--space-5);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-secondary);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 
 .member-row:hover {
-  border-color: #93c5fd;
-  background: #eff6ff;
+  border-color: var(--border-strong);
+  background: var(--elevated);
 }
 
 .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: var(--text-subtle);
 }
 
-.project-name,
-.command-name,
-.member-row code {
+.project-name, .command-name, .member-row code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .project-name {
-  color: #111827;
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
 }
 
 .command-name {
-  color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 800;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 
 .member-row code {
-  color: #64748b;
-  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
 }
 
 .empty {
-  color: #64748b;
-  font-size: 13px;
-  padding: 18px 4px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  padding: var(--space-8) var(--space-2);
 }
 
 @media (max-width: 980px) {
   .group-header {
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: var(--space-6);
   }
 
   .btns {

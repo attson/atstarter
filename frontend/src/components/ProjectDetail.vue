@@ -1,6 +1,11 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { Play, Square, Pencil, FolderPlus, ChevronDown, ChevronUp } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
+import AppButton from './ui/AppButton.vue'
+import AppPill from './ui/AppPill.vue'
+import AppIcon from './ui/AppIcon.vue'
+
 const props = defineProps({ project: Object, status: Object, selectedCommandId: String })
 const emit = defineEmits(['start', 'stop', 'edit', 'command-change', 'add-to-group'])
 const commandMenuOpen = ref(false)
@@ -31,6 +36,14 @@ const commandLine = computed(() => selectedCommand.value
   : ''
 )
 
+const state = computed(() => (props.status || {}).State || 'stopped')
+const pillVariant = computed(() => {
+  if (state.value === 'running') return 'running'
+  if (state.value === 'exited') return 'exited'
+  if (state.value === 'error') return 'error'
+  return 'stopped'
+})
+
 watch(() => props.selectedCommandId, () => {
   commandMenuOpen.value = false
 })
@@ -47,18 +60,16 @@ function chooseCommand(command) {
       <div class="info">
         <div class="title-line">
           <h1>{{ project.name }}</h1>
-          <span :class="['state-pill', (status || {}).State || 'stopped']">
-            {{ (status || {}).State || 'stopped' }}
-          </span>
-          <span class="type-pill">{{ project.detectedType || 'unknown' }}</span>
+          <AppPill :variant="pillVariant" :dot="state === 'running'">{{ state }}</AppPill>
+          <AppPill variant="neutral">{{ project.detectedType || 'unknown' }}</AppPill>
         </div>
         <div class="path">{{ project.path }}</div>
         <div class="command-box">
-          <span>CMD</span>
+          <span class="cmd-label">CMD</span>
           <div class="command-picker">
             <button class="command-trigger" @click="commandMenuOpen = !commandMenuOpen">
-              {{ selectedCommand && selectedCommand.name }}
-              <span>{{ commandMenuOpen ? '▴' : '▾' }}</span>
+              <span>{{ selectedCommand && selectedCommand.name }}</span>
+              <AppIcon :icon="commandMenuOpen ? ChevronUp : ChevronDown" :size="12" />
             </button>
             <div v-if="commandMenuOpen" class="command-menu">
               <button
@@ -75,10 +86,30 @@ function chooseCommand(command) {
         </div>
       </div>
       <div class="btns">
-        <button class="action secondary" @click="emit('add-to-group')">Add Group</button>
-        <button class="action secondary" @click="emit('edit')">Edit</button>
-        <button class="action danger" :disabled="(status || {}).State !== 'running'" @click="emit('stop', selectedCommand.id)">Stop</button>
-        <button class="action primary" :disabled="(status || {}).State === 'running'" @click="emit('start', selectedCommand.id)">Start</button>
+        <AppButton variant="secondary" @click="emit('add-to-group')">
+          <template #icon><AppIcon :icon="FolderPlus" :size="14" /></template>
+          Add Group
+        </AppButton>
+        <AppButton variant="secondary" @click="emit('edit')">
+          <template #icon><AppIcon :icon="Pencil" :size="14" /></template>
+          Edit
+        </AppButton>
+        <AppButton
+          variant="danger"
+          :disabled="(status || {}).State !== 'running'"
+          @click="emit('stop', selectedCommand.id)"
+        >
+          <template #icon><AppIcon :icon="Square" :size="14" /></template>
+          Stop
+        </AppButton>
+        <AppButton
+          variant="success"
+          :disabled="(status || {}).State === 'running'"
+          @click="emit('start', selectedCommand.id)"
+        >
+          <template #icon><AppIcon :icon="Play" :size="14" /></template>
+          Start
+        </AppButton>
       </div>
     </div>
     <LogPanel :projectId="selectedRunId" :status="status" />
@@ -97,35 +128,37 @@ function chooseCommand(command) {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--bg);
 }
 
 .detail.empty {
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: var(--text-muted);
   text-align: center;
 }
 
 .detail.empty h2 {
-  margin: 0 0 8px;
-  color: #111827;
-  font-size: 22px;
+  margin: 0 0 var(--space-4);
+  color: var(--text);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.015em;
 }
 
 .detail.empty p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 
 .project-header {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) auto;
   align-items: start;
-  gap: 20px;
-  padding: 18px 20px;
-  border-bottom: 1px solid #d7dce5;
-  background: #ffffff;
+  gap: var(--space-8);
+  padding: var(--space-7) var(--space-8);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
 }
 
 .info {
@@ -133,23 +166,25 @@ function chooseCommand(command) {
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: var(--space-4);
 }
 
 .title-line {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-4);
   min-width: 0;
 }
 
 h1 {
   max-width: min(560px, 100%);
   margin: 0;
-  color: #111827;
-  font-size: 22px;
-  line-height: 1.1;
+  color: var(--text);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.015em;
+  line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -157,8 +192,9 @@ h1 {
 
 .path {
   max-width: 100%;
-  color: #64748b;
-  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -167,14 +203,21 @@ h1 {
 .command-box {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-4);
   width: min(100%, 760px);
   box-sizing: border-box;
   min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 7px;
-  background: #f8fafc;
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.cmd-label {
+  color: var(--text-subtle);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
 }
 
 .command-picker {
@@ -183,108 +226,67 @@ h1 {
 }
 
 .command-trigger {
-  height: 26px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #0f172a;
-  padding: 0 9px;
+  gap: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--elevated);
+  color: var(--text);
+  padding: 0 var(--space-3);
   font: inherit;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
 
-.command-trigger span {
-  color: #64748b;
-  font-size: 10px;
-}
+.command-trigger:hover { filter: brightness(1.1); }
 
 .command-menu {
   position: absolute;
-  z-index: 10;
-  top: 31px;
+  z-index: var(--z-menu);
+  top: 28px;
   left: 0;
   min-width: 150px;
-  padding: 5px;
-  border: 1px solid #cbd5e1;
-  border-radius: 7px;
-  background: #ffffff;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
+  padding: var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
 }
 
 .command-menu button {
   width: 100%;
-  height: 30px;
+  height: 28px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: #334155;
-  padding: 0 8px;
+  color: var(--text-secondary);
+  padding: 0 var(--space-3);
   font: inherit;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
   text-align: left;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
 
 .command-menu button:hover,
 .command-menu button.active {
-  color: #1d4ed8;
-  background: #eff6ff;
-}
-
-.command-box span {
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 800;
+  color: var(--text);
+  background: var(--elevated);
 }
 
 .command-box code {
   min-width: 0;
-  color: #0f172a;
-  font-size: 12px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.state-pill,
-.type-pill {
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 12px;
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
-.state-pill.running {
-  color: #047857;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-}
-
-.state-pill.exited,
-.state-pill.error {
-  color: #b91c1c;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-}
-
-.state-pill.stopped,
-.state-pill.undefined {
-  color: #475569;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-}
-
-.type-pill {
-  color: #2563eb;
-  background: #ffffff;
-  border: 1px solid #dbeafe;
 }
 
 .btns {
@@ -292,24 +294,14 @@ h1 {
   justify-content: flex-end;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 8px;
-  max-width: 340px;
-}
-
-.action {
-  height: 34px;
-  border-radius: 7px;
-  padding: 0 12px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
+  gap: var(--space-3);
+  max-width: 420px;
 }
 
 @media (max-width: 980px) {
   .project-header {
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: var(--space-6);
   }
 
   .btns {
@@ -320,7 +312,7 @@ h1 {
 
 @media (max-width: 760px) {
   .project-header {
-    padding: 14px 16px;
+    padding: var(--space-6) var(--space-7);
   }
 
   .command-box {
@@ -330,28 +322,5 @@ h1 {
   .command-box code {
     flex-basis: 100%;
   }
-}
-
-.action:disabled {
-  cursor: not-allowed;
-  opacity: .45;
-}
-
-.action.primary {
-  color: #ffffff;
-  background: #16a34a;
-  border: 1px solid #16a34a;
-}
-
-.action.secondary {
-  color: #334155;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-}
-
-.action.danger {
-  color: #991b1b;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
 }
 </style>
