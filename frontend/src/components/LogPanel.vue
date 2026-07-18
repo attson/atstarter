@@ -79,57 +79,48 @@ onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: #0f172a;
+  background: #06070a;
 }
 
 .banner {
-  height: 34px;
+  height: 32px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 800;
-  border-bottom: 1px solid #243044;
-  background: #111827;
+  padding: 0 var(--space-6);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid #14161d;
+  background: #0b0d13;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
-.banner.running {
-  color: #86efac;
-}
-
-.banner.exited-ok {
-  color: #bef264;
-}
-
+.banner.running { color: #86efac; }
+.banner.exited-ok { color: #bef264; }
 .banner.exited-bad,
-.banner.error {
-  color: #fca5a5;
-}
-
-.banner.stopped {
-  color: #94a3b8;
-}
+.banner.error { color: #fca5a5; }
+.banner.stopped { color: #94a3b8; }
 
 .log-panel {
   flex: 1;
   overflow-y: auto;
-  background: #0f172a;
+  background: #06070a;
   color: #d1d5db;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
   line-height: 1.55;
-  padding: 14px 16px;
+  padding: var(--space-6) var(--space-7);
   white-space: pre-wrap;
 }
 
-.log-line.stderr {
-  color: #fca5a5;
-}
+.log-line.stderr { color: #fca5a5; }
 
 .empty-hint {
   color: #64748b;
   font-style: italic;
-  padding: 4px 0;
+  padding: var(--space-2) 0;
 }
 </style>
