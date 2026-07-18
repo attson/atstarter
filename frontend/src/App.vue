@@ -269,7 +269,8 @@ html, body, #app { height: 100%; margin: 0; }
   grid-template-rows: 48px 1fr;
   height: 100vh;
   font-family: var(--font-sans);
-  background: var(--bg);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
   color: var(--text);
 }
 
@@ -279,15 +280,20 @@ html, body, #app { height: 100%; margin: 0; }
   min-width: 0;
   gap: var(--space-7);
   padding: 0 var(--space-7);
-  background: var(--bg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .02), transparent);
   border-bottom: 1px solid var(--border);
+  box-shadow: var(--surface-highlight);
 }
 
 .brand {
-  color: var(--text);
-  font-size: var(--fs-md);
+  font-size: 17px;
   font-weight: var(--fw-semibold);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--text);
 }
 
 .summary {
@@ -301,6 +307,7 @@ html, body, #app { height: 100%; margin: 0; }
 }
 
 .summary-count {
+  color: var(--text-secondary);
   font-weight: var(--fw-medium);
 }
 
@@ -309,7 +316,7 @@ html, body, #app { height: 100%; margin: 0; }
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .workspace {

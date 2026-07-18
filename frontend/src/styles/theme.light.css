@@ -1,32 +1,65 @@
 html[data-theme="light"] {
+  /* Base */
   --bg: #ffffff;
+  --bg-gradient:
+    radial-gradient(120% 80% at 50% 0%, rgba(16, 185, 129, .04) 0%, transparent 55%),
+    linear-gradient(180deg, #ffffff 0%, #fbfbfa 100%);
   --surface: #fafaf9;
   --elevated: #f4f4f5;
-  --border: #e7e5e4;
-  --border-strong: #e4e4e7;
+  --elevated-gradient: linear-gradient(180deg, #fdfdfc, #f4f4f5);
+  --border: #ebeae8;
+  --border-strong: #ddd9d4;
 
+  /* Text */
   --text: #18181b;
   --text-secondary: #3f3f46;
   --text-muted: #52525b;
   --text-subtle: #a1a1aa;
 
-  --primary: #18181b;
-  --primary-fg: #fafaf9;
+  /* Brand wordmark gradient */
+  --brand-gradient: linear-gradient(180deg, #18181b 0%, #52525b 100%);
 
-  --success: #16a34a;
+  /* Accent */
+  --accent: #059669;
+  --accent-strong: #10b981;
+  --accent-fg: #ffffff;
+  --accent-line: #047857;
+
+  /* Primary button */
+  --primary: #059669;
+  --primary-fg: #ffffff;
+  --primary-gradient: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  --primary-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .35),
+    inset 0 -1px 0 rgba(0, 0, 0, .08),
+    0 1px 2px rgba(5, 150, 105, .18),
+    0 6px 14px rgba(5, 150, 105, .22);
+
+  /* Status colors */
+  --success: #10b981;
   --success-fg: #ffffff;
   --success-soft: #dcfce7;
   --success-line: #bbf7d0;
+  --success-gradient: linear-gradient(180deg, #dcfce7, #d1fae5);
+  --success-glow-a: rgba(16, 185, 129, .5);
+  --success-glow-b: rgba(16, 185, 129, .28);
 
-  --warning: #a16207;
+  --warning: #b45309;
   --warning-soft: #fef9c3;
   --warning-line: #fde68a;
+  --warning-gradient: linear-gradient(180deg, #fef9c3, #fef3c7);
 
   --danger: #b91c1c;
   --danger-fg: #b91c1c;
   --danger-soft: #fef2f2;
   --danger-line: #fecaca;
+  --danger-gradient: linear-gradient(180deg, #fef2f2, #fee2e2);
 
-  --focus-ring: rgba(24, 24, 27, .12);
-  --overlay: rgba(0, 0, 0, .45);
+  /* Surface highlights */
+  --surface-highlight: inset 0 1px 0 rgba(255, 255, 255, .8);
+  --surface-highlight-strong: inset 0 1px 0 rgba(255, 255, 255, 1);
+
+  /* Ambient */
+  --focus-ring: rgba(5, 150, 105, .18);
+  --overlay: rgba(15, 23, 42, .4);
 }

@@ -128,7 +128,7 @@ function chooseCommand(command) {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: transparent;
 }
 
 .detail.empty {
@@ -158,7 +158,7 @@ function chooseCommand(command) {
   gap: var(--space-8);
   padding: var(--space-7) var(--space-8);
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  background: transparent;
 }
 
 .info {
@@ -183,7 +183,7 @@ h1 {
   color: var(--text);
   font-size: var(--fs-lg);
   font-weight: var(--fw-semibold);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.022em;
   line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -207,10 +207,11 @@ h1 {
   width: min(100%, 760px);
   box-sizing: border-box;
   min-width: 0;
-  padding: var(--space-3) var(--space-5);
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface);
+  background: var(--elevated-gradient);
+  box-shadow: var(--surface-highlight);
 }
 
 .cmd-label {
@@ -232,17 +233,18 @@ h1 {
   gap: var(--space-3);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: var(--elevated);
+  background: var(--elevated-gradient);
   color: var(--text);
   padding: 0 var(--space-3);
   font: inherit;
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease);
+  box-shadow: var(--surface-highlight);
+  transition: background var(--dur-fast) var(--ease), filter var(--dur-fast) var(--ease);
 }
 
-.command-trigger:hover { filter: brightness(1.1); }
+.command-trigger:hover { filter: brightness(1.08); }
 
 .command-menu {
   position: absolute;

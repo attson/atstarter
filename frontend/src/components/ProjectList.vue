@@ -84,7 +84,8 @@ watch(() => props.projects, () => {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  background: var(--surface);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .015), transparent), var(--surface);
+  box-shadow: var(--surface-highlight);
   min-height: 0;
 }
 
@@ -118,21 +119,22 @@ watch(() => props.projects, () => {
 .search {
   width: 100%;
   box-sizing: border-box;
-  height: 28px;
-  border: 1px solid transparent;
+  height: 30px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  background: var(--elevated);
+  background: var(--elevated-gradient);
   color: var(--text);
-  padding: 0 var(--space-4) 0 30px;
+  padding: 0 var(--space-4) 0 32px;
   font: inherit;
   font-size: var(--fs-sm);
   outline: none;
+  box-shadow: var(--surface-highlight);
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
 .search:focus {
-  border-color: var(--border-strong);
-  box-shadow: 0 0 0 3px var(--focus-ring);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring), var(--surface-highlight);
 }
 
 .tree-scroll {
