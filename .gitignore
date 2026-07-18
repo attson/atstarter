@@ -7,3 +7,13 @@ node_modules/
 frontend/package.json.md5
 .playwright-mcp/
 *-verify.png
+
+# === AI workflow temporary artifacts ===
+.workflow-plan/
+docs/brainstorm/drafts/
+docs/brainstorm/notes/
+docs/superpowers/
+.superpowers/
+.claude/settings.local.json
+*.local
+*.local.*

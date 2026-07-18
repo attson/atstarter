@@ -74,15 +74,62 @@ onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
 </template>
 
 <style scoped>
-.log-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.banner { padding: 4px 10px; font-size: 12px; font-weight: 500; border-bottom: 1px solid #333; }
-.banner.running { background: #1b3a1b; color: #7fd77f; }
-.banner.exited-ok { background: #22331a; color: #9ccc65; }
-.banner.exited-bad { background: #3a1b1b; color: #ff8a80; }
-.banner.error { background: #3a1b1b; color: #ff8a80; }
-.banner.stopped { background: #2a2a2a; color: #999; }
-.log-panel { flex: 1; overflow-y: auto; background: #1e1e1e; color: #ddd;
-  font-family: monospace; font-size: 12px; padding: 8px; white-space: pre-wrap; }
-.log-line.stderr { color: #ff6b6b; }
-.empty-hint { color: #777; font-style: italic; padding: 4px 0; }
+.log-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #0f172a;
+}
+
+.banner {
+  height: 34px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+  border-bottom: 1px solid #243044;
+  background: #111827;
+}
+
+.banner.running {
+  color: #86efac;
+}
+
+.banner.exited-ok {
+  color: #bef264;
+}
+
+.banner.exited-bad,
+.banner.error {
+  color: #fca5a5;
+}
+
+.banner.stopped {
+  color: #94a3b8;
+}
+
+.log-panel {
+  flex: 1;
+  overflow-y: auto;
+  background: #0f172a;
+  color: #d1d5db;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 14px 16px;
+  white-space: pre-wrap;
+}
+
+.log-line.stderr {
+  color: #fca5a5;
+}
+
+.empty-hint {
+  color: #64748b;
+  font-style: italic;
+  padding: 4px 0;
+}
 </style>

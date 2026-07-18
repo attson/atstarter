@@ -23,6 +23,22 @@ type App struct {
 	runner *runner.Runner
 }
 
+type CommandInput struct {
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Line      string            `json:"line"`
+	Cwd       string            `json:"cwd"`
+	Env       map[string]string `json:"env"`
+	IsDefault bool              `json:"isDefault"`
+}
+
+type LaunchResult struct {
+	ProjectID string `json:"projectId"`
+	CommandID string `json:"commandId"`
+	RunID     string `json:"runId"`
+	Error     string `json:"error"`
+}
+
 // NewApp 用默认配置路径(用户配置目录)构造。
 func NewApp() *App {
 	return NewAppWithConfig(defaultConfigPath())
@@ -122,6 +138,7 @@ func (a *App) AddProject(path string) (store.Project, error) {
 			p.Command, p.Args = cmd, args
 		}
 	}
+	p = store.NormalizeProjectCommands(p)
 	if err := a.store.Add(p); err != nil {
 		return store.Project{}, err
 	}
@@ -150,6 +167,7 @@ func (a *App) PickDirectory() (string, error) {
 func (a *App) AddScanned(projects []store.Project) error {
 	for _, p := range projects {
 		p.Path = normalizePath(p.Path)
+		p = store.NormalizeProjectCommands(p)
 		if err := a.store.Add(p); err != nil {
 			return err
 		}
@@ -159,23 +177,72 @@ func (a *App) AddScanned(projects []store.Project) error {
 
 // UpdateProject 覆盖保存一个项目。
 func (a *App) UpdateProject(p store.Project) error {
+	p = store.NormalizeProjectCommands(p)
 	return a.store.Update(p)
 }
 
 // UpdateProjectCommand 用 UI 单行命令更新项目的 command/args,并标记为手动。
 func (a *App) UpdateProjectCommand(id, line string) (store.Project, error) {
+	return a.UpdateProjectCommands(id, "", []CommandInput{{Name: "Default", Line: line, IsDefault: true}})
+}
+
+// UpdateProjectCommands 覆盖项目的多套启动命令。分组引用 commandId,因此已有 ID 会保留。
+func (a *App) UpdateProjectCommands(id, name string, inputs []CommandInput) (store.Project, error) {
 	cfg, err := a.store.Load()
 	if err != nil {
 		return store.Project{}, err
 	}
 	for _, p := range cfg.Projects {
 		if p.ID == id {
-			cmd, args, err := cmdparse.Parse(line)
-			if err != nil {
-				return store.Project{}, err
+			if strings.TrimSpace(name) != "" {
+				p.Name = strings.TrimSpace(name)
 			}
-			p.Command, p.Args = cmd, args
+			commands := make([]store.LaunchCommand, 0, len(inputs))
+			defaultIndex := -1
+			for i, input := range inputs {
+				cmd, args, err := cmdparse.Parse(input.Line)
+				if err != nil {
+					return store.Project{}, err
+				}
+				if input.IsDefault && defaultIndex == -1 {
+					defaultIndex = i
+				}
+				commandName := strings.TrimSpace(input.Name)
+				if commandName == "" {
+					commandName = "Command"
+				}
+				commands = append(commands, store.LaunchCommand{
+					ID:        input.ID,
+					Name:      commandName,
+					Command:   cmd,
+					Args:      args,
+					Cwd:       input.Cwd,
+					Env:       input.Env,
+					IsDefault: input.IsDefault,
+				})
+			}
+			if len(commands) == 0 {
+				return store.Project{}, errors.New("at least one command is required")
+			}
+			if defaultIndex == -1 {
+				defaultIndex = 0
+			}
+			for i := range commands {
+				commands[i].IsDefault = i == defaultIndex
+				line := cmdparse.Join(commands[i].Command, commands[i].Args)
+				if i == defaultIndex {
+					commands[i].ID = store.DefaultCommandID
+					p.Command = commands[i].Command
+					p.Args = commands[i].Args
+					p.Cwd = commands[i].Cwd
+					p.Env = commands[i].Env
+				} else if commands[i].ID == "" || commands[i].ID == store.DefaultCommandID {
+					commands[i].ID = store.IDForCommand(p.ID, commands[i].Name, line)
+				}
+			}
+			p.Commands = commands
 			p.AutoDetected = false
+			p = store.NormalizeProjectCommands(p)
 			if err := a.store.Update(p); err != nil {
 				return store.Project{}, err
 			}
@@ -187,24 +254,60 @@ func (a *App) UpdateProjectCommand(id, line string) (store.Project, error) {
 
 // RemoveProject 删除项目(若在运行先停止)。
 func (a *App) RemoveProject(id string) error {
-	_ = a.runner.Stop(id)
+	_ = a.StopProject(id)
 	return a.store.Remove(id)
+}
+
+func runIDForCommand(projectID, commandID string) string {
+	if commandID == "" {
+		commandID = store.DefaultCommandID
+	}
+	return projectID + ":" + commandID
+}
+
+func commandByID(p store.Project, commandID string) (store.LaunchCommand, bool) {
+	if commandID == "" {
+		commandID = store.DefaultCommandID
+	}
+	p = store.NormalizeProjectCommands(p)
+	for _, c := range p.Commands {
+		if c.ID == commandID {
+			return c, true
+		}
+	}
+	return store.LaunchCommand{}, false
 }
 
 // StartProject 启动项目对应的进程。
 func (a *App) StartProject(id string) error {
+	return a.StartProjectCommand(id, store.DefaultCommandID)
+}
+
+// StartProjectCommand 启动项目下指定命令,运行时 ID 为 projectId:commandId。
+func (a *App) StartProjectCommand(id, commandID string) error {
 	cfg, err := a.store.Load()
 	if err != nil {
 		return err
 	}
 	for _, p := range cfg.Projects {
 		if p.ID == id {
-			dir := p.Cwd
+			cmd, ok := commandByID(p, commandID)
+			if !ok {
+				return errors.New("command not found: " + commandID)
+			}
+			dir := cmd.Cwd
 			if dir == "" {
 				dir = p.Path
 			}
+			env := map[string]string{}
+			for k, v := range p.Env {
+				env[k] = v
+			}
+			for k, v := range cmd.Env {
+				env[k] = v
+			}
 			return a.runner.Start(runner.Spec{
-				ID: p.ID, Command: p.Command, Args: p.Args, Dir: dir, Env: p.Env,
+				ID: runIDForCommand(p.ID, cmd.ID), Command: cmd.Command, Args: cmd.Args, Dir: dir, Env: env,
 			})
 		}
 	}
@@ -213,7 +316,25 @@ func (a *App) StartProject(id string) error {
 
 // StopProject 停止项目进程。
 func (a *App) StopProject(id string) error {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return a.runner.Stop(id)
+	}
+	for _, p := range cfg.Projects {
+		if p.ID == id {
+			for _, c := range store.NormalizeProjectCommands(p).Commands {
+				_ = a.runner.Stop(runIDForCommand(p.ID, c.ID))
+			}
+			_ = a.runner.Stop(id)
+			return nil
+		}
+	}
 	return a.runner.Stop(id)
+}
+
+// StopProjectCommand 停止项目下指定命令。
+func (a *App) StopProjectCommand(id, commandID string) error {
+	return a.runner.Stop(runIDForCommand(id, commandID))
 }
 
 // GetStatus 返回项目运行时状态。
@@ -224,6 +345,64 @@ func (a *App) GetStatus(id string) runner.Status {
 // GetLogs 返回项目日志缓冲快照。
 func (a *App) GetLogs(id string) []string {
 	return a.runner.Logs(id)
+}
+
+func (a *App) ListGroups() ([]store.LaunchGroup, error) {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	return cfg.Groups, nil
+}
+
+func (a *App) SaveGroup(group store.LaunchGroup) (store.LaunchGroup, error) {
+	return a.store.SaveGroup(group)
+}
+
+func (a *App) RemoveGroup(id string) error {
+	return a.store.RemoveGroup(id)
+}
+
+func (a *App) StartGroup(id string) ([]LaunchResult, error) {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	var group *store.LaunchGroup
+	for i := range cfg.Groups {
+		if cfg.Groups[i].ID == id {
+			group = &cfg.Groups[i]
+			break
+		}
+	}
+	if group == nil {
+		return nil, errors.New("group not found: " + id)
+	}
+	results := make([]LaunchResult, 0, len(group.Items))
+	for _, item := range group.Items {
+		res := LaunchResult{ProjectID: item.ProjectID, CommandID: item.CommandID, RunID: runIDForCommand(item.ProjectID, item.CommandID)}
+		if err := a.StartProjectCommand(item.ProjectID, item.CommandID); err != nil {
+			res.Error = err.Error()
+		}
+		results = append(results, res)
+	}
+	return results, nil
+}
+
+func (a *App) StopGroup(id string) error {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return err
+	}
+	for _, group := range cfg.Groups {
+		if group.ID == id {
+			for _, item := range group.Items {
+				_ = a.StopProjectCommand(item.ProjectID, item.CommandID)
+			}
+			return nil
+		}
+	}
+	return errors.New("group not found: " + id)
 }
 
 // SetWorkspaces 保存工作区根目录列表。

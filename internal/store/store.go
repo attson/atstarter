@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -34,6 +35,25 @@ func (s *Store) Load() (Config, error) {
 	if cfg.Version == 0 {
 		cfg.Version = 1
 	}
+	if cfg.Workspaces == nil {
+		cfg.Workspaces = []string{}
+	}
+	if cfg.Projects == nil {
+		cfg.Projects = []Project{}
+	}
+	if cfg.Groups == nil {
+		cfg.Groups = []LaunchGroup{}
+	}
+	for i := range cfg.Projects {
+		cfg.Projects[i] = NormalizeProjectCommands(cfg.Projects[i])
+	}
+	for i := range cfg.Groups {
+		for j := range cfg.Groups[i].Items {
+			if cfg.Groups[i].Items[j].CommandID == "" {
+				cfg.Groups[i].Items[j].CommandID = DefaultCommandID
+			}
+		}
+	}
 	return cfg, nil
 }
 
@@ -61,6 +81,7 @@ func (s *Store) Add(p Project) error {
 		return err
 	}
 	p.ID = IDForPath(p.Path)
+	p = NormalizeProjectCommands(p)
 	for _, existing := range cfg.Projects {
 		if existing.ID == p.ID {
 			return nil // 已存在,幂等返回
@@ -78,7 +99,7 @@ func (s *Store) Update(p Project) error {
 	}
 	for i := range cfg.Projects {
 		if cfg.Projects[i].ID == p.ID {
-			cfg.Projects[i] = p
+			cfg.Projects[i] = NormalizeProjectCommands(p)
 			return s.save(cfg)
 		}
 	}
@@ -108,5 +129,58 @@ func (s *Store) SetWorkspaces(dirs []string) error {
 		return err
 	}
 	cfg.Workspaces = dirs
+	return s.save(cfg)
+}
+
+// SaveGroup 新增或覆盖一个启动分组。ID 为空时自动生成。
+func (s *Store) SaveGroup(g LaunchGroup) (LaunchGroup, error) {
+	cfg, err := s.Load()
+	if err != nil {
+		return LaunchGroup{}, err
+	}
+	for i := range g.Items {
+		if g.Items[i].CommandID == "" {
+			g.Items[i].CommandID = DefaultCommandID
+		}
+	}
+	if g.ID == "" {
+		for i := 0; ; i++ {
+			candidate := IDForPath(fmt.Sprintf("group:%s:%d", g.Name, i))[:12]
+			exists := false
+			for _, existing := range cfg.Groups {
+				if existing.ID == candidate {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				g.ID = candidate
+				break
+			}
+		}
+	}
+	for i := range cfg.Groups {
+		if cfg.Groups[i].ID == g.ID {
+			cfg.Groups[i] = g
+			return g, s.save(cfg)
+		}
+	}
+	cfg.Groups = append(cfg.Groups, g)
+	return g, s.save(cfg)
+}
+
+// RemoveGroup 按 ID 删除分组。找不到视为成功。
+func (s *Store) RemoveGroup(id string) error {
+	cfg, err := s.Load()
+	if err != nil {
+		return err
+	}
+	out := cfg.Groups[:0]
+	for _, g := range cfg.Groups {
+		if g.ID != id {
+			out = append(out, g)
+		}
+	}
+	cfg.Groups = out
 	return s.save(cfg)
 }

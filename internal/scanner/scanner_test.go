@@ -55,3 +55,48 @@ func TestScanSkipsMissingRoot(t *testing.T) {
 		t.Errorf("expected 0 for missing root, got %d", len(got))
 	}
 }
+
+func TestScanIncludesWorktreeDirectories(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, ".worktrees", "feature-a", "go.mod"), "module a\n")
+	write(t, filepath.Join(root, ".worktrees", "feature-a", "main.go"), "package main\nfunc main(){}\n")
+	write(t, filepath.Join(root, ".claude", "worktrees", "review-b", "package.json"), `{"scripts":{"dev":"vite"}}`)
+	write(t, filepath.Join(root, ".claude", "worktrees", "review-b", "pnpm-lock.yaml"), "")
+
+	got := Scan([]string{root})
+	sort.Slice(got, func(i, j int) bool { return got[i].Name < got[j].Name })
+	if len(got) != 2 {
+		t.Fatalf("expected 2 worktree candidates, got %d: %+v", len(got), got)
+	}
+	if got[0].Name != "feature-a" || got[0].DetectedType != "go" {
+		t.Errorf("feature-a candidate = %+v", got[0])
+	}
+	if got[1].Name != "review-b" || got[1].DetectedType != "node-pnpm" {
+		t.Errorf("review-b candidate = %+v", got[1])
+	}
+}
+
+func TestScanIncludesWorktreesInsideDirectChildProjects(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "repo", "go.mod"), "module repo\n")
+	write(t, filepath.Join(root, "repo", "main.go"), "package main\nfunc main(){}\n")
+	write(t, filepath.Join(root, "repo", ".claude", "worktrees", "budget-usage-proxy", "go.mod"), "module wt\n")
+	write(t, filepath.Join(root, "repo", ".claude", "worktrees", "budget-usage-proxy", "main.go"), "package main\nfunc main(){}\n")
+	write(t, filepath.Join(root, "repo", ".worktrees", "material-tag-proxy", "package.json"), `{"scripts":{"dev":"vite"}}`)
+	write(t, filepath.Join(root, "repo", ".worktrees", "material-tag-proxy", "pnpm-lock.yaml"), "")
+
+	got := Scan([]string{root})
+	sort.Slice(got, func(i, j int) bool { return got[i].Name < got[j].Name })
+	if len(got) != 3 {
+		t.Fatalf("expected repo plus 2 nested worktrees, got %d: %+v", len(got), got)
+	}
+	if got[0].Name != "budget-usage-proxy" || got[0].DetectedType != "go" {
+		t.Errorf("budget-usage-proxy candidate = %+v", got[0])
+	}
+	if got[1].Name != "material-tag-proxy" || got[1].DetectedType != "node-pnpm" {
+		t.Errorf("material-tag-proxy candidate = %+v", got[1])
+	}
+	if got[2].Name != "repo" || got[2].DetectedType != "go" {
+		t.Errorf("repo candidate = %+v", got[2])
+	}
+}

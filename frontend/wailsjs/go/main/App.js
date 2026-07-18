@@ -22,6 +22,10 @@ export function GetWorkspaces() {
   return window['go']['main']['App']['GetWorkspaces']();
 }
 
+export function ListGroups() {
+  return window['go']['main']['App']['ListGroups']();
+}
+
 export function ListProjects() {
   return window['go']['main']['App']['ListProjects']();
 }
@@ -30,8 +34,16 @@ export function PickDirectory() {
   return window['go']['main']['App']['PickDirectory']();
 }
 
+export function RemoveGroup(arg1) {
+  return window['go']['main']['App']['RemoveGroup'](arg1);
+}
+
 export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
+}
+
+export function SaveGroup(arg1) {
+  return window['go']['main']['App']['SaveGroup'](arg1);
 }
 
 export function ScanWorkspaces(arg1) {
@@ -42,12 +54,28 @@ export function SetWorkspaces(arg1) {
   return window['go']['main']['App']['SetWorkspaces'](arg1);
 }
 
+export function StartGroup(arg1) {
+  return window['go']['main']['App']['StartGroup'](arg1);
+}
+
 export function StartProject(arg1) {
   return window['go']['main']['App']['StartProject'](arg1);
 }
 
+export function StartProjectCommand(arg1, arg2) {
+  return window['go']['main']['App']['StartProjectCommand'](arg1, arg2);
+}
+
+export function StopGroup(arg1) {
+  return window['go']['main']['App']['StopGroup'](arg1);
+}
+
 export function StopProject(arg1) {
   return window['go']['main']['App']['StopProject'](arg1);
+}
+
+export function StopProjectCommand(arg1, arg2) {
+  return window['go']['main']['App']['StopProjectCommand'](arg1, arg2);
 }
 
 export function UpdateProject(arg1) {
@@ -56,4 +84,8 @@ export function UpdateProject(arg1) {
 
 export function UpdateProjectCommand(arg1, arg2) {
   return window['go']['main']['App']['UpdateProjectCommand'](arg1, arg2);
+}
+
+export function UpdateProjectCommands(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateProjectCommands'](arg1, arg2, arg3);
 }

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -96,5 +97,66 @@ func TestLoadCorruptJSONReturnsError(t *testing.T) {
 	}
 	if _, err := s.Load(); err == nil {
 		t.Error("expected error loading corrupt json")
+	}
+}
+
+func TestLoadMigratesLegacyProjectCommand(t *testing.T) {
+	s := newTestStore(t)
+	legacy := Config{
+		Version: 1,
+		Projects: []Project{{
+			ID: "p1", Name: "api", Path: "/x/api",
+			Command: "go", Args: []string{"run", "main.go"}, Cwd: "/x/api", Env: map[string]string{"A": "B"},
+		}},
+	}
+	b, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(s.path, b, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := s.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Projects[0].Commands) != 1 {
+		t.Fatalf("expected migrated default command, got %+v", cfg.Projects[0].Commands)
+	}
+	cmd := cfg.Projects[0].Commands[0]
+	if cmd.ID != "default" || cmd.Command != "go" || !cmd.IsDefault {
+		t.Fatalf("unexpected migrated command: %+v", cmd)
+	}
+}
+
+func TestSaveUpdateRemoveGroup(t *testing.T) {
+	s := newTestStore(t)
+	g := LaunchGroup{
+		Name:  "dev stack",
+		Items: []GroupItem{{ProjectID: "p1", CommandID: "serve"}},
+	}
+	saved, err := s.SaveGroup(g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.ID == "" {
+		t.Fatal("SaveGroup should assign ID")
+	}
+	saved.Name = "local stack"
+	saved.Items = append(saved.Items, GroupItem{ProjectID: "p2", CommandID: "dev"})
+	if _, err := s.SaveGroup(saved); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := s.Load()
+	if len(cfg.Groups) != 1 || cfg.Groups[0].Name != "local stack" || len(cfg.Groups[0].Items) != 2 {
+		t.Fatalf("unexpected groups after update: %+v", cfg.Groups)
+	}
+	if err := s.RemoveGroup(saved.ID); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ = s.Load()
+	if len(cfg.Groups) != 0 {
+		t.Fatalf("expected group removed, got %+v", cfg.Groups)
 	}
 }

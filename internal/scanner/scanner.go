@@ -15,32 +15,60 @@ import (
 // 无法读取的 root 被静默跳过。
 func Scan(roots []string) []store.Project {
 	var out []store.Project
+	seen := map[string]bool{}
 	for _, root := range roots {
-		entries, err := os.ReadDir(root)
-		if err != nil {
-			continue // 跳过不存在/不可读的 root
-		}
-		for _, e := range entries {
-			if !e.IsDir() {
-				continue
-			}
-			dir := filepath.Join(root, e.Name())
-			res := detector.Detect(dir)
-			p := store.Project{
-				ID:           store.IDForPath(dir),
-				Name:         e.Name(),
-				Path:         dir,
-				DetectedType: res.Type,
-				AutoDetected: true,
-			}
-			if res.Command != "" {
-				if cmd, args, err := cmdparse.Parse(res.Command); err == nil {
-					p.Command = cmd
-					p.Args = args
-				}
-			}
-			out = append(out, p)
+		children := scanChildren(root, seen, &out, true)
+		scanWorktreeRoots(root, seen, &out)
+		for _, child := range children {
+			scanWorktreeRoots(child, seen, &out)
 		}
 	}
 	return out
+}
+
+func scanWorktreeRoots(root string, seen map[string]bool, out *[]store.Project) {
+	scanChildren(filepath.Join(root, ".worktrees"), seen, out, false)
+	scanChildren(filepath.Join(root, ".claude", "worktrees"), seen, out, false)
+}
+
+func scanChildren(root string, seen map[string]bool, out *[]store.Project, skipWorktreeContainers bool) []string {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil // 跳过不存在/不可读的 root
+	}
+	var added []string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if skipWorktreeContainers && (e.Name() == ".worktrees" || e.Name() == ".claude") {
+			continue
+		}
+		dir := filepath.Join(root, e.Name())
+		if seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		*out = append(*out, projectForDir(dir, e.Name()))
+		added = append(added, dir)
+	}
+	return added
+}
+
+func projectForDir(dir, name string) store.Project {
+	res := detector.Detect(dir)
+	p := store.Project{
+		ID:           store.IDForPath(dir),
+		Name:         name,
+		Path:         dir,
+		DetectedType: res.Type,
+		AutoDetected: true,
+	}
+	if res.Command != "" {
+		if cmd, args, err := cmdparse.Parse(res.Command); err == nil {
+			p.Command = cmd
+			p.Args = args
+		}
+	}
+	return store.NormalizeProjectCommands(p)
 }

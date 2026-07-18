@@ -140,3 +140,37 @@ func TestScanWorkspacesExpandsHome(t *testing.T) {
 		t.Errorf("candidate = %+v", got[0])
 	}
 }
+
+func TestAppUpdateProjectCommands(t *testing.T) {
+	app := newTestApp(t)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "go.mod"), "module x\n")
+	writeFile(t, filepath.Join(dir, "main.go"), "package main\nfunc main(){}\n")
+	p, _ := app.AddProject(dir)
+
+	updated, err := app.UpdateProjectCommands(p.ID, "api", []CommandInput{
+		{Name: "Serve", Line: "go run main.go serve", IsDefault: true},
+		{Name: "Worker", Line: "go run main.go worker", Cwd: dir},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Name != "api" {
+		t.Errorf("Name = %q, want api", updated.Name)
+	}
+	if len(updated.Commands) != 2 {
+		t.Fatalf("Commands = %+v", updated.Commands)
+	}
+	if updated.Commands[0].ID == "" || updated.Commands[1].ID == "" || updated.Commands[0].ID == updated.Commands[1].ID {
+		t.Fatalf("commands should have distinct IDs: %+v", updated.Commands)
+	}
+	if updated.Command != "go" || len(updated.Args) != 3 || updated.Args[2] != "serve" {
+		t.Fatalf("legacy default fields not updated: %+v", updated)
+	}
+}
+
+func TestRunIDForCommand(t *testing.T) {
+	if got := runIDForCommand("p1", "serve"); got != "p1:serve" {
+		t.Fatalf("runIDForCommand = %q", got)
+	}
+}

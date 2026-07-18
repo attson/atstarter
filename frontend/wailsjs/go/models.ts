@@ -1,14 +1,59 @@
+export namespace main {
+
+	export class CommandInput {
+	    id: string;
+	    name: string;
+	    line: string;
+	    cwd: string;
+	    env: Record<string, string>;
+	    isDefault: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new CommandInput(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.line = source["line"];
+	        this.cwd = source["cwd"];
+	        this.env = source["env"];
+	        this.isDefault = source["isDefault"];
+	    }
+	}
+	export class LaunchResult {
+	    projectId: string;
+	    commandId: string;
+	    runId: string;
+	    error: string;
+
+	    static createFrom(source: any = {}) {
+	        return new LaunchResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectId = source["projectId"];
+	        this.commandId = source["commandId"];
+	        this.runId = source["runId"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace runner {
-	
+
 	export class Status {
 	    State: string;
 	    PID: number;
 	    ExitCode: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Status(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.State = source["State"];
@@ -20,7 +65,79 @@ export namespace runner {
 }
 
 export namespace store {
-	
+
+	export class GroupItem {
+	    projectId: string;
+	    commandId: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GroupItem(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projectId = source["projectId"];
+	        this.commandId = source["commandId"];
+	    }
+	}
+	export class LaunchCommand {
+	    id: string;
+	    name: string;
+	    command: string;
+	    args: string[];
+	    cwd: string;
+	    env: Record<string, string>;
+	    isDefault: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new LaunchCommand(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.command = source["command"];
+	        this.args = source["args"];
+	        this.cwd = source["cwd"];
+	        this.env = source["env"];
+	        this.isDefault = source["isDefault"];
+	    }
+	}
+	export class LaunchGroup {
+	    id: string;
+	    name: string;
+	    items: GroupItem[];
+
+	    static createFrom(source: any = {}) {
+	        return new LaunchGroup(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.items = this.convertValues(source["items"], GroupItem);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Project {
 	    id: string;
 	    name: string;
@@ -31,11 +148,12 @@ export namespace store {
 	    env: Record<string, string>;
 	    detectedType: string;
 	    autoDetected: boolean;
-	
+	    commands?: LaunchCommand[];
+
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -47,7 +165,26 @@ export namespace store {
 	        this.env = source["env"];
 	        this.detectedType = source["detectedType"];
 	        this.autoDetected = source["autoDetected"];
+	        this.commands = this.convertValues(source["commands"], LaunchCommand);
 	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }
