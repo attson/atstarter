@@ -1,8 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { Search } from 'lucide-vue-next'
 import { buildProjectTree } from '../projectTree'
 import ProjectTreeNode from './ProjectTreeNode.vue'
 import GroupTreeItem from './GroupTreeItem.vue'
+import AppIcon from './ui/AppIcon.vue'
 
 const emit = defineEmits(['select', 'select-group', 'select-command', 'add', 'scan'])
 
@@ -36,7 +38,10 @@ watch(() => props.projects, () => {
 <template>
   <aside class="project-list">
     <div class="search-wrap">
-      <input v-model="query" class="search" placeholder="Search projects, path, command..." />
+      <div class="search-field">
+        <AppIcon :icon="Search" :size="14" class="search-icon" />
+        <input v-model="query" class="search" placeholder="Search projects, path, command…" />
+      </div>
     </div>
     <div class="tree-scroll">
       <div v-if="(groups || []).length" class="group-section">
@@ -74,63 +79,78 @@ watch(() => props.projects, () => {
 
 <style scoped>
 .project-list {
-  width: 348px;
-  min-width: 300px;
-  border-right: 1px solid #d7dce5;
+  width: 300px;
+  min-width: 280px;
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--surface);
   min-height: 0;
 }
 
 .search-wrap {
-  padding: 9px 10px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: var(--space-4);
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
 .section-title {
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 800;
+  color: var(--text-subtle);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  margin: 2px 2px 5px;
+  margin: var(--space-2) var(--space-2) var(--space-3);
 }
 
 .search {
   width: 100%;
   box-sizing: border-box;
-  height: 30px;
-  border: 1px solid #cbd5e1;
-  border-radius: 7px;
-  background: #f8fafc;
-  color: #0f172a;
-  padding: 0 11px;
-  font-size: 13px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--elevated);
+  color: var(--text);
+  padding: 0 var(--space-4) 0 30px;
+  font: inherit;
+  font-size: var(--fs-sm);
   outline: none;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
 .search:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px #dbeafe;
-  background: #ffffff;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .tree-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 6px 8px;
+  padding: var(--space-3) var(--space-4);
 }
 
 .group-section {
-  margin-bottom: 8px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
 }
 
 .empty {
-  color: #64748b;
-  font-size: 13px;
-  padding: 16px 10px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  padding: var(--space-7) var(--space-5);
 }
 </style>

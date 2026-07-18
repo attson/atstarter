@@ -1,5 +1,7 @@
 <script setup>
 import { computed } from 'vue'
+import { ChevronDown, ChevronRight, FolderKanban } from 'lucide-vue-next'
+import AppIcon from './ui/AppIcon.vue'
 
 const props = defineProps({ group: Object, projects: Array, selected: Boolean, expanded: Boolean })
 const emit = defineEmits(['select', 'toggle', 'select-command'])
@@ -46,10 +48,10 @@ const members = computed(() => {
   <div class="group-wrap">
     <div :class="['group-item', { active: selected }]">
       <button class="toggle" @click.stop="emit('toggle', `group:${group.id}`)">
-        {{ expanded ? '▾' : '▸' }}
+        <AppIcon :icon="expanded ? ChevronDown : ChevronRight" :size="12" />
       </button>
       <button class="group-main" @click="emit('select', group.id)">
-        <span class="group-badge">G</span>
+        <span class="group-badge"><AppIcon :icon="FolderKanban" :size="12" /></span>
         <span class="group-copy">
           <span class="group-name">{{ group.name }}</span>
           <span class="group-count">{{ (group.items || []).length }} commands</span>
@@ -64,7 +66,7 @@ const members = computed(() => {
         class="member-row"
         @click="emit('select-command', { projectId: member.project.id, commandId: member.command.id || 'default' })"
       >
-        <span class="member-dot"></span>
+        <span class="member-dot" />
         <span class="member-project">{{ member.project.name }}</span>
         <span class="member-command">{{ member.command.name }}</span>
         <code>{{ lineFor(member.command) }}</code>
@@ -74,39 +76,36 @@ const members = computed(() => {
 </template>
 
 <style scoped>
-.group-wrap {
-  min-width: 0;
-}
+.group-wrap { min-width: 0; }
 
 .group-item {
   width: 100%;
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 6px;
-  min-height: 31px;
+  gap: var(--space-3);
+  min-height: 28px;
   margin: 1px 0;
-  padding: 3px 8px 3px 10px;
+  padding: 3px var(--space-4) 3px var(--space-5);
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: #1f2937;
+  color: var(--text-secondary);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-.group-item:hover {
-  background: #f8fafc;
-}
+.group-item:hover { background: var(--elevated); }
 
 .group-item.active {
-  background: #eef4ff;
-  box-shadow: inset 0 0 0 1px #bfdbfe;
+  background: var(--elevated);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
-.toggle,
-.group-main {
+.toggle, .group-main {
   border: 0;
   background: transparent;
   color: inherit;
@@ -117,8 +116,7 @@ const members = computed(() => {
 .toggle {
   width: 14px;
   padding: 0;
-  color: #64748b;
-  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .group-main {
@@ -126,7 +124,7 @@ const members = computed(() => {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: var(--space-4);
   padding: 0;
   text-align: left;
 }
@@ -137,11 +135,10 @@ const members = computed(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
-  color: #1d4ed8;
-  background: #dbeafe;
-  font-size: 10px;
-  font-weight: 900;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--elevated);
+  border: 1px solid var(--border-strong);
 }
 
 .group-copy {
@@ -151,84 +148,78 @@ const members = computed(() => {
   gap: 1px;
 }
 
-.group-name,
-.group-count {
+.group-name, .group-count {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .group-name {
-  color: #111827;
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
 }
 
 .group-count {
-  color: #64748b;
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
 }
 
-.chevron,
 .count {
-  color: #64748b;
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
 }
 
-.members {
-  padding: 1px 0 5px;
-}
+.members { padding: 1px 0 var(--space-3); }
 
 .member-row {
   width: 100%;
-  min-height: 29px;
+  min-height: 26px;
   display: grid;
   grid-template-columns: 9px minmax(92px, 1fr) minmax(72px, 96px) minmax(0, 1fr);
   align-items: center;
-  gap: 7px;
-  padding: 3px 8px 3px 38px;
+  gap: var(--space-3);
+  padding: 3px var(--space-4) 3px 38px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: #334155;
+  color: var(--text-secondary);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
 
-.member-row:hover {
-  background: #eff6ff;
-}
+.member-row:hover { background: var(--elevated); }
 
 .member-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: var(--text-subtle);
 }
 
-.member-project,
-.member-command,
-.member-row code {
+.member-project, .member-command, .member-row code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .member-project {
-  color: #111827;
-  font-size: 12px;
-  font-weight: 800;
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
 }
 
 .member-command {
-  color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 800;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 
 .member-row code {
-  color: #64748b;
-  font-size: 11px;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
 }
 </style>
