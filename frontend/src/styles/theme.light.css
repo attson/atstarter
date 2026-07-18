@@ -62,4 +62,20 @@ html[data-theme="light"] {
   /* Ambient */
   --focus-ring: rgba(5, 150, 105, .18);
   --overlay: rgba(15, 23, 42, .4);
+
+  /* Log panel (terminal-style, follows theme — light IDE variant) */
+  --log-bg: linear-gradient(180deg, #f7f7f6 0%, #f2f2f0 100%);
+  --log-text: #27272a;
+  --log-text-stderr: #b91c1c;
+  --log-empty: #a1a1aa;
+  --log-border: rgba(0, 0, 0, .06);
+  --log-highlight: inset 0 1px 0 rgba(255, 255, 255, .6);
+  --log-hairline: linear-gradient(90deg, transparent, rgba(16, 185, 129, .45), transparent);
+  --log-banner-running-bg: linear-gradient(180deg, rgba(16, 185, 129, .08), transparent);
+  --log-banner-running: #15803d;
+  --log-banner-exited-ok: #4d7c0f;
+  --log-banner-error: #b91c1c;
+  --log-banner-error-bg: linear-gradient(180deg, rgba(185, 28, 28, .06), transparent);
+  --log-banner-stopped: #52525b;
+  --log-banner-stopped-bg: linear-gradient(180deg, rgba(0, 0, 0, .02), transparent);
 }

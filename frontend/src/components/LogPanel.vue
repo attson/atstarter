@@ -79,7 +79,7 @@ onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: linear-gradient(180deg, #05060a 0%, #050609 100%);
+  background: var(--log-bg);
   position: relative;
 }
 
@@ -90,7 +90,7 @@ onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(52, 211, 153, .4), transparent);
+  background: var(--log-hairline);
   pointer-events: none;
   z-index: 2;
 }
@@ -104,31 +104,31 @@ onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
   font-size: var(--fs-xs);
   font-weight: var(--fw-semibold);
   letter-spacing: 0.03em;
-  border-bottom: 1px solid rgba(255, 255, 255, .05);
-  background: linear-gradient(180deg, rgba(16, 185, 129, .06), transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
+  border-bottom: 1px solid var(--log-border);
+  background: var(--log-banner-running-bg);
+  box-shadow: var(--log-highlight);
   position: sticky;
   top: 0;
   z-index: 1;
 }
 
-.banner.running { color: #86efac; }
-.banner.exited-ok { color: #bef264; }
+.banner.running { color: var(--log-banner-running); }
+.banner.exited-ok { color: var(--log-banner-exited-ok); }
 .banner.exited-bad,
 .banner.error {
-  color: #fca5a5;
-  background: linear-gradient(180deg, rgba(244, 63, 94, .08), transparent);
+  color: var(--log-banner-error);
+  background: var(--log-banner-error-bg);
 }
 .banner.stopped {
-  color: #94a3b8;
-  background: linear-gradient(180deg, rgba(255, 255, 255, .02), transparent);
+  color: var(--log-banner-stopped);
+  background: var(--log-banner-stopped-bg);
 }
 
 .log-panel {
   flex: 1;
   overflow-y: auto;
   background: transparent;
-  color: #d1d5db;
+  color: var(--log-text);
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   line-height: 1.6;
@@ -136,10 +136,10 @@ onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
   white-space: pre-wrap;
 }
 
-.log-line.stderr { color: #fca5a5; }
+.log-line.stderr { color: var(--log-text-stderr); }
 
 .empty-hint {
-  color: #64748b;
+  color: var(--log-empty);
   font-style: italic;
   padding: var(--space-2) 0;
 }
