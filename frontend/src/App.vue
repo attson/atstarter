@@ -8,6 +8,11 @@ import ScanDialog from './components/ScanDialog.vue'
 import GroupDialog from './components/GroupDialog.vue'
 import AddProjectDialog from './components/AddProjectDialog.vue'
 import AddToGroupDialog from './components/AddToGroupDialog.vue'
+import AppButton from './components/ui/AppButton.vue'
+import AppPill from './components/ui/AppPill.vue'
+import AppIcon from './components/ui/AppIcon.vue'
+import ThemeToggle from './components/ui/ThemeToggle.vue'
+import { FolderPlus, Radar, Plus } from 'lucide-vue-next'
 import {
   ListProjects, AddProject, StartProjectCommand, StopProjectCommand,
   GetStatus, UpdateProjectCommands, ListGroups, SaveGroup, RemoveGroup,
@@ -214,14 +219,24 @@ onUnmounted(() => {
     <header class="topbar">
       <div class="brand">atstarter</div>
       <div class="summary">
-        <span>{{ projects.length }} projects</span>
-        <span class="summary-pill running">{{ runningCount }} running</span>
-        <span class="summary-pill exited">{{ exitedCount }} exited</span>
+        <span class="summary-count">{{ projects.length }} projects</span>
+        <AppPill variant="running" dot>{{ runningCount }} running</AppPill>
+        <AppPill variant="exited">{{ exitedCount }} exited</AppPill>
       </div>
       <div class="top-actions">
-        <button class="btn secondary" @click="editingGroup = null; showGroup = true">New Group</button>
-        <button class="btn secondary" @click="showScan = true">Scan</button>
-        <button class="btn primary" @click="showAddProject = true">Add</button>
+        <ThemeToggle />
+        <AppButton variant="secondary" size="sm" @click="editingGroup = null; showGroup = true">
+          <template #icon><AppIcon :icon="FolderPlus" :size="14" /></template>
+          New Group
+        </AppButton>
+        <AppButton variant="secondary" size="sm" @click="showScan = true">
+          <template #icon><AppIcon :icon="Radar" :size="14" /></template>
+          Scan
+        </AppButton>
+        <AppButton variant="primary" size="sm" @click="showAddProject = true">
+          <template #icon><AppIcon :icon="Plus" :size="14" /></template>
+          Add
+        </AppButton>
       </div>
     </header>
     <main class="workspace">
@@ -248,29 +263,31 @@ onUnmounted(() => {
 
 <style>
 html, body, #app { height: 100%; margin: 0; }
+
 .app-shell {
   display: grid;
-  grid-template-rows: 50px 1fr;
+  grid-template-rows: 48px 1fr;
   height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  background: #f5f6f8;
-  color: #182033;
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
 }
 
 .topbar {
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 18px;
-  padding: 0 18px;
-  background: #ffffff;
-  border-bottom: 1px solid #d7dce5;
+  gap: var(--space-7);
+  padding: 0 var(--space-7);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
 .brand {
-  color: #111827;
-  font-size: 16px;
-  font-weight: 800;
+  color: var(--text);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
 }
 
 .summary {
@@ -278,56 +295,21 @@ html, body, #app { height: 100%; margin: 0; }
   align-items: center;
   min-width: 0;
   flex-wrap: wrap;
-  gap: 10px;
-  color: #4b5563;
-  font-size: 12px;
+  gap: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
 }
 
-.summary-pill {
-  border-radius: 999px;
-  padding: 3px 9px;
-  font-weight: 700;
-}
-
-.summary-pill.running {
-  color: #047857;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-}
-
-.summary-pill.exited {
-  color: #b45309;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
+.summary-count {
+  font-weight: var(--fw-medium);
 }
 
 .top-actions {
   margin-left: auto;
   display: flex;
+  align-items: center;
   flex-shrink: 0;
-  gap: 8px;
-}
-
-.btn {
-  height: 32px;
-  border-radius: 7px;
-  padding: 0 12px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.btn.primary {
-  color: #ffffff;
-  background: #2563eb;
-  border: 1px solid #2563eb;
-}
-
-.btn.secondary {
-  color: #334155;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
+  gap: var(--space-3);
 }
 
 .workspace {
@@ -337,16 +319,8 @@ html, body, #app { height: 100%; margin: 0; }
 
 @media (max-width: 820px) {
   .topbar {
-    gap: 10px;
-    padding: 0 12px;
-  }
-
-  .summary {
-    gap: 6px;
-  }
-
-  .btn {
-    padding: 0 10px;
+    gap: var(--space-5);
+    padding: 0 var(--space-6);
   }
 }
 </style>
