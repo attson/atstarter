@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { buildProjectTree } from '../projectTree'
 import GroupTreeNode from './GroupTreeNode.vue'
+import AppButton from './ui/AppButton.vue'
 
 const props = defineProps({ show: Boolean, group: Object, projects: Array })
 const emit = defineEmits(['save', 'close'])
@@ -60,36 +61,42 @@ function toggleOption(key) {
 </script>
 
 <template>
-  <div class="mask" v-if="show" @click.self="emit('close')">
-    <div class="dialog">
-      <h3>{{ group ? '编辑分组' : '新建分组' }}</h3>
-      <label>名称<input v-model="name" placeholder="Local dev stack" /></label>
+  <Transition name="dlg-fade">
+    <div class="mask" v-if="show" @click.self="emit('close')">
+      <Transition name="dlg-pop" appear>
+        <div class="dialog">
+          <h3>{{ group ? '编辑分组' : '新建分组' }}</h3>
+          <label>名称<input v-model="name" placeholder="Local dev stack" /></label>
 
-      <div class="commands-head">选择要启动的项目命令</div>
-      <div class="options">
-        <GroupTreeNode
-          v-for="node in projectTree"
-          :key="node.id"
-          :node="node"
-          :level="0"
-          :checked="checked"
-          @toggle="toggleOption"
-        />
-      </div>
+          <div class="commands-head">选择要启动的项目命令</div>
+          <div class="options">
+            <GroupTreeNode
+              v-for="node in projectTree"
+              :key="node.id"
+              :node="node"
+              :level="0"
+              :checked="checked"
+              @toggle="toggleOption"
+            />
+          </div>
 
-      <div class="btns">
-        <button @click="emit('close')">取消</button>
-        <button @click="save">保存</button>
-      </div>
+          <div class="btns">
+            <AppButton variant="secondary" @click="emit('close')">取消</AppButton>
+            <AppButton variant="primary" @click="save">保存</AppButton>
+          </div>
+        </div>
+      </Transition>
     </div>
-  </div>
+  </Transition>
 </template>
 
 <style scoped>
 .mask {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, .46);
+  z-index: var(--z-modal);
+  background: var(--overlay);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,74 +108,65 @@ function toggleOption(key) {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 22px;
-  border: 1px solid #d7dce5;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, .22);
+  gap: var(--space-6);
+  padding: var(--space-9);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
 }
 
 h3 {
-  margin: 0 0 2px;
-  color: #111827;
-  font-size: 18px;
+  margin: 0 0 var(--space-2);
+  color: var(--text);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.005em;
 }
 
 .dialog label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  color: #334155;
-  font-size: 13px;
-  font-weight: 700;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
 }
 
 .dialog > label input {
-  height: 34px;
-  border: 1px solid #cbd5e1;
-  border-radius: 7px;
-  color: #0f172a;
-  padding: 0 10px;
+  height: 32px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  background: var(--bg);
+  padding: 0 var(--space-5);
   font: inherit;
   outline: none;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.dialog > label input:focus {
+  border-color: var(--text-subtle);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .commands-head {
-  color: #334155;
-  font-size: 13px;
-  font-weight: 800;
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
 }
 
 .options {
   max-height: 400px;
   overflow-y: auto;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
 }
 
 .btns {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-}
-
-.btns button {
-  height: 32px;
-  border: 1px solid #cbd5e1;
-  border-radius: 7px;
-  background: #f8fafc;
-  color: #334155;
-  padding: 0 12px;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.btns button:last-child {
-  color: #ffffff;
-  background: #2563eb;
-  border-color: #2563eb;
+  gap: var(--space-3);
 }
 </style>

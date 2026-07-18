@@ -60,3 +60,13 @@ html {
   0%, 100% { box-shadow: 0 0 0 2.5px var(--success-soft); }
   50%      { box-shadow: 0 0 0 4px var(--success-soft); }
 }
+
+.dlg-fade-enter-active { transition: opacity var(--dur-base) var(--ease); }
+.dlg-fade-leave-active { transition: opacity var(--dur-fast) var(--ease); }
+.dlg-fade-enter-from,
+.dlg-fade-leave-to { opacity: 0; }
+
+.dlg-pop-enter-active { transition: opacity var(--dur-base) var(--ease), transform var(--dur-base) var(--ease); }
+.dlg-pop-leave-active { transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); }
+.dlg-pop-enter-from,
+.dlg-pop-leave-to { opacity: 0; transform: translateY(4px); }
