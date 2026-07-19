@@ -197,13 +197,16 @@ function hasChildren(node) {
 
 .project-main {
   min-width: 0;
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: var(--space-3);
   color: inherit;
   font: inherit;
 }
+
+.project-main .status-dot { flex: 0 0 auto; }
+.project-main .project-name { flex: 0 1 auto; }
+.project-main .type-pill { flex: 0 0 auto; }
 
 .project-toggle {
   width: 12px;
