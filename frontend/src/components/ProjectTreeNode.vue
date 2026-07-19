@@ -1,6 +1,7 @@
 <script setup>
 import { ChevronRight, ChevronDown } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
+import { typeLabel } from '../typeLabel.js'
 
 const props = defineProps({
   node: Object,
@@ -76,7 +77,7 @@ function hasChildren(node) {
         <span :class="['status-dot', stateClass((node.status || {}).State)]" />
         <span class="project-name">{{ node.project.name }}</span>
         <span v-if="hasChildren(node)" class="count">{{ node.count }}</span>
-        <span v-else class="type-pill">{{ node.project.detectedType || 'unknown' }}</span>
+        <span v-else class="type-pill">{{ typeLabel(node.project.detectedType) }}</span>
       </span>
     </div>
     <div v-if="hasChildren(node) && isExpanded(node)" class="children">
