@@ -233,7 +233,10 @@ function hasChildren(node) {
 }
 
 .type-pill {
-  max-width: 72px;
+  display: inline-block;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 60px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -244,5 +247,6 @@ function hasChildren(node) {
   padding: 1px 7px;
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
+  justify-self: end;
 }
 </style>
