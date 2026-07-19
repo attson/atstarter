@@ -8,13 +8,32 @@ import AppIcon from './ui/AppIcon.vue'
 
 const emit = defineEmits(['select', 'select-group', 'select-command', 'add', 'scan'])
 
-const props = defineProps({ projects: Array, groups: Array, selectedId: String, selectedGroupId: String, statuses: Object })
+const props = defineProps({
+  projects: Array,
+  groups: Array,
+  selectedId: String,
+  selectedGroupId: String,
+  statuses: Object,
+  statusFilter: { type: String, default: null },
+})
 const query = ref('')
 const expandedDirs = ref({})
 const expandedGroups = ref({})
 
-const tree = computed(() => buildProjectTree(props.projects || [], props.statuses || {}, query.value))
-const forceExpanded = computed(() => query.value.trim().length > 0)
+const filteredProjects = computed(() => {
+  const list = props.projects || []
+  if (!props.statusFilter) return list
+  const statuses = props.statuses || {}
+  return list.filter((p) => {
+    const state = (statuses[p.id] || {}).State
+    if (props.statusFilter === 'running') return state === 'running'
+    if (props.statusFilter === 'exited') return state === 'exited' || state === 'error'
+    return true
+  })
+})
+
+const tree = computed(() => buildProjectTree(filteredProjects.value, props.statuses || {}, query.value))
+const forceExpanded = computed(() => query.value.trim().length > 0 || !!props.statusFilter)
 
 function toggleDir(id) {
   expandedDirs.value = {
@@ -71,6 +90,8 @@ watch(() => props.projects, () => {
       />
       <div v-if="tree.length === 0" class="empty">
         <span v-if="query">没有匹配的项目</span>
+        <span v-else-if="statusFilter === 'running'">当前没有运行中的项目</span>
+        <span v-else-if="statusFilter === 'exited'">当前没有已退出/错误的项目</span>
         <span v-else>还没有项目。点击 Add 或 Scan 开始。</span>
       </div>
     </div>
