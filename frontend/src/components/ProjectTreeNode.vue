@@ -74,12 +74,10 @@ function hasChildren(node) {
       <span v-else class="project-spacer" />
       <span class="project-main">
         <span :class="['status-dot', stateClass((node.status || {}).State)]" />
-        <span class="project-copy">
-          <span class="project-name">{{ node.project.name }}</span>
-        </span>
+        <span class="project-name">{{ node.project.name }}</span>
+        <span v-if="!hasChildren(node)" class="type-pill">{{ node.project.detectedType || 'unknown' }}</span>
       </span>
       <span v-if="hasChildren(node)" class="count">{{ node.count }}</span>
-      <span v-else class="type-pill">{{ node.project.detectedType || 'unknown' }}</span>
     </div>
     <div v-if="hasChildren(node) && isExpanded(node)" class="children">
       <ProjectTreeNode
@@ -198,6 +196,11 @@ function hasChildren(node) {
 }
 
 .project-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
   color: inherit;
   font: inherit;
 }
@@ -211,34 +214,17 @@ function hasChildren(node) {
 
 .project-spacer { width: 12px; }
 
-.project-main {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 10px minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0;
-  text-align: left;
-}
-
-.project-copy {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
 .project-name {
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .type-pill {
-  display: inline-block;
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: 60px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex-shrink: 0;
   white-space: nowrap;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-full);
@@ -247,6 +233,5 @@ function hasChildren(node) {
   padding: 1px 7px;
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
-  justify-self: end;
 }
 </style>
