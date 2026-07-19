@@ -4,6 +4,7 @@ import { FolderOpen } from 'lucide-vue-next'
 import { ScanWorkspaces, AddScanned, PickDirectory } from '../../wailsjs/go/main/App'
 import AppButton from './ui/AppButton.vue'
 import AppIcon from './ui/AppIcon.vue'
+import { typeLabel } from '../typeLabel.js'
 
 const props = defineProps({ show: Boolean })
 const emit = defineEmits(['close', 'added'])
@@ -59,7 +60,7 @@ function toggle(id) {
             <button v-for="c in candidates" :key="c.id" :class="['row', { selected: checked[c.id] }]" @click="toggle(c.id)">
               <span class="check-mark">{{ checked[c.id] ? '✓' : '' }}</span>
               <span class="nm">{{ c.name }}</span>
-              <span class="ty" :class="{ unknown: c.detectedType === 'unknown' }">{{ c.detectedType }}</span>
+              <span class="ty" :class="{ unknown: c.detectedType === 'unknown' }">{{ typeLabel(c.detectedType) }}</span>
               <code>{{ [c.command, ...(c.args || [])].join(' ').trim() || '—' }}</code>
             </button>
           </div>

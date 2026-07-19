@@ -5,6 +5,7 @@ import LogPanel from './LogPanel.vue'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
 import AppIcon from './ui/AppIcon.vue'
+import { typeLabel } from '../typeLabel.js'
 
 const props = defineProps({ project: Object, status: Object, selectedCommandId: String })
 const emit = defineEmits(['start', 'stop', 'edit', 'command-change', 'add-to-group'])
@@ -61,7 +62,7 @@ function chooseCommand(command) {
         <div class="title-line">
           <h1>{{ project.name }}</h1>
           <AppPill :variant="pillVariant" :dot="state === 'running'">{{ state }}</AppPill>
-          <AppPill variant="neutral">{{ project.detectedType || 'unknown' }}</AppPill>
+          <AppPill variant="neutral">{{ typeLabel(project.detectedType) }}</AppPill>
         </div>
         <div class="path">{{ project.path }}</div>
         <div class="command-box">
