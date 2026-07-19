@@ -1,0 +1,328 @@
+name: build
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    branches: [main, feature/*]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # gh-release upload needs this when a tag triggers the workflow
+
+env:
+  GO_VERSION: '1.23.12'
+  NODE_VERSION: '20'
+  WAILS_VERSION: 'v2.12.0'
+  APP_ARTIFACT_NAME: 'atstarter'
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      # main.go has //go:embed all:frontend/dist — build the frontend before
+      # any Go tooling touches the root package.
+      - name: build frontend (populate embed target)
+        working-directory: frontend
+        run: npm run build
+
+      - name: go test
+        run: go test ./...
+
+      - name: go test (runner race)
+        run: go test -race ./internal/runner/
+
+      - name: frontend tests
+        run: |
+          node --test frontend/src/projectTree.test.mjs
+          node --test frontend/src/composables/useTheme.test.mjs
+
+  build-linux:
+    name: linux/${{ matrix.arch }}
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: install wails CLI
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: build frontend (populate embed target)
+        working-directory: frontend
+        run: npm run build
+
+      - name: prepare release metadata
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node .github/scripts/set-wails-version.mjs wails.json "${GITHUB_REF_NAME#v}"
+
+      - name: build
+        env:
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+        run: |
+          set -euo pipefail
+          wails build -tags webkit2_41 -platform linux/${{ matrix.arch }} -s \
+            -ldflags "-X main.Version=$VERSION"
+
+      - name: package tarball
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          cd build/bin
+          tar -czf "atstarter-linux-${{ matrix.arch }}.tar.gz" atstarter
+          ls -la atstarter-linux-${{ matrix.arch }}.tar.gz
+
+      - name: package deb
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          VERSION: ${{ github.ref_name }}
+          ARCH: ${{ matrix.arch }}
+          ARTIFACT_NAME: ${{ env.APP_ARTIFACT_NAME }}
+        run: .github/scripts/package-linux-deb.sh
+
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: atstarter-linux-${{ matrix.arch }}
+          path: |
+            build/bin/${{ env.APP_ARTIFACT_NAME }}_*_${{ matrix.arch }}.deb
+            build/bin/atstarter-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  build-darwin:
+    name: darwin/${{ matrix.arch }}
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: arm64, runner: macos-15 }
+          - { arch: amd64, runner: macos-15-intel }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: install wails CLI
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: prepare release metadata
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node .github/scripts/set-wails-version.mjs wails.json "${GITHUB_REF_NAME#v}"
+
+      - name: build
+        env:
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+        run: |
+          set -euo pipefail
+          wails build -platform darwin/${{ matrix.arch }} -s \
+            -ldflags "-X main.Version=$VERSION"
+
+      - name: package .app zip
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          cd build/bin
+          ditto -c -k --keepParent "atstarter.app" "atstarter-darwin-${{ matrix.arch }}.zip"
+          ls -la "atstarter-darwin-${{ matrix.arch }}.zip"
+
+      - name: package dmg
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          VERSION: ${{ github.ref_name }}
+          ARCH: ${{ matrix.arch }}
+          ARTIFACT_NAME: ${{ env.APP_ARTIFACT_NAME }}
+        run: .github/scripts/package-macos-dmg.sh
+
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: atstarter-darwin-${{ matrix.arch }}
+          path: |
+            build/bin/${{ env.APP_ARTIFACT_NAME }}_*_${{ matrix.arch }}.dmg
+            build/bin/atstarter-darwin-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+  build-windows:
+    name: windows/amd64
+    needs: test
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: bash # Git Bash so recipes match the unix jobs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: install NSIS
+        run: |
+          choco install nsis -y --no-progress
+          echo "C:\\Program Files (x86)\\NSIS" >> "$GITHUB_PATH"
+
+      - name: install wails CLI
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: prepare release metadata
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: node .github/scripts/set-wails-version.mjs wails.json "${GITHUB_REF_NAME#v}"
+
+      - name: build NSIS installer
+        env:
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+        run: |
+          set -euo pipefail
+          wails build -platform windows/amd64 -nsis -s \
+            -ldflags "-X main.Version=$VERSION"
+
+      - name: package .exe zip
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          cd build/bin
+          test -f atstarter.exe
+          7z a atstarter-windows-amd64.zip atstarter.exe
+          ls -la atstarter-windows-amd64.zip
+
+      - name: rename installer
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          VERSION: ${{ github.ref_name }}
+          ARTIFACT_NAME: ${{ env.APP_ARTIFACT_NAME }}
+        run: |
+          set -euo pipefail
+          version_no_v="${VERSION#v}"
+          src=""
+          for candidate in \
+            "build/bin/atstarter-amd64-installer.exe"; do
+            if [ -f "$candidate" ]; then
+              src="$candidate"
+              break
+            fi
+          done
+          if [ -z "$src" ]; then
+            echo "windows installer not found; listing build/bin"
+            ls -la build/bin
+            exit 1
+          fi
+          dst="build/bin/${ARTIFACT_NAME}_${version_no_v}_amd64.exe"
+          mv "$src" "$dst"
+          ls -la "$dst"
+
+      - uses: actions/upload-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: atstarter-windows-amd64
+          path: |
+            build/bin/${{ env.APP_ARTIFACT_NAME }}_*_amd64.exe
+            build/bin/atstarter-windows-amd64.zip
+          if-no-files-found: error
+
+  release:
+    name: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-linux, build-darwin, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: list
+        run: find artifacts -type f | sort
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
