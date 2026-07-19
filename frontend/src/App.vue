@@ -32,6 +32,11 @@ const showGroup = ref(false)
 const showAddProject = ref(false)
 const showAddToGroup = ref(false)
 const editingGroup = ref(null)
+const statusFilter = ref(null) // null | 'running' | 'exited'
+
+function toggleStatusFilter(kind) {
+  statusFilter.value = statusFilter.value === kind ? null : kind
+}
 
 const selected = computed(() => projects.value.find((p) => p.id === selectedId.value))
 const selectedGroup = computed(() => groups.value.find((g) => g.id === selectedGroupId.value))
@@ -220,8 +225,19 @@ onUnmounted(() => {
       <div class="brand">atstarter</div>
       <div class="summary">
         <span class="summary-count">{{ projects.length }} projects</span>
-        <AppPill variant="running" dot>{{ runningCount }} running</AppPill>
-        <AppPill variant="exited">{{ exitedCount }} exited</AppPill>
+        <AppPill
+          variant="running"
+          dot
+          clickable
+          :active="statusFilter === 'running'"
+          @click="toggleStatusFilter('running')"
+        >{{ runningCount }} running</AppPill>
+        <AppPill
+          variant="exited"
+          clickable
+          :active="statusFilter === 'exited'"
+          @click="toggleStatusFilter('exited')"
+        >{{ exitedCount }} exited</AppPill>
       </div>
       <div class="top-actions">
         <ThemeToggle />
@@ -241,7 +257,8 @@ onUnmounted(() => {
     </header>
     <main class="workspace">
       <ProjectList :projects="projects" :groups="groups" :selectedId="selectedId" :selectedGroupId="selectedGroupId"
-        :statuses="projectStatuses" @select="selectProject" @select-group="selectGroup"
+        :statuses="projectStatuses" :statusFilter="statusFilter"
+        @select="selectProject" @select-group="selectGroup"
         @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true" />
       <GroupDetail v-if="selectedGroup" :group="selectedGroup" :projects="projects"
         @start="onStartGroup" @stop="onStopGroup" @edit="onEditGroup" @remove="onRemoveGroup"

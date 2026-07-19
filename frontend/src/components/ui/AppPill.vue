@@ -2,14 +2,22 @@
 defineProps({
   variant: { type: String, default: 'neutral' },
   dot: { type: Boolean, default: false },
+  clickable: { type: Boolean, default: false },
+  active: { type: Boolean, default: false },
 })
+const emit = defineEmits(['click'])
 </script>
 
 <template>
-  <span :class="['app-pill', `variant-${variant}`]">
+  <component
+    :is="clickable ? 'button' : 'span'"
+    :type="clickable ? 'button' : null"
+    :class="['app-pill', `variant-${variant}`, { clickable, active }]"
+    @click="clickable && emit('click', $event)"
+  >
     <span v-if="dot" class="pill-dot" />
     <slot />
-  </span>
+  </component>
 </template>
 
 <style scoped>
@@ -25,6 +33,26 @@ defineProps({
   line-height: 1.4;
   white-space: nowrap;
   box-shadow: var(--surface-highlight);
+  font-family: inherit;
+}
+
+button.app-pill {
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-spring),
+    border-color var(--dur-fast) var(--ease-spring),
+    filter var(--dur-fast) var(--ease-spring),
+    transform var(--dur-fast) var(--ease-spring);
+}
+
+button.app-pill:hover { filter: brightness(1.08); }
+button.app-pill:active { transform: translateY(0.5px); }
+button.app-pill.active {
+  box-shadow: var(--surface-highlight), 0 0 0 2px var(--focus-ring);
+}
+button.app-pill:focus-visible {
+  outline: 0;
+  box-shadow: var(--surface-highlight), 0 0 0 3px var(--focus-ring);
 }
 
 .pill-dot {
