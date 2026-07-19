@@ -1,13 +1,14 @@
 <script setup>
-import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { GetLogs } from '../../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
+
+const MAX_VISIBLE = 1000
 
 const props = defineProps({ projectId: String, status: Object })
 const lines = ref([]) // { stream, text }
 const box = ref(null)
 
-// 生命周期状态横幅文本 + 样式。
 const banner = computed(() => {
   const st = props.status || {}
   switch (st.State) {
@@ -24,29 +25,64 @@ const banner = computed(() => {
 })
 
 let currentEvent = ''
+let loadToken = 0
+let pending = []
+let rafHandle = 0
+let stickToBottom = true
+
+function scheduleFlush() {
+  if (rafHandle) return
+  rafHandle = requestAnimationFrame(() => {
+    rafHandle = 0
+    if (!pending.length) return
+    const batch = pending
+    pending = []
+    const next = lines.value.concat(batch)
+    lines.value = next.length > MAX_VISIBLE ? next.slice(-MAX_VISIBLE) : next
+    if (stickToBottom && box.value) {
+      // Wait one more frame for Vue's DOM update.
+      requestAnimationFrame(() => {
+        if (box.value) box.value.scrollTop = box.value.scrollHeight
+      })
+    }
+  })
+}
+
+function updateStickiness() {
+  const el = box.value
+  if (!el) return
+  const gap = el.scrollHeight - el.scrollTop - el.clientHeight
+  stickToBottom = gap < 40
+}
 
 async function load(id) {
+  const token = ++loadToken
+  pending = []
+  if (rafHandle) { cancelAnimationFrame(rafHandle); rafHandle = 0 }
   lines.value = []
+  stickToBottom = true
   if (!id) return
   const hist = await GetLogs(id)
-  lines.value = (hist || []).map((t) => ({ stream: 'stdout', text: t }))
-  await scrollBottom()
+  if (token !== loadToken) return // superseded by a newer switch
+  const mapped = (hist || []).map((t) => ({ stream: 'stdout', text: t }))
+  lines.value = mapped.length > MAX_VISIBLE ? mapped.slice(-MAX_VISIBLE) : mapped
+  requestAnimationFrame(() => {
+    if (box.value) box.value.scrollTop = box.value.scrollHeight
+  })
 }
 
 function subscribe(id) {
   if (currentEvent) EventsOff(currentEvent)
+  currentEvent = ''
   if (!id) return
   currentEvent = 'log:' + id
-  EventsOn(currentEvent, async (p) => {
-    lines.value.push({ stream: p.stream, text: p.text })
-    await scrollBottom()
+  EventsOn(currentEvent, (p) => {
+    pending.push({ stream: p.stream, text: p.text })
+    scheduleFlush()
   })
 }
 
-async function scrollBottom() {
-  await nextTick()
-  if (box.value) box.value.scrollTop = box.value.scrollHeight
-}
+function onScroll() { updateStickiness() }
 
 watch(() => props.projectId, async (id) => {
   await load(id)
@@ -57,13 +93,16 @@ onMounted(() => {
   load(props.projectId)
   subscribe(props.projectId)
 })
-onUnmounted(() => { if (currentEvent) EventsOff(currentEvent) })
+onUnmounted(() => {
+  if (currentEvent) EventsOff(currentEvent)
+  if (rafHandle) cancelAnimationFrame(rafHandle)
+})
 </script>
 
 <template>
   <div class="log-wrap">
     <div :class="['banner', banner.cls]">{{ banner.text }}</div>
-    <div ref="box" class="log-panel">
+    <div ref="box" class="log-panel" @scroll.passive="onScroll">
       <div v-if="lines.length === 0" class="empty-hint">
         <template v-if="(status || {}).State === 'running'">编译/启动中,暂无输出…</template>
         <template v-else>暂无日志。点击「▶ 启动」运行该项目。</template>

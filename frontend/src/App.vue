@@ -270,7 +270,6 @@ html, body, #app { height: 100%; margin: 0; }
   height: 100vh;
   font-family: var(--font-sans);
   background: var(--bg-gradient);
-  background-attachment: fixed;
   color: var(--text);
 }
 
