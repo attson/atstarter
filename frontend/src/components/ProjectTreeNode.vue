@@ -75,9 +75,9 @@ function hasChildren(node) {
       <span class="project-main">
         <span :class="['status-dot', stateClass((node.status || {}).State)]" />
         <span class="project-name">{{ node.project.name }}</span>
-        <span v-if="!hasChildren(node)" class="type-pill">{{ node.project.detectedType || 'unknown' }}</span>
+        <span v-if="hasChildren(node)" class="count">{{ node.count }}</span>
+        <span v-else class="type-pill">{{ node.project.detectedType || 'unknown' }}</span>
       </span>
-      <span v-if="hasChildren(node)" class="count">{{ node.count }}</span>
     </div>
     <div v-if="hasChildren(node) && isExpanded(node)" class="children">
       <ProjectTreeNode
@@ -110,8 +110,7 @@ function hasChildren(node) {
 }
 
 .dir-row {
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   height: 26px;
   gap: var(--space-2);
@@ -122,14 +121,23 @@ function hasChildren(node) {
   padding-right: var(--space-3);
 }
 
+.dir-row .chev { flex: 0 0 14px; }
+.dir-row .dir-name { flex: 0 1 auto; min-width: 0; }
+.dir-row .count { flex: 0 0 auto; }
+
 .dir-row:hover { background: var(--elevated-gradient); }
 
-.chev, .count { color: var(--text-muted); }
+.chev { color: var(--text-muted); }
 
 .count {
-  font-weight: var(--fw-regular);
+  white-space: nowrap;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  background: transparent;
+  padding: 1px 7px;
   font-size: var(--fs-xs);
-  padding-right: var(--space-3);
+  font-weight: var(--fw-medium);
 }
 
 .dir-name, .project-name {
@@ -141,8 +149,7 @@ function hasChildren(node) {
 .children { position: relative; }
 
 .project-row {
-  display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: 28px;
@@ -155,6 +162,10 @@ function hasChildren(node) {
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
+
+.project-row > .project-toggle,
+.project-row > .project-spacer { flex: 0 0 auto; }
+.project-row > .project-main { flex: 0 1 auto; min-width: 0; }
 
 .project-row:focus-visible {
   outline: 0;
@@ -207,6 +218,7 @@ function hasChildren(node) {
 .project-main .status-dot { flex: 0 0 auto; }
 .project-main .project-name { flex: 0 1 auto; }
 .project-main .type-pill { flex: 0 0 auto; }
+.project-main .count { flex: 0 0 auto; }
 
 .project-toggle {
   width: 12px;

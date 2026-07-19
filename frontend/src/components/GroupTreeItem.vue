@@ -63,8 +63,8 @@ const members = computed(() => {
           <span class="group-name">{{ group.name }}</span>
           <span class="group-count">{{ (group.items || []).length }} commands</span>
         </span>
+        <span class="count">{{ (group.items || []).length }}</span>
       </span>
-      <span class="count">{{ (group.items || []).length }}</span>
     </div>
     <div v-if="expanded" class="members">
       <button
@@ -87,8 +87,7 @@ const members = computed(() => {
 
 .group-item {
   width: 100%;
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: var(--space-3);
   min-height: 28px;
@@ -103,6 +102,9 @@ const members = computed(() => {
   cursor: pointer;
   transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
+
+.group-item > .toggle { flex: 0 0 auto; }
+.group-item > .group-main { flex: 0 1 auto; min-width: 0; }
 
 .group-item:hover { background: var(--elevated-gradient); }
 
@@ -125,11 +127,6 @@ const members = computed(() => {
   cursor: pointer;
 }
 
-.group-main {
-  color: inherit;
-  font: inherit;
-}
-
 .toggle {
   width: 14px;
   padding: 0;
@@ -138,13 +135,18 @@ const members = computed(() => {
 
 .group-main {
   min-width: 0;
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
+  display: flex;
   align-items: center;
   gap: var(--space-4);
   padding: 0;
   text-align: left;
+  color: inherit;
+  font: inherit;
 }
+
+.group-main > .group-badge { flex: 0 0 auto; }
+.group-main > .group-copy { flex: 0 1 auto; min-width: 0; }
+.group-main > .count { flex: 0 0 auto; }
 
 .group-badge {
   width: 17px;
@@ -183,8 +185,14 @@ const members = computed(() => {
 }
 
 .count {
+  white-space: nowrap;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
   color: var(--text-muted);
+  background: transparent;
+  padding: 1px 7px;
   font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 
 .members { padding: 1px 0 var(--space-3); }
