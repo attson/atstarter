@@ -30,7 +30,7 @@ function hasChildren(node) {
   <div v-if="node.type === 'directory'" class="tree-group">
     <button
       class="tree-row dir-row"
-      :style="{ paddingLeft: `${10 + level * 16}px` }"
+      :style="{ paddingLeft: `${6 + level * 12}px` }"
       @click="emit('toggle', node.id)"
     >
       <span class="chev">
@@ -57,7 +57,7 @@ function hasChildren(node) {
   <div v-else class="tree-group">
     <div
       :class="['tree-row', 'project-row', { active: node.project.id === selectedId }]"
-      :style="{ paddingLeft: `${12 + level * 16}px` }"
+      :style="{ paddingLeft: `${4 + level * 12}px` }"
     >
       <button
         v-if="hasChildren(node)"
@@ -108,7 +108,7 @@ function hasChildren(node) {
 
 .dir-row {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
   height: 26px;
   gap: var(--space-2);
@@ -139,9 +139,9 @@ function hasChildren(node) {
 
 .project-row {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-height: 28px;
   margin: 1px 0;
   padding-top: 2px;
@@ -187,20 +187,20 @@ function hasChildren(node) {
 }
 
 .project-toggle {
-  width: 14px;
+  width: 12px;
   padding: 0;
   color: var(--text-muted);
   font-size: var(--fs-xs);
 }
 
-.project-spacer { width: 14px; }
+.project-spacer { width: 12px; }
 
 .project-main {
   min-width: 0;
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr);
+  grid-template-columns: 10px minmax(0, 1fr);
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding: 0;
   text-align: left;
 }
