@@ -141,6 +141,7 @@ watch(() => props.projects, () => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--space-3) var(--space-4);
 }
 
