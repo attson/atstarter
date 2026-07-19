@@ -58,6 +58,11 @@ function hasChildren(node) {
     <div
       :class="['tree-row', 'project-row', { active: node.project.id === selectedId }]"
       :style="{ paddingLeft: `${4 + level * 12}px` }"
+      role="button"
+      tabindex="0"
+      @click="emit('select', node.project.id)"
+      @keydown.enter.prevent="emit('select', node.project.id)"
+      @keydown.space.prevent="emit('select', node.project.id)"
     >
       <button
         v-if="hasChildren(node)"
@@ -67,12 +72,12 @@ function hasChildren(node) {
         <AppIcon :icon="isExpanded(node) ? ChevronDown : ChevronRight" :size="12" />
       </button>
       <span v-else class="project-spacer" />
-      <button class="project-main" @click="emit('select', node.project.id)">
+      <span class="project-main">
         <span :class="['status-dot', stateClass((node.status || {}).State)]" />
         <span class="project-copy">
           <span class="project-name">{{ node.project.name }}</span>
         </span>
-      </button>
+      </span>
       <span v-if="hasChildren(node)" class="count">{{ node.count }}</span>
       <span v-else class="type-pill">{{ node.project.detectedType || 'unknown' }}</span>
     </div>
@@ -149,7 +154,13 @@ function hasChildren(node) {
   padding-right: var(--space-4);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
+  cursor: pointer;
   transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.project-row:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 .project-row:hover { background: var(--elevated-gradient); }
@@ -178,12 +189,17 @@ function hasChildren(node) {
 }
 .status-dot.stopped { background: var(--text-subtle); }
 
-.project-toggle, .project-main {
+.project-toggle {
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
+}
+
+.project-main {
+  color: inherit;
+  font: inherit;
 }
 
 .project-toggle {
