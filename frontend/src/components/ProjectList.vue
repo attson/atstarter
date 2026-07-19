@@ -140,8 +140,7 @@ watch(() => props.projects, () => {
 .tree-scroll {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: auto;
   padding: var(--space-3) var(--space-4);
 }
 
