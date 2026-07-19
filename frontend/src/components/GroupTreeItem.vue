@@ -46,17 +46,24 @@ const members = computed(() => {
 
 <template>
   <div class="group-wrap">
-    <div :class="['group-item', { active: selected }]">
+    <div
+      :class="['group-item', { active: selected }]"
+      role="button"
+      tabindex="0"
+      @click="emit('select', group.id)"
+      @keydown.enter.prevent="emit('select', group.id)"
+      @keydown.space.prevent="emit('select', group.id)"
+    >
       <button class="toggle" @click.stop="emit('toggle', `group:${group.id}`)">
         <AppIcon :icon="expanded ? ChevronDown : ChevronRight" :size="12" />
       </button>
-      <button class="group-main" @click="emit('select', group.id)">
+      <span class="group-main">
         <span class="group-badge"><AppIcon :icon="FolderKanban" :size="12" /></span>
         <span class="group-copy">
           <span class="group-name">{{ group.name }}</span>
           <span class="group-count">{{ (group.items || []).length }} commands</span>
         </span>
-      </button>
+      </span>
       <span class="count">{{ (group.items || []).length }}</span>
     </div>
     <div v-if="expanded" class="members">
@@ -105,12 +112,22 @@ const members = computed(() => {
   box-shadow: inset 0 0 0 1px var(--border-strong), var(--surface-highlight);
 }
 
-.toggle, .group-main {
+.group-item:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.toggle {
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
   cursor: pointer;
+}
+
+.group-main {
+  color: inherit;
+  font: inherit;
 }
 
 .toggle {
