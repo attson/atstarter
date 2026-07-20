@@ -152,12 +152,15 @@ func (r *Runner) pump(id string, m *managed, pipe interface{ Read([]byte) (int, 
 
 // wait 等待进程结束并更新状态,并向日志追加一行退出标记。
 func (r *Runner) wait(id string, m *managed) {
-	err := m.cmd.Wait()
-	// Drain both pumps before the exit marker so real log lines are never
-	// interleaved after "[process exited …]" in either the ring buffer or
-	// the emitted event stream. cmd.Wait alone does not guarantee this when
-	// StdoutPipe/StderrPipe are read by external goroutines.
+	// CRUCIAL: pumps must finish reading BEFORE cmd.Wait — the Go exec
+	// docs explicitly say "it is incorrect to call Wait before all reads
+	// from the pipe have completed" when StdoutPipe/StderrPipe are in
+	// use, because Wait closes the parent side of the pipes and can
+	// truncate pending reads. Pumps naturally exit on EOF once the child
+	// closes its write ends (normal exit or kill), so waiting on them
+	// blocks only until the process is actually done.
 	m.pumps.Wait()
+	err := m.cmd.Wait()
 	r.mu.Lock()
 	var marker string
 	if err != nil {
