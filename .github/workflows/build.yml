@@ -202,6 +202,12 @@ jobs:
         run: |
           set -euo pipefail
           cd build/bin
+          # Wails names the bundle after wails.json:name (atstarter). Copy to the
+          # user-facing product name before archiving so /Applications shows
+          # "AT Starter" both in Finder and via `ls`.
+          if [ ! -d "AT Starter.app" ]; then
+            cp -R atstarter.app "AT Starter.app"
+          fi
           ditto -c -k --keepParent "AT Starter.app" "AT-Starter-darwin-${{ matrix.arch }}.zip"
           ls -la "AT-Starter-darwin-${{ matrix.arch }}.zip"
 
@@ -296,7 +302,10 @@ jobs:
           set -euo pipefail
           version_no_v="${VERSION#v}"
           src=""
+          # NSIS names the installer after wails.json:name (atstarter);
+          # cover a few plausible variants in case that changes.
           for candidate in \
+            "build/bin/atstarter-amd64-installer.exe" \
             "build/bin/AT Starter-amd64-installer.exe" \
             "build/bin/at-starter-amd64-installer.exe"; do
             if [ -f "$candidate" ]; then
