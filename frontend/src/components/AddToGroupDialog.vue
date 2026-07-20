@@ -19,16 +19,35 @@ const commandLine = computed(() => props.command
   : ''
 )
 
+const commandKey = computed(() => props.command?.id || 'default')
+
+function groupContainsCurrent(group) {
+  const projectId = props.project?.id
+  if (!projectId || !group) return false
+  return (group.items || []).some((i) => i.projectId === projectId && (i.commandId || 'default') === commandKey.value)
+}
+
+const selectedGroup = computed(() => (props.groups || []).find((g) => g.id === selectedGroupId.value))
+const alreadyInSelected = computed(() => groupContainsCurrent(selectedGroup.value))
+
+const canSubmit = computed(() => {
+  if (mode.value === 'existing') return !!selectedGroupId.value && !alreadyInSelected.value
+  return !!newGroupName.value.trim()
+})
+
 watch(() => props.show, (show) => {
   if (!show) return
   mode.value = (props.groups || []).length ? 'existing' : 'new'
-  selectedGroupId.value = (props.groups || [])[0]?.id || ''
+  // Prefer a group the current command is NOT already in, so retries land
+  // on a useful default instead of an already-full group.
+  const list = props.groups || []
+  const firstOpen = list.find((g) => !groupContainsCurrent(g))
+  selectedGroupId.value = (firstOpen || list[0])?.id || ''
   newGroupName.value = props.project ? `${props.project.name} group` : ''
 })
 
 function save() {
-  if (mode.value === 'existing' && !selectedGroupId.value) return
-  if (mode.value === 'new' && !newGroupName.value.trim()) return
+  if (!canSubmit.value) return
   emit('save', {
     mode: mode.value,
     groupId: selectedGroupId.value,
@@ -65,18 +84,23 @@ function save() {
             <button
               v-for="group in groups"
               :key="group.id"
-              :class="['group-option', { selected: selectedGroupId === group.id }]"
+              :class="['group-option', { selected: selectedGroupId === group.id, contained: groupContainsCurrent(group) }]"
               @click="selectedGroupId = group.id"
             >
               <span>{{ group.name }}</span>
-              <small>{{ (group.items || []).length }} commands</small>
+              <small v-if="groupContainsCurrent(group)" class="tag-in">已包含</small>
+              <small v-else>{{ (group.items || []).length }} commands</small>
             </button>
           </div>
           <label v-else>组名<input v-model="newGroupName" placeholder="Local dev stack" /></label>
 
+          <p v-if="mode === 'existing' && alreadyInSelected" class="hint">
+            此命令已经在该组中,选一个其他组或改用「新建组」。
+          </p>
+
           <div class="btns">
             <AppButton variant="secondary" @click="emit('close')">取消</AppButton>
-            <AppButton variant="primary" @click="save">添加</AppButton>
+            <AppButton variant="primary" :disabled="!canSubmit" @click="save">添加</AppButton>
           </div>
         </div>
       </Transition>
@@ -213,6 +237,23 @@ h3 {
 .group-option small {
   color: var(--text-muted);
   font-weight: var(--fw-regular);
+}
+
+.group-option .tag-in {
+  color: var(--accent-strong);
+  font-weight: var(--fw-medium);
+}
+
+.group-option.contained {
+  border-style: dashed;
+  opacity: .8;
+}
+
+.hint {
+  margin: 0;
+  color: var(--warning);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 
 label {
