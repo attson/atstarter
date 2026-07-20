@@ -57,3 +57,5 @@ export function UpdateCheck():Promise<main.UpdateState>;
 export function UpdateStartDownload():Promise<main.UpdateState>;
 
 export function UpdateCancel():Promise<main.UpdateState>;
+
+export function UpdateInstall():Promise<main.UpdateState>;

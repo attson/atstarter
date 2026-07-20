@@ -109,3 +109,7 @@ export function UpdateStartDownload() {
 export function UpdateCancel() {
   return window['go']['main']['App']['UpdateCancel']();
 }
+
+export function UpdateInstall() {
+  return window['go']['main']['App']['UpdateInstall']();
+}

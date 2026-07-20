@@ -13,6 +13,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
+	"embed"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -22,6 +23,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -31,6 +33,11 @@ import (
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+//go:embed scripts/install-darwin.sh
+//go:embed scripts/install-linux.sh
+//go:embed scripts/install-windows.ps1
+var installScripts embed.FS
 
 // GitHub repo the updater polls. Kept in-code (not a build var) so the
 // origin is auditable and does not depend on env at runtime.
@@ -315,6 +322,110 @@ func (a *App) UpdateStartDownload() UpdateState {
 	}()
 
 	return u.snapshot()
+}
+
+// UpdateInstall hands off to the platform install script with the
+// downloaded asset path and the current binary/app path. On success the
+// app quits so the script can replace the running binary and relaunch.
+func (a *App) UpdateInstall() UpdateState {
+	if a.updater == nil {
+		return UpdateState{}
+	}
+	u := a.updater
+	u.mu.Lock()
+	ready := u.state.Ready
+	asset := u.assetPath
+	canInstall := u.state.CanInstall
+	u.mu.Unlock()
+
+	if !ready || asset == "" {
+		u.setError(errors.New("no downloaded update ready"))
+		u.emit(a.ctx)
+		return u.snapshot()
+	}
+	if !canInstall {
+		u.setError(errors.New("this build cannot self-install (unsigned)"))
+		u.emit(a.ctx)
+		return u.snapshot()
+	}
+
+	exePath, err := os.Executable()
+	if err != nil {
+		u.setError(err)
+		u.emit(a.ctx)
+		return u.snapshot()
+	}
+	target := exePath
+	if runtime.GOOS == "darwin" {
+		// On macOS the running exec is inside <App>.app/Contents/MacOS/<name>.
+		// Walk up to the .app bundle so the install script replaces the whole thing.
+		app := exePath
+		for i := 0; i < 4 && filepath.Ext(app) != ".app"; i++ {
+			app = filepath.Dir(app)
+		}
+		if filepath.Ext(app) == ".app" {
+			target = app
+		}
+	}
+
+	if err := runInstallScript(asset, target, exePath); err != nil {
+		u.setError(err)
+		u.emit(a.ctx)
+		return u.snapshot()
+	}
+
+	// Hand off cleanly — the script has already spawned the replacement.
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		wailsruntime.Quit(a.ctx)
+	}()
+	return u.snapshot()
+}
+
+// runInstallScript extracts the platform install script from the
+// embedded FS into a temp file and spawns it detached with the given
+// arguments. The script MUST relaunch the app itself.
+func runInstallScript(asset, target, execPath string) error {
+	name := installScriptName()
+	if name == "" {
+		return fmt.Errorf("no install script for %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	data, err := installScripts.ReadFile("scripts/" + name)
+	if err != nil {
+		return fmt.Errorf("embed missing %s: %w", name, err)
+	}
+	tmpDir, err := os.MkdirTemp("", "atstarter-install-*")
+	if err != nil {
+		return err
+	}
+	scriptPath := filepath.Join(tmpDir, name)
+	if err := os.WriteFile(scriptPath, data, 0o755); err != nil {
+		return err
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("powershell", "-ExecutionPolicy", "Bypass", "-File", scriptPath,
+			"-Asset", asset, "-Target", target, "-Exec", execPath)
+	default:
+		cmd = exec.Command("/bin/bash", scriptPath, asset, target, execPath)
+	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Start()
+}
+
+func installScriptName() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "install-darwin.sh"
+	case "linux":
+		return "install-linux.sh"
+	case "windows":
+		return "install-windows.ps1"
+	}
+	return ""
 }
 
 // UpdateCancel aborts an in-flight download. Idempotent.
