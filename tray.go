@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
 
 	_ "embed"
 
@@ -13,6 +14,11 @@ import (
 
 //go:embed build/appicon.png
 var trayIcon []byte
+
+// quitRequested 标记用户已从托盘主动选择「退出」。beforeClose 据此区分
+// 退出来源:窗口关闭(X)应隐藏到托盘,而主动退出必须放行。没有这个标志,
+// runtime.Quit 也会触发 OnBeforeClose 并被隐藏逻辑拦截,导致永远退不出。
+var quitRequested atomic.Bool
 
 var (
 	trayApp     *App
@@ -68,7 +74,10 @@ func trayOnReady() {
 	// 不是上游 getlantern 的 ClickedCh channel)。
 	miToggle.Click(func() { toggleWindow() })
 	miStopAll.Click(func() { trayApp.runner.StopAll() })
-	miQuit.Click(func() { runtime.Quit(trayApp.ctx) }) // 触发 OnShutdown 停全部进程
+	miQuit.Click(func() {
+		quitRequested.Store(true) // 让 beforeClose 放行,而非隐藏
+		runtime.Quit(trayApp.ctx) // 触发 OnShutdown 停全部进程
+	})
 
 	// 左键单击图标 → 切换窗口(部分 Linux 桌面不触发,菜单项作兜底)
 	systray.SetOnClick(func(menu systray.IMenu) { toggleWindow() })

@@ -87,9 +87,14 @@ func (a *App) shutdown(ctx context.Context) {
 	a.runner.StopAll()
 }
 
-// beforeClose 由 Wails 在窗口关闭前调用。有托盘时隐藏窗口并阻止退出;
-// 托盘没起来则放行正常退出,避免把用户锁进无窗口又无托盘的死状态。
+// beforeClose 由 Wails 在窗口关闭前调用。runtime.Quit 也会经过这里,因此:
+//   - 托盘「退出」已置位 quitRequested → 放行,真正退出。
+//   - 托盘没起来 → 放行正常退出,避免把用户锁进无窗口又无托盘的死状态。
+//   - 其余(用户点窗口 X)→ 隐藏到托盘并阻止退出。
 func (a *App) beforeClose(ctx context.Context) (prevent bool) {
+	if quitRequested.Load() {
+		return false
+	}
 	if !isTrayReady() {
 		return false
 	}
