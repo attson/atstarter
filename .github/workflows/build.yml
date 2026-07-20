@@ -108,10 +108,14 @@ jobs:
       - name: build
         env:
           VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+          UPDATE_VERIFY_PUBLIC_KEY: ${{ secrets.ATSTARTER_UPDATE_VERIFY_PUBLIC_KEY }}
         run: |
           set -euo pipefail
-          wails build -tags webkit2_41 -platform linux/${{ matrix.arch }} -s \
-            -ldflags "-X main.Version=$VERSION"
+          ldflags="-X main.Version=$VERSION"
+          if [ -n "${UPDATE_VERIFY_PUBLIC_KEY:-}" ]; then
+            ldflags="$ldflags -X main.UpdateVerifyPublicKey=$UPDATE_VERIFY_PUBLIC_KEY"
+          fi
+          wails build -tags webkit2_41 -platform linux/${{ matrix.arch }} -s -ldflags "$ldflags"
 
       - name: package tarball
         if: startsWith(github.ref, 'refs/tags/v')
@@ -182,10 +186,14 @@ jobs:
       - name: build
         env:
           VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+          UPDATE_VERIFY_PUBLIC_KEY: ${{ secrets.ATSTARTER_UPDATE_VERIFY_PUBLIC_KEY }}
         run: |
           set -euo pipefail
-          wails build -platform darwin/${{ matrix.arch }} -s \
-            -ldflags "-X main.Version=$VERSION"
+          ldflags="-X main.Version=$VERSION"
+          if [ -n "${UPDATE_VERIFY_PUBLIC_KEY:-}" ]; then
+            ldflags="$ldflags -X main.UpdateVerifyPublicKey=$UPDATE_VERIFY_PUBLIC_KEY"
+          fi
+          wails build -platform darwin/${{ matrix.arch }} -s -ldflags "$ldflags"
 
       - name: package .app zip
         if: startsWith(github.ref, 'refs/tags/v')
@@ -258,10 +266,14 @@ jobs:
       - name: build NSIS installer
         env:
           VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+          UPDATE_VERIFY_PUBLIC_KEY: ${{ secrets.ATSTARTER_UPDATE_VERIFY_PUBLIC_KEY }}
         run: |
           set -euo pipefail
-          wails build -platform windows/amd64 -nsis -s \
-            -ldflags "-X main.Version=$VERSION"
+          ldflags="-X main.Version=$VERSION"
+          if [ -n "${UPDATE_VERIFY_PUBLIC_KEY:-}" ]; then
+            ldflags="$ldflags -X main.UpdateVerifyPublicKey=$UPDATE_VERIFY_PUBLIC_KEY"
+          fi
+          wails build -platform windows/amd64 -nsis -s -ldflags "$ldflags"
 
       - name: package .exe zip
         if: startsWith(github.ref, 'refs/tags/v')
@@ -315,10 +327,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
+
+      - name: sign checksums
+        env:
+          ATSTARTER_UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.ATSTARTER_UPDATE_SIGNING_PRIVATE_KEY }}
+        run: go run .github/scripts/sign-release-checksums.go artifacts
 
       - name: list
         run: find artifacts -type f | sort
