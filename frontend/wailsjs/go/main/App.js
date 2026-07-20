@@ -14,6 +14,10 @@ export function GetLogs(arg1) {
   return window['go']['main']['App']['GetLogs'](arg1);
 }
 
+export function GetProjectBranch(arg1) {
+  return window['go']['main']['App']['GetProjectBranch'](arg1);
+}
+
 export function GetStatus(arg1) {
   return window['go']['main']['App']['GetStatus'](arg1);
 }
