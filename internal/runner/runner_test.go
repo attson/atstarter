@@ -241,3 +241,43 @@ func waitStatus(t *testing.T, r *Runner, id string, want State, d time.Duration)
 		}
 	}
 }
+
+func TestRunningCount(t *testing.T) {
+	r := New(100)
+	if got := r.RunningCount(); got != 0 {
+		t.Fatalf("empty runner: want 0, got %d", got)
+	}
+
+	// 起两个长命令,应计数为 2
+	if err := r.Start(Spec{ID: "a", Command: "sleep", Args: []string{"5"}}); err != nil {
+		t.Fatalf("start a: %v", err)
+	}
+	if err := r.Start(Spec{ID: "b", Command: "sleep", Args: []string{"5"}}); err != nil {
+		t.Fatalf("start b: %v", err)
+	}
+	// 给进程一点时间进入 running 状态
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if r.RunningCount() == 2 {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if got := r.RunningCount(); got != 2 {
+		t.Fatalf("two running: want 2, got %d", got)
+	}
+
+	// 停一个,应降到 1
+	_ = r.Stop("a")
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if r.RunningCount() == 1 {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if got := r.RunningCount(); got != 1 {
+		t.Fatalf("after stop one: want 1, got %d", got)
+	}
+	r.StopAll()
+}
