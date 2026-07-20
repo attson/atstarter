@@ -78,11 +78,23 @@ func (a *App) startup(ctx context.Context) {
 			"state": string(st.State), "pid": st.PID, "exitCode": st.ExitCode,
 		})
 	})
+	startTray(a)
 }
 
 // shutdown 由 Wails 在退出时调用,停掉所有进程。
 func (a *App) shutdown(ctx context.Context) {
 	a.runner.StopAll()
+}
+
+// beforeClose 由 Wails 在窗口关闭前调用。有托盘时隐藏窗口并阻止退出;
+// 托盘没起来则放行正常退出,避免把用户锁进无窗口又无托盘的死状态。
+func (a *App) beforeClose(ctx context.Context) (prevent bool) {
+	if !isTrayReady() {
+		return false
+	}
+	runtime.WindowHide(ctx)
+	setTrayWindowVisible(false)
+	return true
 }
 
 // ---- 暴露给前端的方法 ----
