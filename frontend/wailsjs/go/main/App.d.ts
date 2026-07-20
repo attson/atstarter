@@ -49,3 +49,11 @@ export function UpdateProject(arg1:store.Project):Promise<void>;
 export function UpdateProjectCommand(arg1:string,arg2:string):Promise<store.Project>;
 
 export function UpdateProjectCommands(arg1:string,arg2:string,arg3:Array<main.CommandInput>):Promise<store.Project>;
+
+export function UpdateGetState():Promise<main.UpdateState>;
+
+export function UpdateCheck():Promise<main.UpdateState>;
+
+export function UpdateStartDownload():Promise<main.UpdateState>;
+
+export function UpdateCancel():Promise<main.UpdateState>;

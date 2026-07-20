@@ -93,3 +93,19 @@ export function UpdateProjectCommand(arg1, arg2) {
 export function UpdateProjectCommands(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateProjectCommands'](arg1, arg2, arg3);
 }
+
+export function UpdateGetState() {
+  return window['go']['main']['App']['UpdateGetState']();
+}
+
+export function UpdateCheck() {
+  return window['go']['main']['App']['UpdateCheck']();
+}
+
+export function UpdateStartDownload() {
+  return window['go']['main']['App']['UpdateStartDownload']();
+}
+
+export function UpdateCancel() {
+  return window['go']['main']['App']['UpdateCancel']();
+}
