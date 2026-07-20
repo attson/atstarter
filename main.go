@@ -15,6 +15,12 @@ var assets embed.FS
 // release builds; local `wails dev` builds keep the "dev" default.
 var Version = "dev"
 
+// UpdateVerifyPublicKey is the base64-encoded Ed25519 public key used to
+// verify SHA256SUMS.sig on downloaded update artifacts. Injected via
+// -ldflags "-X main.UpdateVerifyPublicKey=…" from the CI secret. Empty in
+// dev builds — the updater downgrades to check-only (no install) in that case.
+var UpdateVerifyPublicKey = ""
+
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
