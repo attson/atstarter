@@ -77,6 +77,7 @@ func (a *App) startup(ctx context.Context) {
 		runtime.EventsEmit(a.ctx, "status:"+id, map[string]interface{}{
 			"state": string(st.State), "pid": st.PID, "exitCode": st.ExitCode,
 		})
+		updateTrayRunning(a.runner.RunningCount())
 	})
 	startTray(a)
 }
