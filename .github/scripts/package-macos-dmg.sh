@@ -4,7 +4,7 @@
 set -euo pipefail
 
 version_no_v="${VERSION#v}"
-app="build/bin/atstarter.app"
+app="build/bin/AT Starter.app"
 out="build/bin/${ARTIFACT_NAME}_${version_no_v}_${ARCH}.dmg"
 
 test -d "$app"
@@ -14,8 +14,8 @@ staging="$(mktemp -d "${TMPDIR:-/tmp}/atstarter-dmg.XXXXXX")"
 cleanup() { rm -rf "$staging"; }
 trap cleanup EXIT
 
-cp -R "$app" "$staging/atstarter.app"
+cp -R "$app" "$staging/AT Starter.app"
 ln -s /Applications "$staging/Applications"
 
-hdiutil create -volname "atstarter" -srcfolder "$staging" -ov -format UDZO "$out"
+hdiutil create -volname "AT Starter" -srcfolder "$staging" -ov -format UDZO "$out"
 ls -la "$out"
