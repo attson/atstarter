@@ -12,6 +12,7 @@ import AppButton from './components/ui/AppButton.vue'
 import AppPill from './components/ui/AppPill.vue'
 import AppIcon from './components/ui/AppIcon.vue'
 import ThemeToggle from './components/ui/ThemeToggle.vue'
+import UpdateBanner from './components/UpdateBanner.vue'
 import { FolderPlus, Radar, Plus } from 'lucide-vue-next'
 import {
   ListProjects, AddProject, StartProjectCommand, StopProjectCommand,
@@ -221,6 +222,7 @@ onUnmounted(() => {
 
 <template>
   <div class="app-shell">
+    <UpdateBanner />
     <header class="topbar">
       <div class="brand">atstarter</div>
       <div class="summary">
@@ -283,7 +285,7 @@ html, body, #app { height: 100%; margin: 0; }
 
 .app-shell {
   display: grid;
-  grid-template-rows: 48px 1fr;
+  grid-template-rows: auto 48px 1fr;
   height: 100vh;
   font-family: var(--font-sans);
   background: var(--bg-gradient);
