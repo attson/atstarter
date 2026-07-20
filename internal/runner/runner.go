@@ -57,6 +57,7 @@ type managed struct {
 	cmd    *exec.Cmd
 	status Status
 	logs   *ringBuffer
+	pumps  sync.WaitGroup // stdout + stderr pumps drain before the exit marker is emitted
 }
 
 // New 构造 Runner。bufSize 是每个项目日志环形缓冲的行数。
@@ -127,6 +128,7 @@ func (r *Runner) Start(spec Spec) error {
 	r.mu.Unlock()
 	fn(spec.ID, runningSt) // 锁外调用
 
+	m.pumps.Add(2)
 	go r.pump(spec.ID, m, stdout, "stdout")
 	go r.pump(spec.ID, m, stderr, "stderr")
 	go r.wait(spec.ID, m)
@@ -135,6 +137,7 @@ func (r *Runner) Start(spec Spec) error {
 
 // pump 逐行读取一个流,写入环形缓冲并 emit。
 func (r *Runner) pump(id string, m *managed, pipe interface{ Read([]byte) (int, error) }, stream string) {
+	defer m.pumps.Done()
 	sc := bufio.NewScanner(pipe)
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for sc.Scan() {
@@ -150,6 +153,11 @@ func (r *Runner) pump(id string, m *managed, pipe interface{ Read([]byte) (int, 
 // wait 等待进程结束并更新状态,并向日志追加一行退出标记。
 func (r *Runner) wait(id string, m *managed) {
 	err := m.cmd.Wait()
+	// Drain both pumps before the exit marker so real log lines are never
+	// interleaved after "[process exited …]" in either the ring buffer or
+	// the emitted event stream. cmd.Wait alone does not guarantee this when
+	// StdoutPipe/StderrPipe are read by external goroutines.
+	m.pumps.Wait()
 	r.mu.Lock()
 	var marker string
 	if err != nil {
