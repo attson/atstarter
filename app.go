@@ -20,9 +20,10 @@ import (
 
 // App 是 Wails 绑定层,组装各内部模块并暴露方法给前端。
 type App struct {
-	ctx    context.Context
-	store  *store.Store
-	runner *runner.Runner
+	ctx     context.Context
+	store   *store.Store
+	runner  *runner.Runner
+	updater *updater
 }
 
 type CommandInput struct {
@@ -49,8 +50,9 @@ func NewApp() *App {
 // NewAppWithConfig 用指定配置路径构造(测试用)。
 func NewAppWithConfig(cfgPath string) *App {
 	return &App{
-		store:  store.New(cfgPath),
-		runner: runner.New(5000),
+		store:   store.New(cfgPath),
+		runner:  runner.New(5000),
+		updater: newUpdater(),
 	}
 }
 
