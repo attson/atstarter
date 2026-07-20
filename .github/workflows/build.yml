@@ -63,6 +63,7 @@ jobs:
     name: linux/${{ matrix.arch }}
     needs: test
     runs-on: ${{ matrix.runner }}
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'prod' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -146,6 +147,7 @@ jobs:
     name: darwin/${{ matrix.arch }}
     needs: test
     runs-on: ${{ matrix.runner }}
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'prod' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -224,6 +226,7 @@ jobs:
     name: windows/amd64
     needs: test
     runs-on: windows-2022
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'prod' || '' }}
     defaults:
       run:
         shell: bash # Git Bash so recipes match the unix jobs
@@ -324,6 +327,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-linux, build-darwin, build-windows]
     runs-on: ubuntu-latest
+    environment: prod
     steps:
       - uses: actions/checkout@v4
 
