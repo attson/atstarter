@@ -1,13 +1,13 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "atstarter",
-  "outputfilename": "atstarter",
+  "outputfilename": "AT Starter",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "info": {
-    "productName": "atstarter"
+    "productName": "AT Starter"
   },
   "author": {
     "name": "liuzaisen",
