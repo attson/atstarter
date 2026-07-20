@@ -1,15 +1,27 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Play, Square, Pencil, FolderPlus, ChevronDown, ChevronUp } from 'lucide-vue-next'
+import { Play, Square, Pencil, FolderPlus, ChevronDown, ChevronUp, GitBranch } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
 import AppIcon from './ui/AppIcon.vue'
 import { typeLabel } from '../typeLabel.js'
+import { GetProjectBranch } from '../../wailsjs/go/main/App'
 
 const props = defineProps({ project: Object, status: Object, selectedCommandId: String })
 const emit = defineEmits(['start', 'stop', 'edit', 'command-change', 'add-to-group'])
 const commandMenuOpen = ref(false)
+const branch = ref('')
+let branchToken = 0
+
+async function refreshBranch(path) {
+  const token = ++branchToken
+  branch.value = ''
+  if (!path) return
+  const value = await GetProjectBranch(path)
+  if (token !== branchToken) return
+  branch.value = value || ''
+}
 
 const commands = computed(() => {
   if (!props.project) return []
@@ -49,6 +61,8 @@ watch(() => props.selectedCommandId, () => {
   commandMenuOpen.value = false
 })
 
+watch(() => props.project?.path, (path) => { refreshBranch(path) }, { immediate: true })
+
 function chooseCommand(command) {
   emit('command-change', command.id)
   commandMenuOpen.value = false
@@ -63,6 +77,10 @@ function chooseCommand(command) {
           <h1>{{ project.name }}</h1>
           <AppPill :variant="pillVariant" :dot="state === 'running'">{{ state }}</AppPill>
           <AppPill variant="neutral">{{ typeLabel(project.detectedType) }}</AppPill>
+          <AppPill v-if="branch" variant="neutral" class="branch-pill">
+            <AppIcon :icon="GitBranch" :size="11" />
+            {{ branch }}
+          </AppPill>
         </div>
         <div class="path">{{ project.path }}</div>
         <div class="command-box">
@@ -168,6 +186,15 @@ function chooseCommand(command) {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+.branch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--accent-strong);
+  border-color: var(--success-line);
+  background: var(--success-gradient);
 }
 
 .title-line {

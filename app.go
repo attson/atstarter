@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"atstarter/internal/cmdparse"
 	"atstarter/internal/detector"
@@ -417,4 +419,24 @@ func (a *App) GetWorkspaces() ([]string, error) {
 		return nil, err
 	}
 	return cfg.Workspaces, nil
+}
+
+// GetProjectBranch 返回项目工作目录当前的 git 分支名(纯 UI 显示用)。
+// 非 git 仓库、detached HEAD、命令超时或 git 不在 PATH 都返回空串,前端据此隐藏 pill。
+func (a *App) GetProjectBranch(projectPath string) string {
+	if projectPath == "" {
+		return ""
+	}
+	// 快速否决:没有 .git 目录/文件的话根本不是仓库,免掉 exec 开销。
+	if _, err := os.Stat(filepath.Join(projectPath, ".git")); err != nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
+	defer cancel()
+	// symbolic-ref --short HEAD 在 detached 时非零退出,正好落到空串分支。
+	out, err := exec.CommandContext(ctx, "git", "-C", projectPath, "symbolic-ref", "--short", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }

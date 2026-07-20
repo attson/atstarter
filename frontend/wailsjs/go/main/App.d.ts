@@ -10,6 +10,8 @@ export function AddScanned(arg1:Array<store.Project>):Promise<void>;
 
 export function GetLogs(arg1:string):Promise<Array<string>>;
 
+export function GetProjectBranch(arg1:string):Promise<string>;
+
 export function GetStatus(arg1:string):Promise<runner.Status>;
 
 export function GetWorkspaces():Promise<Array<string>>;
