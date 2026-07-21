@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Play, Square, Pencil, FolderPlus, ChevronDown, ChevronUp, GitBranch } from 'lucide-vue-next'
+import { Play, Square, RotateCcw, Pencil, FolderPlus, ChevronDown, ChevronUp, GitBranch } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
@@ -9,7 +9,7 @@ import { typeLabel } from '../typeLabel.js'
 import { GetProjectBranch } from '../../wailsjs/go/main/App'
 
 const props = defineProps({ project: Object, status: Object, selectedCommandId: String })
-const emit = defineEmits(['start', 'stop', 'edit', 'command-change', 'add-to-group'])
+const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group'])
 const commandMenuOpen = ref(false)
 const branch = ref('')
 let branchToken = 0
@@ -105,30 +105,46 @@ function chooseCommand(command) {
         </div>
       </div>
       <div class="btns">
-        <AppButton variant="secondary" @click="emit('add-to-group')">
-          <template #icon><AppIcon :icon="FolderPlus" :size="14" /></template>
+        <AppButton variant="secondary" size="sm" @click="emit('add-to-group')">
+          <template #icon><AppIcon :icon="FolderPlus" :size="13" /></template>
           Add Group
         </AppButton>
-        <AppButton variant="secondary" @click="emit('edit')">
-          <template #icon><AppIcon :icon="Pencil" :size="14" /></template>
+        <AppButton variant="secondary" size="sm" @click="emit('edit')">
+          <template #icon><AppIcon :icon="Pencil" :size="13" /></template>
           Edit
         </AppButton>
-        <AppButton
-          variant="danger"
-          :disabled="(status || {}).State !== 'running'"
-          @click="emit('stop', selectedCommand.id)"
-        >
-          <template #icon><AppIcon :icon="Square" :size="14" /></template>
-          Stop
-        </AppButton>
-        <AppButton
-          variant="success"
-          :disabled="(status || {}).State === 'running'"
-          @click="emit('start', selectedCommand.id)"
-        >
-          <template #icon><AppIcon :icon="Play" :size="14" /></template>
-          Start
-        </AppButton>
+        <div class="run-controls">
+          <AppButton
+            variant="danger"
+            size="sm"
+            iconOnly
+            title="Stop"
+            :disabled="(status || {}).State !== 'running'"
+            @click="emit('stop', selectedCommand.id)"
+          >
+            <template #icon><AppIcon :icon="Square" :size="14" /></template>
+          </AppButton>
+          <AppButton
+            variant="secondary"
+            size="sm"
+            iconOnly
+            title="Restart"
+            :disabled="(status || {}).State !== 'running'"
+            @click="emit('restart', selectedCommand.id)"
+          >
+            <template #icon><AppIcon :icon="RotateCcw" :size="14" /></template>
+          </AppButton>
+          <AppButton
+            variant="success"
+            size="sm"
+            iconOnly
+            title="Start"
+            :disabled="(status || {}).State === 'running'"
+            @click="emit('start', selectedCommand.id)"
+          >
+            <template #icon><AppIcon :icon="Play" :size="14" /></template>
+          </AppButton>
+        </div>
       </div>
     </div>
     <LogPanel :projectId="selectedRunId" :status="status" />
@@ -322,10 +338,20 @@ h1 {
 .btns {
   display: flex;
   justify-content: flex-end;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-3);
-  max-width: 420px;
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
+}
+
+/* Stop / Restart / Start 作为一组运行控制,紧凑相邻,与左侧 Add Group/Edit 分隔。 */
+.run-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: var(--space-3);
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--border);
 }
 
 @media (max-width: 980px) {
@@ -336,7 +362,7 @@ h1 {
 
   .btns {
     justify-content: flex-start;
-    max-width: none;
+    flex-wrap: wrap;
   }
 }
 

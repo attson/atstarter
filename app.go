@@ -369,6 +369,11 @@ func (a *App) GetLogs(id string) []string {
 	return a.runner.Logs(id)
 }
 
+// ClearLogs 清空某项目的日志缓冲(前端"清空日志"调用)。
+func (a *App) ClearLogs(id string) {
+	a.runner.ClearLogs(id)
+}
+
 func (a *App) ListGroups() ([]store.LaunchGroup, error) {
 	cfg, err := a.store.Load()
 	if err != nil {

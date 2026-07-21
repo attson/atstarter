@@ -24,6 +24,31 @@ func TestRingBufferOverflow(t *testing.T) {
 	}
 }
 
+func TestRingBufferClear(t *testing.T) {
+	rb := newRingBuffer(3)
+	for _, s := range []string{"a", "b"} {
+		rb.add(s)
+	}
+	rb.clear()
+	if got := rb.snapshot(); len(got) != 0 {
+		t.Fatalf("after clear snapshot = %v, want empty", got)
+	}
+	// clear 后应能正常继续写入,不受旧 start/count 影响。
+	for _, s := range []string{"x", "y"} {
+		rb.add(s)
+	}
+	got := rb.snapshot()
+	want := []string{"x", "y"}
+	if len(got) != len(want) {
+		t.Fatalf("after re-add len = %d, want %d (%v)", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("snapshot[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestStartCapturesOutputAndExits(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell command is unix-specific")

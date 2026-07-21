@@ -1,5 +1,5 @@
 export namespace main {
-
+	
 	export class CommandInput {
 	    id: string;
 	    name: string;
@@ -7,11 +7,11 @@ export namespace main {
 	    cwd: string;
 	    env: Record<string, string>;
 	    isDefault: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new CommandInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -27,11 +27,11 @@ export namespace main {
 	    commandId: string;
 	    runId: string;
 	    error: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LaunchResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.projectId = source["projectId"];
@@ -40,20 +40,56 @@ export namespace main {
 	        this.error = source["error"];
 	    }
 	}
+	export class UpdateState {
+	    current: string;
+	    latest: string;
+	    available: boolean;
+	    notes: string;
+	    checking: boolean;
+	    lastCheckAt: number;
+	    downloading: boolean;
+	    downloadPct: number;
+	    ready: boolean;
+	    error: string;
+	    assetUrl: string;
+	    assetSize: number;
+	    canInstall: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current = source["current"];
+	        this.latest = source["latest"];
+	        this.available = source["available"];
+	        this.notes = source["notes"];
+	        this.checking = source["checking"];
+	        this.lastCheckAt = source["lastCheckAt"];
+	        this.downloading = source["downloading"];
+	        this.downloadPct = source["downloadPct"];
+	        this.ready = source["ready"];
+	        this.error = source["error"];
+	        this.assetUrl = source["assetUrl"];
+	        this.assetSize = source["assetSize"];
+	        this.canInstall = source["canInstall"];
+	    }
+	}
 
 }
 
 export namespace runner {
-
+	
 	export class Status {
 	    State: string;
 	    PID: number;
 	    ExitCode: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Status(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.State = source["State"];
@@ -65,15 +101,15 @@ export namespace runner {
 }
 
 export namespace store {
-
+	
 	export class GroupItem {
 	    projectId: string;
 	    commandId: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new GroupItem(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.projectId = source["projectId"];
@@ -88,11 +124,11 @@ export namespace store {
 	    cwd: string;
 	    env: Record<string, string>;
 	    isDefault: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LaunchCommand(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -108,18 +144,18 @@ export namespace store {
 	    id: string;
 	    name: string;
 	    items: GroupItem[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LaunchGroup(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.items = this.convertValues(source["items"], GroupItem);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -149,11 +185,11 @@ export namespace store {
 	    detectedType: string;
 	    autoDetected: boolean;
 	    commands?: LaunchCommand[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -167,7 +203,7 @@ export namespace store {
 	        this.autoDetected = source["autoDetected"];
 	        this.commands = this.convertValues(source["commands"], LaunchCommand);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
