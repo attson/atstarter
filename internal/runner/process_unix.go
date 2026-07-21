@@ -4,6 +4,7 @@ package runner
 
 import (
 	"os/exec"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -22,4 +23,19 @@ func killTree(pid int) {
 		time.Sleep(5 * time.Second)
 		_ = syscall.Kill(-pgid, syscall.SIGKILL)
 	}()
+}
+
+// shellQuote 用单引号包裹一个 token,内部单引号转义为 '\”。
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// shellJoin 把 command 与各 arg 拼成可安全交给 shell 的单行命令。
+func shellJoin(command string, args []string) string {
+	parts := make([]string, 0, 1+len(args))
+	parts = append(parts, shellQuote(command))
+	for _, a := range args {
+		parts = append(parts, shellQuote(a))
+	}
+	return strings.Join(parts, " ")
 }
