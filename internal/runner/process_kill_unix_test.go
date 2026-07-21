@@ -102,3 +102,33 @@ func TestUserShell(t *testing.T) {
 		t.Errorf("userShell() with empty SHELL = %q, want /bin/sh", got)
 	}
 }
+
+func TestIsShellNoise(t *testing.T) {
+	noise := []string{
+		// dash (/bin/sh) 无 TTY:
+		"/bin/sh: 0: can't access tty; job control turned off",
+		// bash 无 TTY(带变化的 pid):
+		"bash: cannot set terminal process group (883865): Inappropriate ioctl for device",
+		"bash: no job control in this shell",
+	}
+	for _, ln := range noise {
+		if !isShellNoise(ln) {
+			t.Errorf("isShellNoise(%q) = false, want true (should be filtered)", ln)
+		}
+	}
+
+	real := []string{
+		"oops",
+		"error: something went wrong",
+		"hello world",
+		"",
+		// 含 tty 但非 shell 噪声的普通业务行,不应误吞:
+		"configuring tty settings ok",
+		"pnpm dev: server ready",
+	}
+	for _, ln := range real {
+		if isShellNoise(ln) {
+			t.Errorf("isShellNoise(%q) = true, want false (real output must not be filtered)", ln)
+		}
+	}
+}
