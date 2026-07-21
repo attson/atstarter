@@ -70,6 +70,7 @@ watch(() => props.projects, () => {
           :key="g.id"
           :group="g"
           :projects="projects"
+          :statuses="statuses"
           :selected="g.id === selectedGroupId"
           :expanded="expandedGroups[`group:${g.id}`] !== false"
           @select="emit('select-group', $event)"
