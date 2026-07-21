@@ -685,7 +685,36 @@ func (u *updater) verify(ctx context.Context, assetPath string, tag string) erro
 	return fmt.Errorf("asset %s not listed in SHA256SUMS", assetName)
 }
 
-func (u *updater) fetchText(ctx context.Context, url string) (string, error) {
+// fetchText 下载一个文本文件(SHA256SUMS / SHA256SUMS.sig)。与资源下载一致地
+// 遍历镜像候选(见 mirrorURLs):镜像优先、原始 github.com URL 兜底。此前只直连
+// 原始 URL,国内网络下即使大文件走了镜像,校验文件仍会直连超时导致整个更新失败。
+// 用户取消(context.Canceled)立即中止,不再尝试后续候选。
+func (u *updater) fetchText(ctx context.Context, rawURL string) (string, error) {
+	return u.fetchFirst(ctx, mirrorURLs(rawURL))
+}
+
+// fetchFirst 按顺序尝试候选 URL,返回首个成功的响应体。任一失败(非取消)则试
+// 下一个;用户取消立即中止。
+func (u *updater) fetchFirst(ctx context.Context, candidates []string) (string, error) {
+	var lastErr error
+	for _, candURL := range candidates {
+		s, err := u.fetchTextFrom(ctx, candURL)
+		if err == nil {
+			return s, nil
+		}
+		if errors.Is(err, context.Canceled) {
+			return "", err
+		}
+		lastErr = err
+	}
+	if lastErr == nil {
+		lastErr = errors.New("no fetch candidates")
+	}
+	return "", lastErr
+}
+
+// fetchTextFrom 从单个 URL 下载文本。
+func (u *updater) fetchTextFrom(ctx context.Context, url string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return "", err

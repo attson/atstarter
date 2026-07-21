@@ -1,6 +1,49 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+)
+
+// TestFetchFirstFallsBackToNextCandidate 验证:首个候选失败时,fetchFirst 会尝试
+// 下一个候选。这是校验文件(SHA256SUMS)能走镜像加速的基础 —— 此前 fetchText
+// 只直连原始 github URL,国内网络超时会导致整个更新失败。
+func TestFetchFirstFallsBackToNextCandidate(t *testing.T) {
+	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("OK-BODY"))
+	}))
+	defer good.Close()
+	bad := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	defer bad.Close()
+
+	u := &updater{client: &http.Client{Timeout: 5 * time.Second}}
+	// 首选(bad)500 失败,应回退到次选(good)成功。
+	got, err := u.fetchFirst(context.Background(), []string{bad.URL, good.URL})
+	if err != nil {
+		t.Fatalf("fetchFirst: %v", err)
+	}
+	if got != "OK-BODY" {
+		t.Errorf("fetchFirst = %q, want OK-BODY", got)
+	}
+}
+
+// TestFetchTextUsesMirrors 验证 fetchText 对 github releases URL 会展开出多个候选
+// (镜像 + 原始),而非只打原始 URL。
+func TestFetchTextUsesMirrors(t *testing.T) {
+	raw := "https://github.com/attson/atstarter/releases/download/v0.3.3/SHA256SUMS"
+	cands := mirrorURLs(raw)
+	if len(cands) < 2 {
+		t.Fatalf("expected mirrors + original for a releases URL, got %d: %v", len(cands), cands)
+	}
+	if cands[len(cands)-1] != raw {
+		t.Errorf("last candidate should be original URL %q, got %q", raw, cands[len(cands)-1])
+	}
+}
 
 func TestVersionNewer(t *testing.T) {
 	cases := []struct {
