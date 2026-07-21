@@ -8,12 +8,12 @@ func TestVersionNewer(t *testing.T) {
 		want            bool
 	}{
 		{"v0.1.3", "v0.1.2", true},
-		{"v0.1.10", "v0.1.2", true},  // integer compare, not lexicographic
+		{"v0.1.10", "v0.1.2", true}, // integer compare, not lexicographic
 		{"v0.2.0", "v0.1.9", true},
 		{"v1.0.0", "v0.9.9", true},
 		{"v0.1.2", "v0.1.2", false},
 		{"v0.1.2", "v0.1.3", false},
-		{"v0.1.2", "dev", false},     // "dev" won't parse → no update
+		{"v0.1.2", "dev", false}, // "dev" won't parse → no update
 		{"", "v0.1.2", false},
 		{"v0.1.2-rc.1", "v0.1.1", true}, // pre-release suffix stripped
 	}
@@ -68,4 +68,40 @@ func contains(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+func TestMirrorURLs(t *testing.T) {
+	raw := "https://github.com/attson/atstarter/releases/download/v0.3.2/AT-Starter-linux-amd64.tar.gz"
+
+	got := mirrorURLs(raw)
+
+	// 至少要有:若干镜像候选 + 原始 URL 兜底。
+	if len(got) < 2 {
+		t.Fatalf("mirrorURLs returned %d candidates, want >=2 (mirrors + original)", len(got))
+	}
+
+	// 最后一个必须是原始 URL(保证不比现状差)。
+	if got[len(got)-1] != raw {
+		t.Errorf("last candidate = %q, want original URL %q", got[len(got)-1], raw)
+	}
+
+	// 原始 URL 只应作为最后的兜底出现一次,前面的都应是镜像(与原始不同)。
+	for i := 0; i < len(got)-1; i++ {
+		if got[i] == raw {
+			t.Errorf("candidate[%d] equals original URL but is not last; mirrors must differ", i)
+		}
+		// 每个镜像候选都应仍然包含原始 GitHub 路径(镜像是前缀改写,不丢失 owner/repo/tag/asset)。
+		if !contains(got[i], "attson/atstarter/releases/download/v0.3.2/AT-Starter-linux-amd64.tar.gz") {
+			t.Errorf("mirror candidate[%d] = %q lost the github asset path", i, got[i])
+		}
+	}
+}
+
+func TestMirrorURLsNonGitHubPassthrough(t *testing.T) {
+	// 非 github releases/download 的 URL 原样返回,不改写。
+	raw := "https://example.com/some/file.bin"
+	got := mirrorURLs(raw)
+	if len(got) != 1 || got[0] != raw {
+		t.Errorf("mirrorURLs(non-github) = %v, want single passthrough [%q]", got, raw)
+	}
 }

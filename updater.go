@@ -44,6 +44,35 @@ var installScripts embed.FS
 const updateRepoOwner = "attson"
 const updateRepoName = "atstarter"
 
+// downloadMirrors 是一组 GitHub releases 下载加速镜像前缀(国内直连 github.com
+// 常极慢甚至卡住)。每个前缀直接拼在完整 github.com URL 之前,形如
+// "https://<mirror>/https://github.com/owner/repo/releases/download/...".
+// 顺序即优先级;download 会逐个尝试,任一失败/超时就换下一个,全部失败最后回退
+// 原始 github.com URL。镜像仅用于加速,内容安全由 Ed25519 签名 + SHA256 校验兜底
+// (见 verify),即使镜像被污染也无法通过安装。
+var downloadMirrors = []string{
+	"https://ghfast.top/",
+	"https://gh-proxy.com/",
+	"https://ghproxy.net/",
+}
+
+// mirrorURLs 把一个 github.com releases 下载 URL 展开为按优先级排序的候选列表:
+// 先各镜像前缀改写,最后是原始 URL 兜底。非 github releases/download 的 URL 原样
+// 返回单元素列表(不改写 —— 例如已是镜像或本地路径)。
+func mirrorURLs(raw string) []string {
+	const marker = "https://github.com/"
+	// 只加速标准的 github releases 下载直链。
+	if !strings.HasPrefix(raw, marker) || !strings.Contains(raw, "/releases/download/") {
+		return []string{raw}
+	}
+	out := make([]string, 0, len(downloadMirrors)+1)
+	for _, m := range downloadMirrors {
+		out = append(out, m+raw)
+	}
+	out = append(out, raw) // 原始 URL 永远作为最后兜底,保证不比现状差。
+	return out
+}
+
 // UpdateState mirrors the Wails-marshalable view of the updater. Fields
 // use JSON tags so the frontend can bind to the same shape.
 type UpdateState struct {
@@ -67,7 +96,7 @@ type updater struct {
 	mu          sync.Mutex
 	state       UpdateState
 	client      *http.Client
-	assetPath   string          // full path of the downloaded, verified asset
+	assetPath   string // full path of the downloaded, verified asset
 	cancel      context.CancelFunc
 	downloading atomic.Bool
 }
@@ -473,6 +502,12 @@ func (u *updater) fetchLatestRelease() (ghRelease, error) {
 
 // download streams the asset into a per-version cache dir, reporting
 // progress percent to the frontend. Returns the on-disk path.
+//
+// It tries each mirror candidate (see mirrorURLs) in order and falls back
+// to the next on any failure, with the original github.com URL as the
+// final candidate — so a broken/blocked mirror never makes things worse
+// than a direct download. A user cancel (context.Canceled) aborts
+// immediately without trying further candidates.
 func (u *updater) download(ctx context.Context, assetURL string, expectedSize int64, appCtx context.Context) (string, error) {
 	if _, err := url.Parse(assetURL); err != nil {
 		return "", err
@@ -485,25 +520,56 @@ func (u *updater) download(ctx context.Context, assetURL string, expectedSize in
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
+	// Derive the cache filename from the ORIGINAL url so mirror prefixes
+	// don't change where we store (basename is identical, but be explicit).
 	base := filepath.Base(assetURL)
 	if base == "" || base == "." || strings.ContainsAny(base, "/\\") {
 		return "", fmt.Errorf("suspicious asset name: %q", base)
 	}
 	out := filepath.Join(dir, base)
 
-	req, err := http.NewRequestWithContext(ctx, "GET", assetURL, nil)
+	candidates := mirrorURLs(assetURL)
+	var lastErr error
+	for i, candURL := range candidates {
+		// Reset progress for each attempt so a failed mirror doesn't leave
+		// a stale percentage on screen.
+		u.mu.Lock()
+		u.state.DownloadPct = 0
+		u.mu.Unlock()
+		u.emit(appCtx)
+
+		err := u.downloadFrom(ctx, candURL, out, dir, expectedSize, appCtx)
+		if err == nil {
+			return out, nil
+		}
+		// User cancel: stop immediately, do not fall through to next mirror.
+		if errors.Is(err, context.Canceled) {
+			return "", err
+		}
+		lastErr = fmt.Errorf("candidate %d/%d (%s): %w", i+1, len(candidates), candURL, err)
+	}
+	if lastErr == nil {
+		lastErr = errors.New("no download candidates")
+	}
+	return "", lastErr
+}
+
+// downloadFrom streams a single URL into out (via a temp file in dir),
+// reporting progress. Any error leaves out untouched.
+func (u *updater) downloadFrom(ctx context.Context, fromURL, out, dir string, expectedSize int64, appCtx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", fromURL, nil)
 	if err != nil {
-		return "", err
+		return err
 	}
 	// Downloads can be big; override the default 30s client timeout.
 	slowClient := &http.Client{Timeout: 15 * time.Minute}
 	resp, err := slowClient.Do(req)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download: HTTP %d", resp.StatusCode)
+		return fmt.Errorf("download: HTTP %d", resp.StatusCode)
 	}
 	total := expectedSize
 	if total == 0 {
@@ -512,7 +578,7 @@ func (u *updater) download(ctx context.Context, assetURL string, expectedSize in
 
 	tmp, err := os.CreateTemp(dir, ".part-*")
 	if err != nil {
-		return "", err
+		return err
 	}
 	tmpName := tmp.Name()
 	cleanup := true
@@ -530,16 +596,16 @@ func (u *updater) download(ctx context.Context, assetURL string, expectedSize in
 		u.emit(appCtx)
 	}}
 	if _, err := io.Copy(tmp, pr); err != nil {
-		return "", err
+		return err
 	}
 	if err := tmp.Close(); err != nil {
-		return "", err
+		return err
 	}
 	if err := os.Rename(tmpName, out); err != nil {
-		return "", err
+		return err
 	}
 	cleanup = false
-	return out, nil
+	return nil
 }
 
 type progressReader struct {
