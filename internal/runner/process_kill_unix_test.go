@@ -4,6 +4,7 @@ package runner
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"syscall"
 	"testing"
@@ -81,6 +82,63 @@ func TestShellJoin(t *testing.T) {
 		{"path with space", "/opt/my app/bin", []string{"x"}, `'/opt/my app/bin' 'x'`},
 		{"single quote in arg", "echo", []string{"it's"}, `'echo' 'it'\''s'`},
 		{"special chars", "sh", []string{"-c", "a && b; c $x"}, `'sh' '-c' 'a && b; c $x'`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := shellJoin(tc.command, tc.args)
+			if got != tc.want {
+				t.Errorf("shellJoin(%q, %v) = %q, want %q", tc.command, tc.args, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestShellJoinExpandsTilde 验证:命令与参数开头的 ~ / ~/... 在拼进单引号之前
+// 已被展开为家目录绝对路径。若不展开,单引号会阻止 shell 展开 ~,导致
+// "no such file or directory: ~/sdk/..." 的 code 127 启动失败。
+func TestShellJoinExpandsTilde(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+	cases := []struct {
+		name    string
+		command string
+		args    []string
+		want    string
+	}{
+		{
+			"tilde slash command",
+			"~/sdk/go1.23.12/bin/go",
+			[]string{"run", "main.go"},
+			shellQuote(home+"/sdk/go1.23.12/bin/go") + ` 'run' 'main.go'`,
+		},
+		{
+			"bare tilde command",
+			"~",
+			nil,
+			shellQuote(home),
+		},
+		{
+			"tilde in arg head",
+			"cat",
+			[]string{"~/notes.txt"},
+			`'cat' ` + shellQuote(home+"/notes.txt"),
+		},
+		{
+			// token 中间的 ~ 不是家目录记号,保持原样(shell 亦不展开)。
+			"tilde mid token untouched",
+			"go",
+			[]string{"--path=~/x"},
+			`'go' '--path=~/x'`,
+		},
+		{
+			// ~user 形式非本工具职责,保持原样。
+			"named tilde untouched",
+			"~root/bin/tool",
+			nil,
+			`'~root/bin/tool'`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
