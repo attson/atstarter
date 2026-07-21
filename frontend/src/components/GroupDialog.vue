@@ -9,6 +9,19 @@ const emit = defineEmits(['save', 'close'])
 
 const name = ref('')
 const checked = ref({})
+const expandedDirs = ref({})
+const query = ref('')
+
+// 搜索时强制展开,避免匹配结果被折叠状态藏住。
+const forceExpanded = computed(() => query.value.trim().length > 0)
+
+// 目录默认展开;记录为 false 表示用户手动折叠。
+function toggleDir(id) {
+  expandedDirs.value = {
+    ...expandedDirs.value,
+    [id]: expandedDirs.value[id] === false,
+  }
+}
 
 function commandsFor(project) {
   if (project.commands && project.commands.length) return project.commands
@@ -28,7 +41,7 @@ function keyFor(projectId, commandId) {
 const commandOptions = computed(() => (props.projects || []).flatMap((project) =>
   commandsFor(project).map((command) => ({ project, command, key: keyFor(project.id, command.id) }))
 ))
-const projectTree = computed(() => buildProjectTree(props.projects || [], {}, ''))
+const projectTree = computed(() => buildProjectTree(props.projects || [], {}, query.value))
 
 function reset() {
   name.value = props.group ? props.group.name : ''
@@ -37,6 +50,8 @@ function reset() {
     next[keyFor(item.projectId, item.commandId)] = true
   }
   checked.value = next
+  expandedDirs.value = {}
+  query.value = ''
 }
 
 watch(() => props.show, (show) => {
@@ -69,6 +84,11 @@ function toggleOption(key) {
           <label>名称<input v-model="name" placeholder="Local dev stack" /></label>
 
           <div class="commands-head">选择要启动的项目命令</div>
+          <input
+            v-model="query"
+            class="option-search"
+            placeholder="搜索项目名称、路径或命令…"
+          />
           <div class="options">
             <GroupTreeNode
               v-for="node in projectTree"
@@ -76,8 +96,14 @@ function toggleOption(key) {
               :node="node"
               :level="0"
               :checked="checked"
+              :expandedDirs="expandedDirs"
+              :forceExpanded="forceExpanded"
               @toggle="toggleOption"
+              @toggle-dir="toggleDir"
             />
+            <div v-if="projectTree.length === 0" class="options-empty">
+              没有匹配的项目
+            </div>
           </div>
 
           <div class="btns">
@@ -105,7 +131,10 @@ function toggleOption(key) {
 .dialog {
   width: min(820px, calc(100vw - 36px));
   max-height: calc(100vh - 56px);
-  overflow-y: auto;
+  /* No outer scroll: the project list (.options) scrolls internally and
+     flex-shrinks to fit. A second scroll layer here made WebKitGTK paint a
+     stray vertical scrollbar track through the header region. */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -156,12 +185,40 @@ h3 {
   font-weight: var(--fw-semibold);
 }
 
+.option-search {
+  height: 32px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  background: var(--bg);
+  padding: 0 var(--space-5);
+  font: inherit;
+  font-size: var(--fs-sm);
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.option-search:focus {
+  border-color: var(--text-subtle);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
 .options {
+  flex: 1 1 auto;
+  min-height: 120px;
   max-height: 400px;
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg);
+}
+
+.options-empty {
+  padding: var(--space-7) var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  text-align: center;
 }
 
 .btns {
