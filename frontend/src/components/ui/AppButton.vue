@@ -29,6 +29,8 @@ const emit = defineEmits(['click'])
   gap: var(--space-3);
   height: 30px;
   padding: 0 var(--space-6);
+  white-space: nowrap;
+  flex: 0 0 auto;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;

@@ -3,8 +3,14 @@ import { computed } from 'vue'
 import { ChevronDown, ChevronRight, FolderKanban } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
 
-const props = defineProps({ group: Object, projects: Array, selected: Boolean, expanded: Boolean })
+const props = defineProps({ group: Object, projects: Array, statuses: Object, selected: Boolean, expanded: Boolean })
 const emit = defineEmits(['select', 'toggle', 'select-command'])
+
+function stateClass(state) {
+  if (state === 'running') return 'running'
+  if (state === 'error' || state === 'exited') return 'bad'
+  return 'stopped'
+}
 
 function commandsFor(project) {
   if (project.commands && project.commands.length) return project.commands
@@ -38,6 +44,7 @@ const members = computed(() => {
       key: `${props.group.id}:${project.id}:${command.id || 'default'}`,
       project,
       command,
+      status: (props.statuses || {})[project.id],
     })
   }
   return out
@@ -73,7 +80,7 @@ const members = computed(() => {
         class="member-row"
         @click="emit('select-command', { projectId: member.project.id, commandId: member.command.id || 'default' })"
       >
-        <span class="member-dot" />
+        <span :class="['member-dot', stateClass((member.status || {}).State)]" />
         <span class="member-project">{{ member.project.name }}</span>
         <span class="member-command">{{ member.command.name }}</span>
         <code>{{ lineFor(member.command) }}</code>
@@ -221,8 +228,21 @@ const members = computed(() => {
   width: 7px;
   height: 7px;
   border-radius: 50%;
+  flex-shrink: 0;
   background: var(--text-subtle);
 }
+
+.member-dot.running {
+  background: var(--accent-strong);
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+.member-dot.bad {
+  background: var(--danger);
+  box-shadow: 0 0 0 2.5px var(--danger-soft), 0 0 6px rgba(239, 68, 68, .4);
+}
+
+.member-dot.stopped { background: var(--text-subtle); }
 
 .member-project, .member-command, .member-row code {
   overflow: hidden;

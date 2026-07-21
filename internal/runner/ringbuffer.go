@@ -28,6 +28,14 @@ func (r *ringBuffer) add(line string) {
 	}
 }
 
+// clear 逻辑清空缓冲(丢弃全部已缓存行)。底层 buf 不重置,count 归零即视为空。
+func (r *ringBuffer) clear() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.start = 0
+	r.count = 0
+}
+
 // snapshot 返回当前缓冲内容(按时间顺序)的拷贝。
 func (r *ringBuffer) snapshot() []string {
 	r.mu.Lock()
