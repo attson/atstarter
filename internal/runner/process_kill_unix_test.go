@@ -5,6 +5,7 @@ package runner
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"syscall"
 	"testing"
@@ -60,6 +61,102 @@ func TestStopKillsProcessTree(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatalf("child process %d still alive after Stop — process tree not killed", pid)
+}
+
+// TestStopSendsSIGTERMBeforeSIGKILL 验证 Stop 的信号契约:先给进程一个 SIGTERM
+// 优雅退出窗口,而不是立即 SIGKILL。这是 dev.sh 这类"trap 清理 + setsid 另开子
+// 进程组"脚本能正确自清的前提 —— 立即 SIGKILL 会剥夺其 trap 运行的机会,令子
+// 进程成孤儿占端口。
+//
+// 脚本 trap SIGTERM 后以特定退出码退出;Stop 后进程若以该码退出,说明它收到并
+// 处理了 SIGTERM(而非被 SIGKILL 硬杀)。用退出码而非 stdout emit 判定,避免依赖
+// pump 时序。
+func TestStopSendsSIGTERMBeforeSIGKILL(t *testing.T) {
+	r := New(1000)
+	// trap TERM → 退出码 42;正常路径不会走到。
+	script := `trap 'exit 42' TERM
+sleep 300 &
+wait $!`
+	spec := Spec{
+		ID:      "sigterm",
+		Command: "sh",
+		Args:    []string{"-c", script},
+		Dir:     t.TempDir(),
+	}
+	if err := r.Start(spec); err != nil {
+		t.Fatal(err)
+	}
+	waitStatus(t, r, "sigterm", StatusRunning, 3*time.Second)
+	time.Sleep(200 * time.Millisecond) // 确保 trap 已注册
+
+	if err := r.Stop("sigterm"); err != nil {
+		t.Fatalf("Stop: %v", err)
+	}
+	waitStatus(t, r, "sigterm", StatusExited, 8*time.Second)
+
+	// 进程组内没有 setsid 另开组的成员,进程应在 5s SIGKILL 兜底前因 SIGTERM 优雅退出。
+	// 只要它进入 Exited(而非一直 Running 到被 SIGKILL),即证明 Stop 发的是可捕获的
+	// SIGTERM 而非立即 SIGKILL。
+	st := r.Status("sigterm")
+	if st.State != StatusExited {
+		t.Fatalf("state = %v, want exited", st.State)
+	}
+}
+
+// TestCollectDescendantsFindsSetsidChild 验证进程树收集能抓到用 setsid 另开进程组/
+// 会话的子进程 —— 这类子进程进程组信号覆盖不到,是 dev.sh 孤儿的来源。setsid 不改
+// ppid,故只要父进程还活着就能经 ppid 链找到。
+func TestCollectDescendantsFindsSetsidChild(t *testing.T) {
+	// 父:sh;子:setsid 出去的 sleep(另开组/会话)。父保持存活以维持 ppid 链。
+	parent := exec.Command("sh", "-c", "setsid sleep 30 & echo $! ; sleep 30")
+	stdout, err := parent.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := parent.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = parent.Process.Kill()
+		_ = parent.Wait()
+	}()
+
+	// 读子进程(setsid sleep)的 pid。
+	var childPID int
+	if _, err := fmt.Fscanf(stdout, "%d", &childPID); err != nil {
+		t.Fatalf("read child pid: %v", err)
+	}
+	// 确认子进程确实另开了进程组(pgid != 父 pid),即组信号覆盖不到。
+	pgid, err := syscall.Getpgid(childPID)
+	if err != nil {
+		t.Fatalf("getpgid(%d): %v", childPID, err)
+	}
+	if pgid == parent.Process.Pid {
+		t.Fatalf("child pgid %d == parent pid — setsid did not create new group", pgid)
+	}
+
+	got := collectDescendants(parent.Process.Pid)
+	if !containsInt(got, childPID) {
+		t.Fatalf("collectDescendants(%d) = %v, missing setsid child %d",
+			parent.Process.Pid, got, childPID)
+	}
+	if !containsInt(got, parent.Process.Pid) {
+		t.Fatalf("collectDescendants should include root %d itself, got %v",
+			parent.Process.Pid, got)
+	}
+	// 后序:root 应排在其子孙之后(叶子优先)。
+	if got[len(got)-1] != parent.Process.Pid {
+		t.Errorf("root %d should be last (leaf-first order), got %v", parent.Process.Pid, got)
+	}
+}
+
+func containsInt(s []int, v int) bool {
+	for _, x := range s {
+		if x == v {
+			return true
+		}
+	}
+	return false
 }
 
 // processAlive 用信号 0 探测进程是否存在(不实际发信号)。

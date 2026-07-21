@@ -8,6 +8,8 @@ export function AddProject(arg1:string):Promise<store.Project>;
 
 export function AddScanned(arg1:Array<store.Project>):Promise<void>;
 
+export function ClearLogs(arg1:string):Promise<void>;
+
 export function GetLogs(arg1:string):Promise<Array<string>>;
 
 export function GetProjectBranch(arg1:string):Promise<string>;
@@ -44,18 +46,18 @@ export function StopProject(arg1:string):Promise<void>;
 
 export function StopProjectCommand(arg1:string,arg2:string):Promise<void>;
 
+export function UpdateCancel():Promise<main.UpdateState>;
+
+export function UpdateCheck():Promise<main.UpdateState>;
+
+export function UpdateGetState():Promise<main.UpdateState>;
+
+export function UpdateInstall():Promise<main.UpdateState>;
+
 export function UpdateProject(arg1:store.Project):Promise<void>;
 
 export function UpdateProjectCommand(arg1:string,arg2:string):Promise<store.Project>;
 
 export function UpdateProjectCommands(arg1:string,arg2:string,arg3:Array<main.CommandInput>):Promise<store.Project>;
 
-export function UpdateGetState():Promise<main.UpdateState>;
-
-export function UpdateCheck():Promise<main.UpdateState>;
-
 export function UpdateStartDownload():Promise<main.UpdateState>;
-
-export function UpdateCancel():Promise<main.UpdateState>;
-
-export function UpdateInstall():Promise<main.UpdateState>;

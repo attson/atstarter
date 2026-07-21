@@ -7,10 +7,13 @@ import "os/exec"
 // setupProcAttr 在 Windows 上暂不做进程组设置(后续可接 Job Object)。
 func setupProcAttr(cmd *exec.Cmd) {}
 
-// killTree 在 Windows 上暂用简化实现:实际终止在 runner.Stop 中通过
-// cmd.Process.Kill() 完成。此处保留空实现。
+// killTree 在 Windows 上暂用简化实现:直接 Kill 主进程。
 // TODO(后续): 接入 Job Object 保证子孙进程一并终止。
-func killTree(pid int) {}
+func killTree(cmd *exec.Cmd) {
+	if cmd != nil && cmd.Process != nil {
+		_ = cmd.Process.Kill()
+	}
+}
 
 // buildCmd 在 Windows 上直接执行命令(不包 shell)。
 func buildCmd(spec Spec) *exec.Cmd {
