@@ -3,6 +3,7 @@
 package runner
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -38,4 +39,20 @@ func shellJoin(command string, args []string) string {
 		parts = append(parts, shellQuote(a))
 	}
 	return strings.Join(parts, " ")
+}
+
+// userShell 返回用户登录 shell($SHELL),为空则回退 /bin/sh。
+func userShell() string {
+	if sh := os.Getenv("SHELL"); sh != "" {
+		return sh
+	}
+	return "/bin/sh"
+}
+
+// buildCmd 用登录交互式 shell 包裹命令,让子进程拿到用户 shell 的完整 PATH
+// (pnpm / nvm / go 等)。-l 加载 login rc,-i 加载交互 rc(PATH 通常在这),
+// -c 执行拼好的命令行。
+func buildCmd(spec Spec) *exec.Cmd {
+	line := shellJoin(spec.Command, spec.Args)
+	return exec.Command(userShell(), "-l", "-i", "-c", line)
 }

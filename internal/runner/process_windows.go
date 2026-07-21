@@ -11,3 +11,8 @@ func setupProcAttr(cmd *exec.Cmd) {}
 // cmd.Process.Kill() 完成。此处保留空实现。
 // TODO(后续): 接入 Job Object 保证子孙进程一并终止。
 func killTree(pid int) {}
+
+// buildCmd 在 Windows 上直接执行命令(不包 shell)。
+func buildCmd(spec Spec) *exec.Cmd {
+	return exec.Command(spec.Command, spec.Args...)
+}
