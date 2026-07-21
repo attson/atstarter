@@ -9,6 +9,15 @@ const emit = defineEmits(['save', 'close'])
 
 const name = ref('')
 const checked = ref({})
+const expandedDirs = ref({})
+
+// 目录默认展开;记录为 false 表示用户手动折叠。
+function toggleDir(id) {
+  expandedDirs.value = {
+    ...expandedDirs.value,
+    [id]: expandedDirs.value[id] === false,
+  }
+}
 
 function commandsFor(project) {
   if (project.commands && project.commands.length) return project.commands
@@ -37,6 +46,7 @@ function reset() {
     next[keyFor(item.projectId, item.commandId)] = true
   }
   checked.value = next
+  expandedDirs.value = {}
 }
 
 watch(() => props.show, (show) => {
@@ -76,7 +86,9 @@ function toggleOption(key) {
               :node="node"
               :level="0"
               :checked="checked"
+              :expandedDirs="expandedDirs"
               @toggle="toggleOption"
+              @toggle-dir="toggleDir"
             />
           </div>
 
