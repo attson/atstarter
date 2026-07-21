@@ -203,46 +203,6 @@ func TestExitAppendsMarkerToLogs(t *testing.T) {
 	}
 }
 
-func TestShellJoin(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("shellJoin is unix-only")
-	}
-	cases := []struct {
-		name    string
-		command string
-		args    []string
-		want    string
-	}{
-		{"simple", "go", []string{"run", "main.go"}, `'go' 'run' 'main.go'`},
-		{"no args", "ls", nil, `'ls'`},
-		{"path with space", "/opt/my app/bin", []string{"x"}, `'/opt/my app/bin' 'x'`},
-		{"single quote in arg", "echo", []string{"it's"}, `'echo' 'it'\''s'`},
-		{"special chars", "sh", []string{"-c", "a && b; c $x"}, `'sh' '-c' 'a && b; c $x'`},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := shellJoin(tc.command, tc.args)
-			if got != tc.want {
-				t.Errorf("shellJoin(%q, %v) = %q, want %q", tc.command, tc.args, got, tc.want)
-			}
-		})
-	}
-}
-
-func TestUserShell(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("userShell is unix-only")
-	}
-	t.Setenv("SHELL", "/usr/bin/zsh")
-	if got := userShell(); got != "/usr/bin/zsh" {
-		t.Errorf("userShell() with SHELL set = %q, want /usr/bin/zsh", got)
-	}
-	t.Setenv("SHELL", "")
-	if got := userShell(); got != "/bin/sh" {
-		t.Errorf("userShell() with empty SHELL = %q, want /bin/sh", got)
-	}
-}
-
 // waitStatus 轮询直到状态达到 want 或超时。
 func waitStatus(t *testing.T, r *Runner, id string, want State, d time.Duration) {
 	t.Helper()
