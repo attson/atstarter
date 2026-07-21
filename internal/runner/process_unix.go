@@ -33,12 +33,31 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
+// expandTilde 把开头的 ~ 或 ~/... 展开为家目录绝对路径,其它形式(绝对/相对
+// 路径、~user、token 中间的 ~)原样返回。必须在 shellQuote 之前调用:命令与
+// 参数最终被单引号包裹交给 shell,而单引号内 shell 不会展开 ~,不预先展开则
+// 用户填的 ~/sdk/go 之类路径会以字面量查找而 code 127 失败。
+func expandTilde(s string) string {
+	if s != "~" && !strings.HasPrefix(s, "~/") {
+		return s
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return s
+	}
+	if s == "~" {
+		return home
+	}
+	return home + s[1:]
+}
+
 // shellJoin 把 command 与各 arg 拼成可安全交给 shell 的单行命令。
+// 每个 token 先展开开头的 ~ 再单引号包裹(见 expandTilde)。
 func shellJoin(command string, args []string) string {
 	parts := make([]string, 0, 1+len(args))
-	parts = append(parts, shellQuote(command))
+	parts = append(parts, shellQuote(expandTilde(command)))
 	for _, a := range args {
-		parts = append(parts, shellQuote(a))
+		parts = append(parts, shellQuote(expandTilde(a)))
 	}
 	return strings.Join(parts, " ")
 }
