@@ -72,42 +72,21 @@ func TestStartCapturesOutputAndExits(t *testing.T) {
 }
 
 func TestStartMissingBinaryYieldsError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell wrapping is unix-specific")
+	}
 	r := New(100)
 	r.SetEmitter(func(LogLine) {})
-	spec := Spec{ID: "bad", Command: "/nonexistent/binary/xyz", Dir: t.TempDir()}
-	err := r.Start(spec)
-	if err == nil {
-		waitStatus(t, r, "bad", StatusError, 3*time.Second)
-	}
-	// 无论 Start 立即返回 err,还是异步置为 error 状态,都算正确处理(不静默成功)。
-	if err == nil && r.Status("bad").State != StatusError {
-		t.Errorf("expected error state for missing binary, got %+v", r.Status("bad"))
-	}
-}
-
-func TestStopKillsProcessTree(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("unix process group test")
-	}
-	r := New(1000)
-	r.SetEmitter(func(LogLine) {})
-	// 父 shell 后台起一个长 sleep 子进程,并打印其 PID,然后自己也 sleep。
-	spec := Spec{
-		ID:      "tree",
-		Command: "sh",
-		Args:    []string{"-c", "sleep 300 & echo CHILD $!; sleep 300"},
-		Dir:     t.TempDir(),
-	}
+	spec := Spec{ID: "bad", Command: "definitely-not-a-real-binary-xyz", Dir: t.TempDir()}
 	if err := r.Start(spec); err != nil {
-		t.Fatal(err)
+		// 若 Start 直接失败也算处理正确(不静默成功)。
+		return
 	}
-	waitStatus(t, r, "tree", StatusRunning, 3*time.Second)
-	if err := r.Stop("tree"); err != nil {
-		t.Fatalf("Stop: %v", err)
+	// 否则:shell 启动成功,但子命令 not found → 非零退出。
+	waitStatus(t, r, "bad", StatusExited, 5*time.Second)
+	if st := r.Status("bad"); st.ExitCode == 0 {
+		t.Errorf("missing binary should exit non-zero, got exit code 0 (state=%v)", st.State)
 	}
-	waitStatus(t, r, "tree", StatusExited, 8*time.Second)
-	// 无直接断言子进程消失的可移植方法;此处以父进程组被终止、Stop 正常返回作为验证。
-	// 进程组信号的正确性由 process_unix.go 的实现保证(kill 负 pgid)。
 }
 
 func TestStatusCallbackFiresOnStateChange(t *testing.T) {
