@@ -10,8 +10,9 @@ import (
 	"time"
 )
 
-// setupProcAttr 让子进程成为新会话(setsid)的首进程,从而自成进程组。
-// 相比 Setpgid,新会话能覆盖脚本内部再开进程组的子孙,便于整树信号。
+// setupProcAttr 让子进程成为新会话(setsid)的首进程,自成进程组。
+// Stop 时对该进程组发信号可覆盖绝大多数子孙;极少数自行 setpgid 另开
+// 进程组的孙进程不在同组内,是已知局限(常见场景不触发)。
 func setupProcAttr(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 }
@@ -19,7 +20,7 @@ func setupProcAttr(cmd *exec.Cmd) {
 // killTree 先给整个进程组发 SIGTERM,超时后 SIGKILL。
 // 负 PID 表示"发给该进程组"。
 func killTree(pid int) {
-	pgid := pid // 因 Setpgid,子进程 pid == pgid
+	pgid := pid // 因 Setsid,shell 成为会话首进程,pid == sid == pgid
 	_ = syscall.Kill(-pgid, syscall.SIGTERM)
 	go func() {
 		time.Sleep(5 * time.Second)
