@@ -269,6 +269,15 @@ onUnmounted(() => {
         :selectedCommandId="selectedCommandId" @command-change="setSelectedCommand"
         @start="onStart" @stop="onStop" @edit="showEdit = true" @add-to-group="showAddToGroup = true" />
     </main>
+  </div>
+
+  <!--
+    Dialogs are teleported to <body> so they never become grid items of
+    .app-shell. Their collapsed (v-if=false) comment placeholders would
+    otherwise shift the grid track assignment under WebKitGTK, squashing
+    .workspace into the 48px header row and blanking the project list.
+  -->
+  <Teleport to="body">
     <EditProjectDialog :show="showEdit" :project="selected"
       @close="showEdit = false" @save="onSaveEdit" />
     <GroupDialog :show="showGroup" :group="editingGroup" :projects="projects"
@@ -277,7 +286,7 @@ onUnmounted(() => {
     <AddToGroupDialog :show="showAddToGroup" :groups="groups" :project="selected" :command="selectedCommand"
       @close="showAddToGroup = false" @save="onAddToGroup" />
     <ScanDialog :show="showScan" @close="showScan = false" @added="refresh" />
-  </div>
+  </Teleport>
 </template>
 
 <style>
@@ -291,6 +300,16 @@ html, body, #app { height: 100%; margin: 0; }
   background: var(--bg-gradient);
   color: var(--text);
 }
+
+/*
+ * Pin each region to an explicit grid track. Without this, a collapsed
+ * UpdateBanner (rendered as a v-if comment node) can shift track
+ * assignment under WebKitGTK, dropping .workspace into the 48px header
+ * row. Explicit grid-row makes the layout independent of child order.
+ */
+.app-shell > .update-banner { grid-row: 1; }
+.app-shell > .topbar { grid-row: 2; }
+.app-shell > .workspace { grid-row: 3; }
 
 .topbar {
   display: flex;

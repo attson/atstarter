@@ -3,6 +3,7 @@ module atstarter
 go 1.23.0
 
 require (
+	github.com/energye/systray v1.0.3
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/wailsapp/wails/v2 v2.12.0
 )

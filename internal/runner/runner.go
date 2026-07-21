@@ -213,6 +213,19 @@ func (r *Runner) Status(id string) Status {
 	return Status{State: StatusStopped}
 }
 
+// RunningCount 返回当前处于 running 状态的受管进程数。并发安全。
+func (r *Runner) RunningCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	n := 0
+	for _, m := range r.procs {
+		if m.status.State == StatusRunning {
+			n++
+		}
+	}
+	return n
+}
+
 // Logs 返回某项目日志缓冲快照;未知 ID 返回空。
 func (r *Runner) Logs(id string) []string {
 	r.mu.Lock()
