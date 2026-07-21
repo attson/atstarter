@@ -16,3 +16,7 @@ func killTree(pid int) {}
 func buildCmd(spec Spec) *exec.Cmd {
 	return exec.Command(spec.Command, spec.Args...)
 }
+
+// isShellNoise 在 Windows 上恒为 false:命令不经登录交互式 shell 包裹,
+// 无 job-control 启动噪声可过滤。
+func isShellNoise(line string) bool { return false }

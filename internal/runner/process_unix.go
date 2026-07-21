@@ -58,3 +58,23 @@ func buildCmd(spec Spec) *exec.Cmd {
 	line := shellJoin(spec.Command, spec.Args)
 	return exec.Command(userShell(), "-l", "-i", "-c", line)
 }
+
+// shellNoiseMarkers 是交互式 shell 在无控制 TTY 时(CI、部分 GUI 启动场景)
+// 向 stderr 打印的 job-control 诊断噪声特征子串。用子串而非整行匹配,因为 bash
+// 的 "cannot set terminal process group (<pid>)" 含变化的 pid。这几条是 shell
+// 诊断专用语,业务命令原样打印的概率可忽略。
+var shellNoiseMarkers = []string{
+	"can't access tty",                  // dash: "...: 0: can't access tty; job control turned off"
+	"no job control",                    // bash: "bash: no job control in this shell"
+	"cannot set terminal process group", // bash: "...Inappropriate ioctl for device"
+}
+
+// isShellNoise 判断一行 stderr 是否为交互式 shell 无 TTY 启动噪声,应从日志过滤。
+func isShellNoise(line string) bool {
+	for _, m := range shellNoiseMarkers {
+		if strings.Contains(line, m) {
+			return true
+		}
+	}
+	return false
+}
