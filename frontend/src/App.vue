@@ -155,6 +155,22 @@ async function onAddProject(dir) {
 async function onStart(commandId) { await StartProjectCommand(selectedId.value, commandId); await pollStatuses() }
 async function onStop(commandId) { await StopProjectCommand(selectedId.value, commandId); await pollStatuses() }
 
+// 重启:先停,等旧进程真正退出(避免与旧进程抢端口),再启。Stop 是异步的
+// (SIGTERM→退出,或 5s SIGKILL 兜底),故需轮询等状态离开 running。
+async function onRestart(commandId) {
+  const projectId = selectedId.value
+  const runId = runIdForCommand(projectId, commandId)
+  await StopProjectCommand(projectId, commandId)
+  const deadline = Date.now() + 8000
+  while (Date.now() < deadline) {
+    const st = await GetStatus(runId)
+    if (!st || st.State !== 'running') break
+    await new Promise((r) => setTimeout(r, 200))
+  }
+  await StartProjectCommand(projectId, commandId)
+  await pollStatuses()
+}
+
 async function onSaveEdit(payload) {
   await UpdateProjectCommands(selectedId.value, payload.name, payload.commands)
   showEdit.value = false
@@ -267,7 +283,7 @@ onUnmounted(() => {
         @select-command="selectCommand" />
       <ProjectDetail v-else :project="selected" :status="selectedStatus"
         :selectedCommandId="selectedCommandId" @command-change="setSelectedCommand"
-        @start="onStart" @stop="onStop" @edit="showEdit = true" @add-to-group="showAddToGroup = true" />
+        @start="onStart" @stop="onStop" @restart="onRestart" @edit="showEdit = true" @add-to-group="showAddToGroup = true" />
     </main>
   </div>
 
