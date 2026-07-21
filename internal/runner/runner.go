@@ -93,7 +93,7 @@ func (r *Runner) Start(spec Spec) error {
 	}
 	r.mu.Unlock()
 
-	cmd := exec.Command(spec.Command, spec.Args...)
+	cmd := buildCmd(spec)
 	if spec.Dir != "" {
 		cmd.Dir = spec.Dir
 	}
@@ -142,6 +142,11 @@ func (r *Runner) pump(id string, m *managed, pipe interface{ Read([]byte) (int, 
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for sc.Scan() {
 		line := sc.Text()
+		// 丢弃交互式 shell 无 TTY 启动噪声(见 isShellNoise);只可能出现在
+		// stderr,既不入日志缓冲也不 emit,等同该行不存在。
+		if stream == "stderr" && isShellNoise(line) {
+			continue
+		}
 		m.logs.add(line)
 		r.mu.Lock()
 		emit := r.emit

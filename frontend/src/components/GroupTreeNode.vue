@@ -1,5 +1,5 @@
 <script setup>
-import { ChevronDown } from 'lucide-vue-next'
+import { ChevronDown, ChevronRight } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
 import { typeLabel } from '../typeLabel.js'
 
@@ -7,8 +7,16 @@ const props = defineProps({
   node: Object,
   level: Number,
   checked: Object,
+  expandedDirs: Object,
+  forceExpanded: Boolean,
 })
-const emit = defineEmits(['toggle'])
+const emit = defineEmits(['toggle', 'toggle-dir'])
+
+// 目录默认展开;expandedDirs[id] === false 表示用户手动折叠。
+// 搜索态(forceExpanded)下一律展开。
+function isExpanded(node) {
+  return props.forceExpanded || props.expandedDirs[node.id] !== false
+}
 
 function commandsFor(project) {
   if (project.commands && project.commands.length) return project.commands
@@ -32,19 +40,31 @@ function lineFor(command) {
 
 <template>
   <div v-if="node.type === 'directory'" class="group-node">
-    <div class="dir-row" :style="{ paddingLeft: `${10 + level * 16}px` }">
-      <span class="chevron"><AppIcon :icon="ChevronDown" :size="12" /></span>
+    <button
+      type="button"
+      class="dir-row"
+      :style="{ paddingLeft: `${10 + level * 16}px` }"
+      @click="emit('toggle-dir', node.id)"
+    >
+      <span class="chevron">
+        <AppIcon :icon="isExpanded(node) ? ChevronDown : ChevronRight" :size="12" />
+      </span>
       <span class="dir-name">{{ node.label }}</span>
       <span class="count">{{ node.count }}</span>
-    </div>
-    <GroupTreeNode
-      v-for="child in node.children"
-      :key="child.id"
-      :node="child"
-      :level="level + 1"
-      :checked="checked"
-      @toggle="emit('toggle', $event)"
-    />
+    </button>
+    <template v-if="isExpanded(node)">
+      <GroupTreeNode
+        v-for="child in node.children"
+        :key="child.id"
+        :node="child"
+        :level="level + 1"
+        :checked="checked"
+        :expandedDirs="expandedDirs"
+        :forceExpanded="forceExpanded"
+        @toggle="emit('toggle', $event)"
+        @toggle-dir="emit('toggle-dir', $event)"
+      />
+    </template>
   </div>
 
   <div v-else class="group-node">
@@ -73,7 +93,10 @@ function lineFor(command) {
       :node="child"
       :level="level + 1"
       :checked="checked"
+      :expandedDirs="expandedDirs"
+      :forceExpanded="forceExpanded"
       @toggle="emit('toggle', $event)"
+      @toggle-dir="emit('toggle-dir', $event)"
     />
   </div>
 </template>
@@ -92,13 +115,21 @@ function lineFor(command) {
 }
 
 .dir-row {
+  width: 100%;
   grid-template-columns: 16px minmax(0, 1fr) auto;
   color: var(--text-secondary);
   background: var(--elevated);
+  border: 0;
   border-bottom: 1px solid var(--border);
+  font: inherit;
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 }
+
+.dir-row:hover { background: var(--border); }
 
 .project-row {
   grid-template-columns: 10px minmax(0, 1fr) auto;
