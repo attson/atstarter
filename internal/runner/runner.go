@@ -93,7 +93,7 @@ func (r *Runner) Start(spec Spec) error {
 	}
 	r.mu.Unlock()
 
-	cmd := exec.Command(spec.Command, spec.Args...)
+	cmd := buildCmd(spec)
 	if spec.Dir != "" {
 		cmd.Dir = spec.Dir
 	}
