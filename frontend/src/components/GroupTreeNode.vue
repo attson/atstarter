@@ -8,12 +8,14 @@ const props = defineProps({
   level: Number,
   checked: Object,
   expandedDirs: Object,
+  forceExpanded: Boolean,
 })
 const emit = defineEmits(['toggle', 'toggle-dir'])
 
 // 目录默认展开;expandedDirs[id] === false 表示用户手动折叠。
+// 搜索态(forceExpanded)下一律展开。
 function isExpanded(node) {
-  return props.expandedDirs[node.id] !== false
+  return props.forceExpanded || props.expandedDirs[node.id] !== false
 }
 
 function commandsFor(project) {
@@ -58,6 +60,7 @@ function lineFor(command) {
         :level="level + 1"
         :checked="checked"
         :expandedDirs="expandedDirs"
+        :forceExpanded="forceExpanded"
         @toggle="emit('toggle', $event)"
         @toggle-dir="emit('toggle-dir', $event)"
       />
@@ -91,6 +94,7 @@ function lineFor(command) {
       :level="level + 1"
       :checked="checked"
       :expandedDirs="expandedDirs"
+      :forceExpanded="forceExpanded"
       @toggle="emit('toggle', $event)"
       @toggle-dir="emit('toggle-dir', $event)"
     />
