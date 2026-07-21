@@ -10,6 +10,10 @@ export function AddScanned(arg1) {
   return window['go']['main']['App']['AddScanned'](arg1);
 }
 
+export function ClearLogs(arg1) {
+  return window['go']['main']['App']['ClearLogs'](arg1);
+}
+
 export function GetLogs(arg1) {
   return window['go']['main']['App']['GetLogs'](arg1);
 }
@@ -82,6 +86,22 @@ export function StopProjectCommand(arg1, arg2) {
   return window['go']['main']['App']['StopProjectCommand'](arg1, arg2);
 }
 
+export function UpdateCancel() {
+  return window['go']['main']['App']['UpdateCancel']();
+}
+
+export function UpdateCheck() {
+  return window['go']['main']['App']['UpdateCheck']();
+}
+
+export function UpdateGetState() {
+  return window['go']['main']['App']['UpdateGetState']();
+}
+
+export function UpdateInstall() {
+  return window['go']['main']['App']['UpdateInstall']();
+}
+
 export function UpdateProject(arg1) {
   return window['go']['main']['App']['UpdateProject'](arg1);
 }
@@ -94,22 +114,6 @@ export function UpdateProjectCommands(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateProjectCommands'](arg1, arg2, arg3);
 }
 
-export function UpdateGetState() {
-  return window['go']['main']['App']['UpdateGetState']();
-}
-
-export function UpdateCheck() {
-  return window['go']['main']['App']['UpdateCheck']();
-}
-
 export function UpdateStartDownload() {
   return window['go']['main']['App']['UpdateStartDownload']();
-}
-
-export function UpdateCancel() {
-  return window['go']['main']['App']['UpdateCancel']();
-}
-
-export function UpdateInstall() {
-  return window['go']['main']['App']['UpdateInstall']();
 }

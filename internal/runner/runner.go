@@ -201,10 +201,8 @@ func (r *Runner) Stop(id string) error {
 		r.mu.Unlock()
 		return nil
 	}
-	pid := m.cmd.Process.Pid
 	r.mu.Unlock()
-	killTree(pid)
-	_ = m.cmd.Process.Kill() // 兜底(Windows 占位路径依赖此行)
+	killTree(m.cmd) // 平台各自实现:unix 发进程组 SIGTERM→SIGKILL;Windows 直接 Kill
 	return nil
 }
 
@@ -240,6 +238,17 @@ func (r *Runner) Logs(id string) []string {
 		return nil
 	}
 	return m.logs.snapshot()
+}
+
+// ClearLogs 清空某项目的日志缓冲;未知 ID 为 no-op。
+func (r *Runner) ClearLogs(id string) {
+	r.mu.Lock()
+	m, ok := r.procs[id]
+	r.mu.Unlock()
+	if !ok {
+		return
+	}
+	m.logs.clear()
 }
 
 // StopAll 停止所有运行中的进程(App 退出时调用)。

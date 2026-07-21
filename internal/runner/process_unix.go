@@ -17,14 +17,44 @@ func setupProcAttr(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 }
 
-// killTree 先给整个进程组发 SIGTERM,超时后 SIGKILL。
-// 负 PID 表示"发给该进程组"。
-func killTree(pid int) {
-	pgid := pid // 因 Setsid,shell 成为会话首进程,pid == sid == pgid
-	_ = syscall.Kill(-pgid, syscall.SIGTERM)
+// killTree 终止顶层进程及其所有子孙,分两阶段:子孙先 SIGTERM 给优雅退出窗口,
+// 5s 后统一 SIGKILL 兜底。
+//
+// 为什么不能只靠进程组信号(syscall.Kill(-pgid, ...)):像 dev.sh 这类启动脚本会
+// 用 setsid 把前后端子进程另开进程组/会话,组信号覆盖不到它们,只发组信号会留下
+// 占端口的孤儿。改为遍历 ppid 进程树逐个发信号 —— setsid 不改 ppid,趁顶层进程
+// 尚在(未被 reparent),经 ppid 链能抓到这些另开组的子孙。
+//
+// 为什么子孙用 SIGTERM 而非立即 SIGKILL:SIGKILL 不可捕获,会剥夺 dev.sh 的 trap
+// 清理机会;先 SIGTERM 让脚本与其子进程有机会优雅退出(与 Ctrl-C 等价)。
+//
+// 为什么顶层直接 SIGKILL:顶层是 buildCmd 的 `zsh -l -i`(交互式)包装,交互式 shell
+// 默认忽略 SIGTERM(杀不死),且它只是包装、没有需要保护的 trap。对它直接 SIGKILL
+// 才能让 cmd.Wait 返回、状态转为 Exited;其内部脚本(如 dev.sh)是子孙,已先收到
+// SIGTERM 有优雅窗口。
+func killTree(cmd *exec.Cmd) {
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	top := cmd.Process.Pid // 因 Setsid,顶层 shell pid == sid == pgid
+
+	// 阶段一:收集整棵树。子孙 SIGTERM,顶层 SIGKILL(它忽略 SIGTERM)。
+	tree := collectDescendants(top) // 叶子优先,top 在最后
+	for _, pid := range tree {
+		if pid == top {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+		} else {
+			_ = syscall.Kill(pid, syscall.SIGTERM)
+		}
+	}
+
 	go func() {
 		time.Sleep(5 * time.Second)
-		_ = syscall.Kill(-pgid, syscall.SIGKILL)
+		// 阶段二:重新收集(可能有新派生进程),全部 SIGKILL;再补一发组 SIGKILL 兜底。
+		for _, pid := range collectDescendants(top) {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+		}
+		_ = syscall.Kill(-top, syscall.SIGKILL)
 	}()
 }
 
