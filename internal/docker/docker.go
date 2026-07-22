@@ -2,6 +2,11 @@
 // CLI 执行走可注入的 execFunc(测试注 fake);输出解析在 parse.go 是纯函数。
 package docker
 
+import (
+	"context"
+	"strings"
+)
+
 // ContainerState 是一个容器的运行时快照(不落库)。
 type ContainerState struct {
 	ID      string   `json:"id"`
@@ -27,4 +32,13 @@ type Info struct {
 	Available bool   `json:"available"`
 	Version   string `json:"version"`
 	Reason    string `json:"reason"` // 不可用时的人类可读原因
+}
+
+// Detect 探测 Docker 可用性。跑 `docker version --format '{{.Server.Version}}'`。
+func (c *Client) Detect(ctx context.Context) Info {
+	res := c.exec(ctx, "docker", "version", "--format", "{{.Server.Version}}")
+	if res.Err == nil && res.ExitCode == 0 {
+		return Info{Available: true, Version: strings.TrimSpace(res.Stdout)}
+	}
+	return Info{Available: false, Reason: classifyReason(res.Stderr, res.Err != nil)}
 }
