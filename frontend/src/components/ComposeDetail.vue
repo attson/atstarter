@@ -15,6 +15,17 @@ const emit = defineEmits(['confirm-down'])
 const services = ref([])
 const followRunId = ref('')
 const followServiceName = ref('')
+// 记录当前正在 follow 的 {projectId, service},切项目/卸载时用它停掉后端 logs -f 进程。
+// 不能只依赖 props.project.id,切换后 id 已变,故在启动时快照下来。
+let activeFollow = { projectId: '', service: '' }
+
+// stopActiveFollow 停掉当前正在 follow 的 compose logs 进程并清空标记。
+async function stopActiveFollow() {
+  if (!activeFollow.projectId) return
+  const { projectId, service } = activeFollow
+  activeFollow = { projectId: '', service: '' }
+  try { await StopFollowComposeLogs(projectId, service) } catch (e) { /* 进程可能已退出 */ }
+}
 
 async function refresh() {
   if (!props.project || !props.dockerAvailable) { services.value = []; return }
@@ -41,15 +52,16 @@ function requestDown() { emit('confirm-down', props.project.id) }
 
 async function followLogs(service) {
   const id = service || ''
-  if (followRunId.value) await StopFollowComposeLogs(props.project.id, followServiceName.value)
+  await stopActiveFollow()
   followServiceName.value = id
   await FollowComposeLogs(props.project.id, id)
+  activeFollow = { projectId: props.project.id, service: id }
   followRunId.value = id ? `compose:${props.project.id}:${id}` : `compose:${props.project.id}`
 }
 
-watch(() => props.project?.id, () => { followRunId.value = ''; refresh() }, { immediate: true })
+watch(() => props.project?.id, () => { stopActiveFollow(); followRunId.value = ''; refresh() }, { immediate: true })
 let timer = setInterval(refresh, 2500)
-onUnmounted(() => clearInterval(timer))
+onUnmounted(() => { clearInterval(timer); stopActiveFollow() })
 </script>
 
 <template>
