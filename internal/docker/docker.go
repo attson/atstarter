@@ -37,7 +37,7 @@ type Info struct {
 
 // Detect 探测 Docker 可用性。跑 `docker version --format '{{.Server.Version}}'`。
 func (c *Client) Detect(ctx context.Context) Info {
-	res := c.exec(ctx, "docker", "version", "--format", "{{.Server.Version}}")
+	res := c.exec(ctx, c.Command(), "version", "--format", "{{.Server.Version}}")
 	if res.Err == nil && res.ExitCode == 0 {
 		return Info{Available: true, Version: strings.TrimSpace(res.Stdout)}
 	}
@@ -46,7 +46,7 @@ func (c *Client) Detect(ctx context.Context) Info {
 
 // ListContainers 返回 `docker ps -a` 快照。
 func (c *Client) ListContainers(ctx context.Context) ([]ContainerState, error) {
-	res := c.exec(ctx, "docker", "ps", "-a", "--format", "{{json .}}")
+	res := c.exec(ctx, c.Command(), "ps", "-a", "--format", "{{json .}}")
 	if res.Err != nil {
 		return nil, res.Err
 	}
@@ -58,7 +58,7 @@ func (c *Client) ListContainers(ctx context.Context) ([]ContainerState, error) {
 
 // runVoid 执行一条命令,非零退出返回归类后的错误。
 func (c *Client) runVoid(ctx context.Context, args ...string) error {
-	res := c.exec(ctx, "docker", args...)
+	res := c.exec(ctx, c.Command(), args...)
 	if res.Err != nil {
 		return res.Err
 	}
@@ -122,7 +122,7 @@ func (c *Client) ComposeDown(ctx context.Context, dir, file string) error {
 // ListServiceNames 返回 compose 项目的 service 名列表。
 func (c *Client) ListServiceNames(ctx context.Context, dir, file string) ([]string, error) {
 	args := append(c.composeBase(dir, file), "config", "--services")
-	res := c.exec(ctx, "docker", args...)
+	res := c.exec(ctx, c.Command(), args...)
 	if res.Err != nil {
 		return nil, res.Err
 	}
@@ -137,7 +137,20 @@ type ExecResult = execResult
 
 // NewWithExecForTest 构造注入自定义执行器的 Client,供上层集成测试用。
 func NewWithExecForTest(fn func(ctx context.Context, name string, args ...string) execResult) *Client {
-	return &Client{exec: fn}
+	return newWithExec(fn)
+}
+
+func NewWithCommandForTest(command string, fn func(ctx context.Context, name string, args ...string) execResult) *Client {
+	return &Client{exec: fn, command: command}
+}
+
+// Command 返回实际 docker CLI 路径。macOS GUI 进程可能没有 shell PATH,因此 New()
+// 会在常见 Docker Desktop 位置中解析出绝对路径。
+func (c *Client) Command() string {
+	if c.command == "" {
+		return "docker"
+	}
+	return c.command
 }
 
 // ComposeServices 聚合 service 名与容器快照(导出封装,供上层用)。

@@ -57,11 +57,12 @@ func defaultExec(ctx context.Context, name string, args ...string) execResult {
 
 // Client 持有一个执行器,是所有 docker 操作的入口。
 type Client struct {
-	exec execFunc
+	exec    execFunc
+	command string
 }
 
 // New 构造用真实 docker CLI 的 Client。
-func New() *Client { return &Client{exec: defaultExec} }
+func New() *Client { return &Client{exec: defaultExec, command: resolveDockerCommand()} }
 
 // newWithExec 构造注入 fake 执行器的 Client(测试用)。
-func newWithExec(fn execFunc) *Client { return &Client{exec: fn} }
+func newWithExec(fn execFunc) *Client { return &Client{exec: fn, command: "docker"} }
