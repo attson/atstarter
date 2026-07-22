@@ -475,3 +475,22 @@ func (a *App) GetProjectBranch(projectPath string) string {
 func (a *App) DockerAvailable() docker.Info {
 	return a.docker.Detect(context.Background())
 }
+
+// ListContainers 返回宿主机所有容器快照。
+func (a *App) ListContainers() ([]docker.ContainerState, error) {
+	return a.docker.ListContainers(context.Background())
+}
+func (a *App) StartContainer(id string) error {
+	return a.docker.StartContainer(context.Background(), id)
+}
+func (a *App) StopContainer(id string) error {
+	return a.docker.StopContainer(context.Background(), id)
+}
+func (a *App) RestartContainer(id string) error {
+	return a.docker.RestartContainer(context.Background(), id)
+}
+
+// RemoveContainer 删除容器;force=true 对应 rm -f(前端已二次确认)。
+func (a *App) RemoveContainer(id string, force bool) error {
+	return a.docker.RemoveContainer(context.Background(), id, force)
+}
