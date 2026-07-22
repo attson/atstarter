@@ -31,7 +31,7 @@
 
 ```
 main.go                 Wails 入口 + -ldflags 注入 Version / UpdateVerifyPublicKey
-app.go                  绑定层:组装模块,暴露 28 个方法给前端(含 updater 的 5 个)+ 推送事件
+app.go                  绑定层:组装模块,暴露 44 个方法给前端(含 docker 15 + updater 5)+ 推送事件
 tray.go                 系统托盘:菜单、关闭到托盘、运行数展示、退出放行
 updater.go              自更新:检查/下载/校验(Ed25519+SHA256)/安装/取消 + 下载加速镜像
 scripts/install-*.{sh,ps1}  各平台安装脚本(自更新 handoff 用,embed 进二进制)
