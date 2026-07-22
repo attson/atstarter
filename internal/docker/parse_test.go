@@ -2,6 +2,20 @@ package docker
 
 import "testing"
 
+func TestNormalizeProjectName(t *testing.T) {
+	cases := map[string]string{
+		"MyApp":               "myapp",
+		"AtStarter_Case-Test": "atstarter_case-test",
+		"my.app":              "myapp",
+		"web app":             "webapp",
+	}
+	for in, want := range cases {
+		if got := NormalizeProjectName(in); got != want {
+			t.Errorf("NormalizeProjectName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestClassifyReason(t *testing.T) {
 	cases := []struct {
 		name     string
