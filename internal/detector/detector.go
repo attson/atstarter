@@ -15,6 +15,9 @@ func Detect(dir string) Result {
 	hasPkg := exists(dir, "package.json")
 
 	switch {
+	case firstExisting(dir, "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml") != "":
+		return Result{"compose", ""}
+
 	case hasPkg && exists(dir, "pnpm-lock.yaml"):
 		return Result{"node-pnpm", "pnpm run " + pickNodeScript(dir)}
 	case hasPkg && exists(dir, "yarn.lock"):
