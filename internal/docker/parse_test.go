@@ -23,3 +23,25 @@ func TestClassifyReason(t *testing.T) {
 		})
 	}
 }
+
+func TestParsePs(t *testing.T) {
+	// 两行:一个 compose 容器 + 一个独立容器
+	sample := `{"ID":"abc123","Names":"myapp-web-1","Image":"nginx:alpine","State":"running","Status":"Up 3 minutes","Ports":"0.0.0.0:8080->80/tcp","Labels":"com.docker.compose.project=myapp,com.docker.compose.service=web"}
+{"ID":"def456","Names":"redis","Image":"redis:7.2","State":"exited","Status":"Exited (0) 2 hours ago","Ports":"","Labels":"foo=bar"}`
+	got, err := parsePs(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len = %d, want 2", len(got))
+	}
+	if got[0].Name != "myapp-web-1" || got[0].Compose != "myapp" || got[0].Service != "web" {
+		t.Errorf("compose container = %+v", got[0])
+	}
+	if got[0].Ports[0] != "0.0.0.0:8080->80/tcp" {
+		t.Errorf("ports = %v", got[0].Ports)
+	}
+	if got[1].Name != "redis" || got[1].Compose != "" {
+		t.Errorf("standalone container = %+v", got[1])
+	}
+}
