@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"atstarter/internal/docker"
@@ -64,4 +65,46 @@ func TestRemoveContainerForce(t *testing.T) {
 	if gotKey != "docker rm -f abc" {
 		t.Errorf("key = %q", gotKey)
 	}
+}
+
+func TestListComposeServices(t *testing.T) {
+	app := newTestApp(t)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "docker-compose.yml"), "services:\n  web: {image: nginx}\n")
+	p, err := app.AddProject(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Base(dir)
+	app.docker = docker.NewWithExecForTest(func(ctx context.Context, name string, args ...string) docker.ExecResult {
+		key := name
+		for _, a := range args {
+			key += " " + a
+		}
+		if len(key) >= len("docker compose") && key[:14] == "docker compose" {
+			if containsArg(args, "config") {
+				return docker.ExecResult{Stdout: "web\n"}
+			}
+		}
+		if len(key) >= len("docker ps") && key[:9] == "docker ps" {
+			return docker.ExecResult{Stdout: `{"ID":"x","Names":"` + base + `-web-1","Image":"nginx","State":"running","Status":"Up","Ports":"","Labels":"com.docker.compose.project=` + base + `,com.docker.compose.service=web"}`}
+		}
+		return docker.ExecResult{}
+	})
+	svcs, err := app.ListComposeServices(p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(svcs) != 1 || svcs[0].Name != "web" || svcs[0].State != "running" {
+		t.Errorf("services = %+v", svcs)
+	}
+}
+
+func containsArg(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }
