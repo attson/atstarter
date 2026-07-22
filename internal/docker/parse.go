@@ -83,3 +83,48 @@ func splitPorts(s string) []string {
 	}
 	return out
 }
+
+// parseServiceNames 解析 `docker compose config --services`(一行一个)。
+func parseServiceNames(out string) []string {
+	var res []string
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			res = append(res, line)
+		}
+	}
+	return res
+}
+
+// aggregateServices 把 service 名列表与容器快照聚合成 ComposeService。
+// 某 service 有任一 running 容器 → running;有容器但都不 running → partial;无容器 → stopped。
+func aggregateServices(project string, names []string, containers []ContainerState) []ComposeService {
+	byService := map[string][]ContainerState{}
+	for _, c := range containers {
+		if c.Compose == project && c.Service != "" {
+			byService[c.Service] = append(byService[c.Service], c)
+		}
+	}
+	res := make([]ComposeService, 0, len(names))
+	for _, name := range names {
+		svc := ComposeService{Name: name, State: "stopped"}
+		cs := byService[name]
+		if len(cs) > 0 {
+			svc.Image = cs[0].Image
+			svc.Ports = cs[0].Ports
+			running := false
+			for _, c := range cs {
+				if c.State == "running" {
+					running = true
+					break
+				}
+			}
+			if running {
+				svc.State = "running"
+			} else {
+				svc.State = "partial"
+			}
+		}
+		res = append(res, svc)
+	}
+	return res
+}

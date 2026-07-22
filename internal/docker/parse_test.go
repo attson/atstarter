@@ -45,3 +45,27 @@ func TestParsePs(t *testing.T) {
 		t.Errorf("standalone container = %+v", got[1])
 	}
 }
+
+func TestAggregateServices(t *testing.T) {
+	names := []string{"web", "api", "db"}
+	containers := []ContainerState{
+		{Name: "myapp-web-1", Image: "nginx", State: "running", Compose: "myapp", Service: "web", Ports: []string{":8080->80"}},
+		{Name: "myapp-api-1", Image: "api:dev", State: "running", Compose: "myapp", Service: "api"},
+		// db 没有容器 → stopped
+		{Name: "redis", State: "running", Compose: "", Service: ""}, // 独立容器,不该混入
+	}
+	got := aggregateServices("myapp", names, containers)
+	if len(got) != 3 {
+		t.Fatalf("len = %d, want 3", len(got))
+	}
+	byName := map[string]ComposeService{}
+	for _, s := range got {
+		byName[s.Name] = s
+	}
+	if byName["web"].State != "running" || byName["web"].Image != "nginx" {
+		t.Errorf("web = %+v", byName["web"])
+	}
+	if byName["db"].State != "stopped" {
+		t.Errorf("db state = %q, want stopped", byName["db"].State)
+	}
+}
