@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -21,11 +22,13 @@ import (
 
 // App 是 Wails 绑定层,组装各内部模块并暴露方法给前端。
 type App struct {
-	ctx     context.Context
-	store   *store.Store
-	runner  *runner.Runner
-	updater *updater
-	docker  *docker.Client
+	ctx                context.Context
+	store              *store.Store
+	runner             *runner.Runner
+	updater            *updater
+	docker             *docker.Client
+	dockerStop         chan struct{}
+	lastDockerSnapshot string // 上次快照的序列化,用于 diff
 }
 
 type CommandInput struct {
@@ -82,11 +85,15 @@ func (a *App) startup(ctx context.Context) {
 		})
 		updateTrayRunning(a.runner.RunningCount())
 	})
+	a.startDockerPoll()
 	startTray(a)
 }
 
 // shutdown 由 Wails 在退出时调用,停掉所有进程。
 func (a *App) shutdown(ctx context.Context) {
+	if a.dockerStop != nil {
+		close(a.dockerStop)
+	}
 	a.runner.StopAll()
 }
 
@@ -588,4 +595,39 @@ func (a *App) FollowComposeLogs(projectID, service string) error {
 }
 func (a *App) StopFollowComposeLogs(projectID, service string) error {
 	return a.runner.Stop(composeRunID(projectID, service))
+}
+
+// startDockerPoll 起一个 2s ticker 轮询容器状态,变化才推 docker:state。
+func (a *App) startDockerPoll() {
+	a.dockerStop = make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-a.dockerStop:
+				return
+			case <-ticker.C:
+				a.pollDockerOnce()
+			}
+		}
+	}()
+}
+
+func (a *App) pollDockerOnce() {
+	info := a.docker.Detect(context.Background())
+	runtime.EventsEmit(a.ctx, "docker:available", info)
+	if !info.Available {
+		return
+	}
+	containers, err := a.docker.ListContainers(context.Background())
+	if err != nil {
+		return
+	}
+	b, _ := json.Marshal(containers)
+	if string(b) == a.lastDockerSnapshot {
+		return // 无变化,不推
+	}
+	a.lastDockerSnapshot = string(b)
+	runtime.EventsEmit(a.ctx, "docker:state", containers)
 }
