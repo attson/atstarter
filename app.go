@@ -555,3 +555,37 @@ func (a *App) ComposeDown(projectID string) error {
 	}
 	return a.docker.ComposeDown(context.Background(), dir)
 }
+
+func containerRunID(id string) string { return "container:" + id }
+func composeRunID(projectID, service string) string {
+	if service == "" {
+		return "compose:" + projectID
+	}
+	return "compose:" + projectID + ":" + service
+}
+
+// FollowContainerLogs 起一个 docker logs -f 长驻进程,日志走 log:<runID>。
+func (a *App) FollowContainerLogs(id string) error {
+	return a.runner.Start(runner.Spec{
+		ID: containerRunID(id), Command: "docker", Args: []string{"logs", "-f", "--tail", "200", id},
+	})
+}
+func (a *App) StopFollowContainerLogs(id string) error {
+	return a.runner.Stop(containerRunID(id))
+}
+
+// FollowComposeLogs 起 docker compose logs -f;service 为空=全部。
+func (a *App) FollowComposeLogs(projectID, service string) error {
+	dir, _, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	args := []string{"compose", "--project-directory", dir, "logs", "-f", "--tail", "200"}
+	if service != "" {
+		args = append(args, service)
+	}
+	return a.runner.Start(runner.Spec{ID: composeRunID(projectID, service), Command: "docker", Args: args})
+}
+func (a *App) StopFollowComposeLogs(projectID, service string) error {
+	return a.runner.Stop(composeRunID(projectID, service))
+}
