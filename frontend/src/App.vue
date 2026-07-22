@@ -60,9 +60,14 @@ function onConfirmRemove(container) {
 }
 async function onConfirmAccept() {
   const { kind, payload } = confirm.value
-  if (kind === 'down') await ComposeDown(payload)
-  else if (kind === 'remove') await RemoveContainer(payload.id, payload.state === 'running')
-  confirm.value = { ...confirm.value, show: false }
+  try {
+    if (kind === 'down') await ComposeDown(payload)
+    else if (kind === 'remove') await RemoveContainer(payload.id, payload.state === 'running')
+  } catch (e) {
+    console.error('docker 操作失败:', e)
+  } finally {
+    confirm.value = { ...confirm.value, show: false }
+  }
   if (kind === 'remove' && containerPanelRef.value) await containerPanelRef.value.refresh()
 }
 
