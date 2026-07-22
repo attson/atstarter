@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Download, X, Loader2, Sparkles, AlertTriangle } from 'lucide-vue-next'
+import { isUpdateBannerVisible, startUpdateCheckTimer } from '../updateSchedule'
 import {
   UpdateGetState,
   UpdateCheck,
@@ -28,15 +29,18 @@ const state = ref({
   lastCheckAt: 0,
 })
 const dismissed = ref(false)
+const manualNotice = ref(false)
 
 const visible = computed(() => {
-  if (dismissed.value) return false
-  const s = state.value
-  return !!s.error || s.available || s.downloading || s.ready
+  return isUpdateBannerVisible(state.value, {
+    dismissed: dismissed.value,
+    manualNotice: manualNotice.value,
+  })
 })
 
 const kind = computed(() => {
   const s = state.value
+  if (s.checking) return 'checking'
   if (s.error) return 'error'
   if (s.ready) return 'ready'
   if (s.downloading) return 'downloading'
@@ -48,9 +52,14 @@ async function refresh() {
   try { state.value = await UpdateGetState() } catch {}
 }
 
-async function check() {
+async function check({ notify = false } = {}) {
+  if (notify) manualNotice.value = true
   dismissed.value = false
-  state.value = await UpdateCheck()
+  try {
+    state.value = await UpdateCheck()
+  } catch (e) {
+    state.value = { ...state.value, checking: false, error: String(e) }
+  }
 }
 
 async function download() {
@@ -68,6 +77,7 @@ async function install() {
 
 function dismiss() {
   dismissed.value = true
+  manualNotice.value = false
 }
 
 function openReleasePage() {
@@ -79,14 +89,17 @@ function openReleasePage() {
 }
 
 let unsub = null
+let stopTimer = null
 onMounted(() => {
   refresh()
   unsub = EventsOn('update:state', (s) => { state.value = s })
-  // Silent check on startup; user sees a banner only if there is news.
+  // Silent checks only surface when an update is available.
   check()
+  stopTimer = startUpdateCheckTimer(() => check())
 })
 onUnmounted(() => {
   if (unsub) EventsOff('update:state')
+  if (stopTimer) stopTimer()
 })
 
 defineExpose({ check })
@@ -106,6 +119,10 @@ defineExpose({ check })
           <div class="title">更新出错</div>
           <div class="sub">{{ state.error }}</div>
         </template>
+        <template v-else-if="kind === 'checking'">
+          <div class="title">正在检查更新…</div>
+          <div class="sub">当前 {{ state.current || 'dev' }}</div>
+        </template>
         <template v-else-if="kind === 'ready'">
           <div class="title">{{ state.latest }} 已下载完成</div>
           <div class="sub">点击「立即安装」重启应用并升级。</div>
@@ -118,10 +135,19 @@ defineExpose({ check })
           <div class="title">新版本 {{ state.latest }} 可用</div>
           <div class="sub">当前 {{ state.current }} · {{ (state.assetSize / 1024 / 1024).toFixed(1) }} MB</div>
         </template>
+        <template v-else>
+          <div class="title">已是最新版本</div>
+          <div class="sub">当前 {{ state.current || state.latest || 'dev' }}</div>
+        </template>
       </div>
 
       <div class="actions">
-        <template v-if="kind === 'available'">
+        <template v-if="kind === 'checking'">
+          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" aria-label="dismiss">
+            <template #icon><AppIcon :icon="X" :size="12" /></template>
+          </AppButton>
+        </template>
+        <template v-else-if="kind === 'available'">
           <AppButton v-if="state.canInstall" variant="primary" size="sm" @click="download">
             <template #icon><AppIcon :icon="Download" :size="12" /></template>
             下载
