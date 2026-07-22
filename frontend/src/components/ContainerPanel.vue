@@ -1,12 +1,12 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Play, Square, RotateCcw, Trash2, ScrollText, RefreshCw } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
 import AppButton from './ui/AppButton.vue'
 import AppIcon from './ui/AppIcon.vue'
 import { groupContainers, filterContainers } from '../dockerState.js'
 import {
-  ListContainers, StartContainer, StopContainer, RestartContainer, RemoveContainer,
+  ListContainers, StartContainer, StopContainer, RestartContainer,
   FollowContainerLogs, StopFollowContainerLogs, DockerAvailable,
 } from '../../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
