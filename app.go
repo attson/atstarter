@@ -513,29 +513,30 @@ func (a *App) RemoveContainer(id string, force bool) error {
 	return a.docker.RemoveContainer(context.Background(), id, force)
 }
 
-// composeDir 返回 compose 项目的工作目录(项目 path)。
-func (a *App) composeDir(projectID string) (string, string, error) {
-	cfg, err := a.store.Load()
-	if err != nil {
-		return "", "", err
+// composeDir 返回 compose 项目的工作目录(项目 path)、规整后的 project 名与 compose 文件。
+// project 名按 docker compose 规则 normalize(小写 + 过滤),用于与容器 label 比对。
+func (a *App) composeDir(projectID string) (dir, project, file string, err error) {
+	cfg, e := a.store.Load()
+	if e != nil {
+		return "", "", "", e
 	}
 	for _, p := range cfg.Projects {
 		if p.ID == projectID {
-			return p.Path, filepath.Base(p.Path), nil
+			return p.Path, docker.NormalizeProjectName(filepath.Base(p.Path)), p.ComposeFile, nil
 		}
 	}
-	return "", "", errors.New("project not found: " + projectID)
+	return "", "", "", errors.New("project not found: " + projectID)
 }
 
 // ListComposeServices 运行时解析 service 列表并聚合状态。
 func (a *App) ListComposeServices(projectID string) ([]docker.ComposeService, error) {
-	dir, project, err := a.composeDir(projectID)
+	dir, project, file, err := a.composeDir(projectID)
 	if err != nil {
 		return nil, err
 	}
 	ctx, cancel := shortCtx()
 	defer cancel()
-	names, err := a.docker.ListServiceNames(ctx, dir)
+	names, err := a.docker.ListServiceNames(ctx, dir, file)
 	if err != nil {
 		return nil, err
 	}
@@ -547,32 +548,32 @@ func (a *App) ListComposeServices(projectID string) ([]docker.ComposeService, er
 }
 
 func (a *App) ComposeUp(projectID, service string) error {
-	dir, _, err := a.composeDir(projectID)
+	dir, _, file, err := a.composeDir(projectID)
 	if err != nil {
 		return err
 	}
-	return a.docker.ComposeUp(context.Background(), dir, service)
+	return a.docker.ComposeUp(context.Background(), dir, file, service)
 }
 func (a *App) ComposeStop(projectID, service string) error {
-	dir, _, err := a.composeDir(projectID)
+	dir, _, file, err := a.composeDir(projectID)
 	if err != nil {
 		return err
 	}
-	return a.docker.ComposeStop(context.Background(), dir, service)
+	return a.docker.ComposeStop(context.Background(), dir, file, service)
 }
 func (a *App) ComposeRestart(projectID, service string) error {
-	dir, _, err := a.composeDir(projectID)
+	dir, _, file, err := a.composeDir(projectID)
 	if err != nil {
 		return err
 	}
-	return a.docker.ComposeRestart(context.Background(), dir, service)
+	return a.docker.ComposeRestart(context.Background(), dir, file, service)
 }
 func (a *App) ComposeDown(projectID string) error {
-	dir, _, err := a.composeDir(projectID)
+	dir, _, file, err := a.composeDir(projectID)
 	if err != nil {
 		return err
 	}
-	return a.docker.ComposeDown(context.Background(), dir)
+	return a.docker.ComposeDown(context.Background(), dir, file)
 }
 
 func containerRunID(id string) string { return "container:" + id }
@@ -595,11 +596,15 @@ func (a *App) StopFollowContainerLogs(id string) error {
 
 // FollowComposeLogs 起 docker compose logs -f;service 为空=全部。
 func (a *App) FollowComposeLogs(projectID, service string) error {
-	dir, _, err := a.composeDir(projectID)
+	dir, _, file, err := a.composeDir(projectID)
 	if err != nil {
 		return err
 	}
-	args := []string{"compose", "--project-directory", dir, "logs", "-f", "--tail", "200"}
+	args := []string{"compose", "--project-directory", dir}
+	if file != "" {
+		args = append(args, "-f", file)
+	}
+	args = append(args, "logs", "-f", "--tail", "200")
 	if service != "" {
 		args = append(args, service)
 	}

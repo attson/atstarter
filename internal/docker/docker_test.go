@@ -113,28 +113,54 @@ func TestComposeArgs(t *testing.T) {
 	ctx := context.Background()
 	dir := "/home/u/myapp"
 
-	c.ComposeUp(ctx, dir, "")
+	c.ComposeUp(ctx, dir, "", "")
 	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp up -d" {
 		t.Errorf("up all = %q", got)
 	}
-	c.ComposeUp(ctx, dir, "web")
+	c.ComposeUp(ctx, dir, "", "web")
 	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp up -d web" {
 		t.Errorf("up web = %q", got)
 	}
-	c.ComposeStop(ctx, dir, "api")
+	c.ComposeStop(ctx, dir, "", "api")
 	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp stop api" {
 		t.Errorf("stop api = %q", got)
 	}
-	c.ComposeRestart(ctx, dir, "web")
+	c.ComposeRestart(ctx, dir, "", "web")
 	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp restart web" {
 		t.Errorf("restart = %q", got)
 	}
-	c.ComposeDown(ctx, dir)
+	c.ComposeDown(ctx, dir, "")
 	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp down" {
 		t.Errorf("down = %q", got)
 	}
-	names, _ := c.ListServiceNames(ctx, dir)
+	names, _ := c.ListServiceNames(ctx, dir, "")
 	if len(names) != 2 || names[0] != "web" {
 		t.Errorf("services = %v", names)
+	}
+}
+
+// TestComposeArgsWithFile 验证:ComposeFile 非空时在 --project-directory 后追加 -f <file>。
+func TestComposeArgsWithFile(t *testing.T) {
+	var gotArgs []string
+	rec := func(ctx context.Context, name string, args ...string) execResult {
+		gotArgs = append([]string{name}, args...)
+		return execResult{Stdout: "web\n"}
+	}
+	c := newWithExec(rec)
+	ctx := context.Background()
+	dir := "/home/u/myapp"
+	file := "docker-compose.prod.yml"
+
+	c.ComposeUp(ctx, dir, file, "")
+	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp -f docker-compose.prod.yml up -d" {
+		t.Errorf("up with file = %q", got)
+	}
+	c.ComposeDown(ctx, dir, file)
+	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp -f docker-compose.prod.yml down" {
+		t.Errorf("down with file = %q", got)
+	}
+	c.ListServiceNames(ctx, dir, file)
+	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp -f docker-compose.prod.yml config --services" {
+		t.Errorf("config with file = %q", got)
 	}
 }

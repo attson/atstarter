@@ -83,39 +83,44 @@ func (c *Client) RemoveContainer(ctx context.Context, id string, force bool) err
 	return c.runVoid(ctx, "rm", id)
 }
 
-// composeBase 构造 `compose --project-directory <dir>` 前缀 + 后续参数。
-func (c *Client) composeBase(dir string) []string {
-	return []string{"compose", "--project-directory", dir}
+// composeBase 构造 `compose --project-directory <dir> [-f <file>]` 前缀。
+// file 非空时追加 -f;其相对 --project-directory 解析,原样透传。
+func (c *Client) composeBase(dir, file string) []string {
+	base := []string{"compose", "--project-directory", dir}
+	if file != "" {
+		base = append(base, "-f", file)
+	}
+	return base
 }
 
-func (c *Client) ComposeUp(ctx context.Context, dir, service string) error {
-	args := append(c.composeBase(dir), "up", "-d")
+func (c *Client) ComposeUp(ctx context.Context, dir, file, service string) error {
+	args := append(c.composeBase(dir, file), "up", "-d")
 	if service != "" {
 		args = append(args, service)
 	}
 	return c.runVoid(ctx, args...)
 }
-func (c *Client) ComposeStop(ctx context.Context, dir, service string) error {
-	args := append(c.composeBase(dir), "stop")
+func (c *Client) ComposeStop(ctx context.Context, dir, file, service string) error {
+	args := append(c.composeBase(dir, file), "stop")
 	if service != "" {
 		args = append(args, service)
 	}
 	return c.runVoid(ctx, args...)
 }
-func (c *Client) ComposeRestart(ctx context.Context, dir, service string) error {
-	args := append(c.composeBase(dir), "restart")
+func (c *Client) ComposeRestart(ctx context.Context, dir, file, service string) error {
+	args := append(c.composeBase(dir, file), "restart")
 	if service != "" {
 		args = append(args, service)
 	}
 	return c.runVoid(ctx, args...)
 }
-func (c *Client) ComposeDown(ctx context.Context, dir string) error {
-	return c.runVoid(ctx, append(c.composeBase(dir), "down")...)
+func (c *Client) ComposeDown(ctx context.Context, dir, file string) error {
+	return c.runVoid(ctx, append(c.composeBase(dir, file), "down")...)
 }
 
 // ListServiceNames 返回 compose 项目的 service 名列表。
-func (c *Client) ListServiceNames(ctx context.Context, dir string) ([]string, error) {
-	args := append(c.composeBase(dir), "config", "--services")
+func (c *Client) ListServiceNames(ctx context.Context, dir, file string) ([]string, error) {
+	args := append(c.composeBase(dir, file), "config", "--services")
 	res := c.exec(ctx, "docker", args...)
 	if res.Err != nil {
 		return nil, res.Err
