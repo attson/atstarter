@@ -40,7 +40,7 @@ func TestClassifyReason(t *testing.T) {
 
 func TestParsePs(t *testing.T) {
 	// 两行:一个 compose 容器 + 一个独立容器
-	sample := `{"ID":"abc123","Names":"myapp-web-1","Image":"nginx:alpine","State":"running","Status":"Up 3 minutes","Ports":"0.0.0.0:8080->80/tcp","Labels":"com.docker.compose.project=myapp,com.docker.compose.service=web"}
+	sample := `{"ID":"abc123","Names":"myapp-web-1","Image":"nginx:alpine","State":"running","Status":"Up 3 minutes","Ports":"0.0.0.0:8080->80/tcp","Labels":"com.docker.compose.project=myapp,com.docker.compose.service=web,com.docker.compose.project.working_dir=/home/u/myapp"}
 {"ID":"def456","Names":"redis","Image":"redis:7.2","State":"exited","Status":"Exited (0) 2 hours ago","Ports":"","Labels":"foo=bar"}`
 	got, err := parsePs(sample)
 	if err != nil {
@@ -51,6 +51,9 @@ func TestParsePs(t *testing.T) {
 	}
 	if got[0].Name != "myapp-web-1" || got[0].Compose != "myapp" || got[0].Service != "web" {
 		t.Errorf("compose container = %+v", got[0])
+	}
+	if got[0].ComposeWorkingDir != "/home/u/myapp" {
+		t.Errorf("ComposeWorkingDir = %q, want /home/u/myapp", got[0].ComposeWorkingDir)
 	}
 	if got[0].Ports[0] != "0.0.0.0:8080->80/tcp" {
 		t.Errorf("ports = %v", got[0].Ports)

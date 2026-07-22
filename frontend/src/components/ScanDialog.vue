@@ -1,12 +1,16 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { FolderOpen } from 'lucide-vue-next'
-import { ScanWorkspaces, AddScanned, PickDirectory } from '../../wailsjs/go/main/App'
+import { ScanWorkspaces, AddScanned, PickDirectory, GetWorkspaces, SetWorkspaces } from '../../wailsjs/go/main/App'
 import AppButton from './ui/AppButton.vue'
 import AppIcon from './ui/AppIcon.vue'
 import { typeLabel } from '../typeLabel.js'
+import { inferWorkspaceRoots, parseWorkspaceRoots } from '../workspaceRoots.js'
 
-const props = defineProps({ show: Boolean })
+const props = defineProps({
+  show: Boolean,
+  projects: { type: Array, default: () => [] },
+})
 const emit = defineEmits(['close', 'added'])
 
 const rootsText = ref('')
@@ -14,7 +18,8 @@ const candidates = ref([])
 const checked = ref({})
 
 async function scan() {
-  const roots = rootsText.value.split('\n').map((s) => s.trim()).filter(Boolean)
+  const roots = parseWorkspaceRoots(rootsText.value)
+  await SetWorkspaces(roots)
   candidates.value = await ScanWorkspaces(roots)
   checked.value = {}
   candidates.value.forEach((c) => { checked.value[c.id] = c.detectedType !== 'unknown' })
@@ -39,6 +44,18 @@ async function add() {
 function toggle(id) {
   checked.value = { ...checked.value, [id]: !checked.value[id] }
 }
+
+async function loadRoots() {
+  if (!props.show) return
+  let roots = []
+  try { roots = (await GetWorkspaces()) || [] } catch (_) { roots = [] }
+  if (!roots.length) roots = inferWorkspaceRoots(props.projects)
+  rootsText.value = roots.join('\n')
+  candidates.value = []
+  checked.value = {}
+}
+
+watch(() => props.show, loadRoots, { immediate: true })
 </script>
 
 <template>

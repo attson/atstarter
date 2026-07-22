@@ -16,14 +16,15 @@ import UpdateBanner from './components/UpdateBanner.vue'
 import ComposeDetail from './components/ComposeDetail.vue'
 import ContainerPanel from './components/ContainerPanel.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
-import { FolderPlus, Radar, Plus } from 'lucide-vue-next'
+import { FolderPlus, Radar, Plus, RefreshCw } from 'lucide-vue-next'
 import {
   ListProjects, AddProject, StartProjectCommand, StopProjectCommand,
   GetStatus, UpdateProjectCommands, ListGroups, SaveGroup, RemoveGroup,
-  StartGroup, StopGroup,
+  StartGroup, StopGroup, GetWorkspaces, SetWorkspaces, ScanWorkspaces, AddScanned,
 } from '../wailsjs/go/main/App'
 import { ComposeDown, RemoveContainer, DockerAvailable } from '../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
+import { inferWorkspaceRoots } from './workspaceRoots'
 
 const projects = ref([])
 const groups = ref([])
@@ -38,11 +39,14 @@ const showAddProject = ref(false)
 const showAddToGroup = ref(false)
 const editingGroup = ref(null)
 const statusFilter = ref(null) // null | 'running' | 'exited'
+const rescanning = ref(false)
 
 const activeTab = ref('projects') // 'projects' | 'containers'
 const dockerAvailable = ref(true)
+const containerSummary = ref({ total: 0, running: 0, exited: 0 })
 const confirm = ref({ show: false, kind: '', payload: null, title: '', message: '', confirmText: '', danger: true })
 const containerPanelRef = ref(null)
+const updateBannerRef = ref(null)
 
 const isComposeSelected = computed(() => selected.value && selected.value.detectedType === 'compose')
 
@@ -58,6 +62,9 @@ function onConfirmRemove(container) {
   const running = container.state === 'running'
   confirm.value = { show: true, kind: 'remove', payload: container, title: '删除容器', message: running ? `容器「${container.name}」正在运行,将强制删除(rm -f)。确认?` : `删除容器「${container.name}」?`, confirmText: '删除', danger: true }
 }
+function onContainerSummary(summary) {
+  containerSummary.value = summary || { total: 0, running: 0, exited: 0 }
+}
 async function onConfirmAccept() {
   const { kind, payload } = confirm.value
   try {
@@ -72,7 +79,12 @@ async function onConfirmAccept() {
 }
 
 function toggleStatusFilter(kind) {
+  if (activeTab.value !== 'projects') return
   statusFilter.value = statusFilter.value === kind ? null : kind
+}
+
+async function onCheckUpdates() {
+  await updateBannerRef.value?.check({ notify: true })
 }
 
 const selected = computed(() => projects.value.find((p) => p.id === selectedId.value))
@@ -83,6 +95,11 @@ const selectedCommand = computed(() => commandsFor(selected.value).find((c) => c
 const selectedStatus = computed(() => statuses.value[selectedRunId.value])
 const runningCount = computed(() => Object.values(statuses.value).filter((s) => s && s.State === 'running').length)
 const exitedCount = computed(() => Object.values(statuses.value).filter((s) => s && (s.State === 'exited' || s.State === 'error')).length)
+const summaryTotalLabel = computed(() => activeTab.value === 'containers'
+  ? `${containerSummary.value.total} containers`
+  : `${projects.value.length} projects`)
+const summaryRunningCount = computed(() => activeTab.value === 'containers' ? containerSummary.value.running : runningCount.value)
+const summaryExitedCount = computed(() => activeTab.value === 'containers' ? containerSummary.value.exited : exitedCount.value)
 const projectStatuses = computed(() => {
   const out = {}
   for (const p of projects.value) {
@@ -188,6 +205,29 @@ async function onAddProject(dir) {
   await refresh()
 }
 
+async function onRescanProjects() {
+  if (rescanning.value) return
+  rescanning.value = true
+  try {
+    let roots = (await GetWorkspaces()) || []
+    if (!roots.length) roots = inferWorkspaceRoots(projects.value)
+    if (!roots.length) {
+      showScan.value = true
+      return
+    }
+    await SetWorkspaces(roots)
+    const candidates = (await ScanWorkspaces(roots)) || []
+    const detected = candidates.filter((p) => p.detectedType !== 'unknown')
+    if (detected.length) await AddScanned(detected)
+    await refresh()
+    await pollStatuses()
+  } catch (e) {
+    console.error('重新扫描失败:', e)
+  } finally {
+    rescanning.value = false
+  }
+}
+
 async function onStart(commandId) { await StartProjectCommand(selectedId.value, commandId); await pollStatuses() }
 async function onStop(commandId) { await StopProjectCommand(selectedId.value, commandId); await pollStatuses() }
 
@@ -275,24 +315,24 @@ onUnmounted(() => {
 
 <template>
   <div class="app-shell">
-    <UpdateBanner />
+    <UpdateBanner ref="updateBannerRef" />
     <header class="topbar">
       <div class="brand">atstarter</div>
       <div class="summary">
-        <span class="summary-count">{{ projects.length }} projects</span>
+        <span class="summary-count">{{ summaryTotalLabel }}</span>
         <AppPill
           variant="running"
           dot
-          clickable
-          :active="statusFilter === 'running'"
+          :clickable="activeTab === 'projects'"
+          :active="activeTab === 'projects' && statusFilter === 'running'"
           @click="toggleStatusFilter('running')"
-        >{{ runningCount }} running</AppPill>
+        >{{ summaryRunningCount }} running</AppPill>
         <AppPill
           variant="exited"
-          clickable
-          :active="statusFilter === 'exited'"
+          :clickable="activeTab === 'projects'"
+          :active="activeTab === 'projects' && statusFilter === 'exited'"
           @click="toggleStatusFilter('exited')"
-        >{{ exitedCount }} exited</AppPill>
+        >{{ summaryExitedCount }} exited</AppPill>
       </div>
       <div class="tabs">
         <button class="tab" :class="{ active: activeTab === 'projects' }" @click="activeTab = 'projects'">Projects</button>
@@ -300,6 +340,9 @@ onUnmounted(() => {
       </div>
       <div class="top-actions">
         <ThemeToggle />
+        <AppButton variant="secondary" size="sm" icon-only title="检查更新" aria-label="检查更新" @click="onCheckUpdates">
+          <template #icon><AppIcon :icon="RefreshCw" :size="14" /></template>
+        </AppButton>
         <AppButton variant="secondary" size="sm" @click="editingGroup = null; showGroup = true">
           <template #icon><AppIcon :icon="FolderPlus" :size="14" /></template>
           New Group
@@ -317,9 +360,9 @@ onUnmounted(() => {
     <main class="workspace">
       <template v-if="activeTab === 'projects'">
         <ProjectList :projects="projects" :groups="groups" :selectedId="selectedId" :selectedGroupId="selectedGroupId"
-          :statuses="projectStatuses" :statusFilter="statusFilter"
+          :statuses="projectStatuses" :statusFilter="statusFilter" :rescanning="rescanning"
           @select="selectProject" @select-group="selectGroup"
-          @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true" />
+          @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true" @rescan="onRescanProjects" />
         <GroupDetail v-if="selectedGroup" :group="selectedGroup" :projects="projects"
           @start="onStartGroup" @stop="onStopGroup" @edit="onEditGroup" @remove="onRemoveGroup"
           @select-command="selectCommand" />
@@ -329,7 +372,7 @@ onUnmounted(() => {
           :selectedCommandId="selectedCommandId" @command-change="setSelectedCommand"
           @start="onStart" @stop="onStop" @restart="onRestart" @edit="showEdit = true" @add-to-group="showAddToGroup = true" />
       </template>
-      <ContainerPanel v-else ref="containerPanelRef" @confirm-remove="onConfirmRemove" />
+      <ContainerPanel v-else ref="containerPanelRef" :projects="projects" @confirm-remove="onConfirmRemove" @summary="onContainerSummary" />
     </main>
   </div>
 
@@ -347,7 +390,7 @@ onUnmounted(() => {
     <AddProjectDialog :show="showAddProject" @close="showAddProject = false" @save="onAddProject" />
     <AddToGroupDialog :show="showAddToGroup" :groups="groups" :project="selected" :command="selectedCommand"
       @close="showAddToGroup = false" @save="onAddToGroup" />
-    <ScanDialog :show="showScan" @close="showScan = false" @added="refresh" />
+    <ScanDialog :show="showScan" :projects="projects" @close="showScan = false" @added="refresh" />
     <ConfirmDialog :show="confirm.show" :title="confirm.title" :message="confirm.message"
       :confirmText="confirm.confirmText" :danger="confirm.danger"
       @close="confirm = { ...confirm, show: false }" @confirm="onConfirmAccept" />
