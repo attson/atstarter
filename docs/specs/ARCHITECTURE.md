@@ -12,13 +12,14 @@ atstarter 是一个 Wails v2(Go 后端 + WebKit 前端)桌面应用,把「识别
 ```
 ┌─────────────────────── Wails 桌面进程 ───────────────────────┐
 │  前端 (Vue3 + Vite, WebKit 渲染)                              │
-│    App.vue ── 业务组件 ×13 ── ui/ 自写组件 ×4 ── 主题系统      │
-│        │  调用绑定方法 / 订阅 log·status·update 事件          │
+│    App.vue ── 业务组件 ×16 ── ui/ 自写组件 ×4 ── 主题系统      │
+│    Projects / Containers 顶部 Tab 双视图                       │
+│        │  调用绑定方法 / 订阅 log·status·update·docker 事件    │
 │  ──────┼──────────────────────────────────────────────────  │
 │  后端 (Go)                                                    │
 │    app.go   绑定层(44 方法)+ 事件推送                        │
 │    tray.go  系统托盘        updater.go  自更新 + 下载加速      │
-│    internal/ cmdparse · detector · scanner · store · runner  │
+│    internal/ cmdparse·detector·scanner·store·runner·docker   │
 └──────────────────────────────────────────────────────────────┘
          │ 子进程(登录 shell 包裹 + setsid 进程组)
          ▼  pnpm dev / go run / cargo run / python main.py …
