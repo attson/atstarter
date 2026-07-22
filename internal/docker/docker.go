@@ -125,3 +125,11 @@ func (c *Client) ListServiceNames(ctx context.Context, dir string) ([]string, er
 	}
 	return parseServiceNames(res.Stdout), nil
 }
+
+// ExecResult 是 CLI 调用结果(导出以便上层注入测试)。
+type ExecResult = execResult
+
+// NewWithExecForTest 构造注入自定义执行器的 Client,供上层集成测试用。
+func NewWithExecForTest(fn func(ctx context.Context, name string, args ...string) execResult) *Client {
+	return &Client{exec: fn}
+}

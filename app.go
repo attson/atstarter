@@ -11,6 +11,7 @@ import (
 
 	"atstarter/internal/cmdparse"
 	"atstarter/internal/detector"
+	"atstarter/internal/docker"
 	"atstarter/internal/runner"
 	"atstarter/internal/scanner"
 	"atstarter/internal/store"
@@ -24,6 +25,7 @@ type App struct {
 	store   *store.Store
 	runner  *runner.Runner
 	updater *updater
+	docker  *docker.Client
 }
 
 type CommandInput struct {
@@ -53,6 +55,7 @@ func NewAppWithConfig(cfgPath string) *App {
 		store:   store.New(cfgPath),
 		runner:  runner.New(5000),
 		updater: newUpdater(),
+		docker:  docker.New(),
 	}
 }
 
@@ -464,4 +467,11 @@ func (a *App) GetProjectBranch(projectPath string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// ---- Docker 绑定方法 ----
+
+// DockerAvailable 探测 Docker 可用性(前端据此降级)。
+func (a *App) DockerAvailable() docker.Info {
+	return a.docker.Detect(context.Background())
 }
