@@ -162,7 +162,7 @@ func assetPatternFor(goos, goarch string) string {
 	case "linux":
 		return "-linux-" + goarch + ".tar.gz"
 	case "darwin":
-		return "-darwin-" + goarch + ".dmg"
+		return "_" + goarch + ".dmg"
 	case "windows":
 		return "_" + goarch + ".exe"
 	}
