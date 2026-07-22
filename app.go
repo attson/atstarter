@@ -494,3 +494,64 @@ func (a *App) RestartContainer(id string) error {
 func (a *App) RemoveContainer(id string, force bool) error {
 	return a.docker.RemoveContainer(context.Background(), id, force)
 }
+
+// composeDir 返回 compose 项目的工作目录(项目 path)。
+func (a *App) composeDir(projectID string) (string, string, error) {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return "", "", err
+	}
+	for _, p := range cfg.Projects {
+		if p.ID == projectID {
+			return p.Path, filepath.Base(p.Path), nil
+		}
+	}
+	return "", "", errors.New("project not found: " + projectID)
+}
+
+// ListComposeServices 运行时解析 service 列表并聚合状态。
+func (a *App) ListComposeServices(projectID string) ([]docker.ComposeService, error) {
+	dir, project, err := a.composeDir(projectID)
+	if err != nil {
+		return nil, err
+	}
+	ctx := context.Background()
+	names, err := a.docker.ListServiceNames(ctx, dir)
+	if err != nil {
+		return nil, err
+	}
+	containers, err := a.docker.ListContainers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return docker.ComposeServices(project, names, containers), nil
+}
+
+func (a *App) ComposeUp(projectID, service string) error {
+	dir, _, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	return a.docker.ComposeUp(context.Background(), dir, service)
+}
+func (a *App) ComposeStop(projectID, service string) error {
+	dir, _, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	return a.docker.ComposeStop(context.Background(), dir, service)
+}
+func (a *App) ComposeRestart(projectID, service string) error {
+	dir, _, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	return a.docker.ComposeRestart(context.Background(), dir, service)
+}
+func (a *App) ComposeDown(projectID string) error {
+	dir, _, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	return a.docker.ComposeDown(context.Background(), dir)
+}

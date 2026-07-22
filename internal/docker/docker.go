@@ -133,3 +133,8 @@ type ExecResult = execResult
 func NewWithExecForTest(fn func(ctx context.Context, name string, args ...string) execResult) *Client {
 	return &Client{exec: fn}
 }
+
+// ComposeServices 聚合 service 名与容器快照(导出封装,供上层用)。
+func ComposeServices(project string, names []string, containers []ContainerState) []ComposeService {
+	return aggregateServices(project, names, containers)
+}
