@@ -73,8 +73,8 @@ func TestAssetPatternFor(t *testing.T) {
 	}{
 		{"linux", "amd64", "-linux-amd64.tar.gz"},
 		{"linux", "arm64", "-linux-arm64.tar.gz"},
-		{"darwin", "arm64", "-darwin-arm64.dmg"},
-		{"darwin", "amd64", "-darwin-amd64.dmg"},
+		{"darwin", "arm64", "_arm64.dmg"},
+		{"darwin", "amd64", "_amd64.dmg"},
 		{"windows", "amd64", "_amd64.exe"},
 		{"plan9", "amd64", ""},
 	}
@@ -82,6 +82,14 @@ func TestAssetPatternFor(t *testing.T) {
 		if got := assetPatternFor(c.os, c.arch); got != c.want {
 			t.Errorf("assetPatternFor(%s,%s) = %q, want %q", c.os, c.arch, got, c.want)
 		}
+	}
+}
+
+func TestAssetPatternForMatchesReleasedMacOSDMGName(t *testing.T) {
+	pattern := assetPatternFor("darwin", "arm64")
+	name := "AT-Starter_0.4.3_arm64.dmg"
+	if !contains(name, pattern) {
+		t.Fatalf("macOS update pattern %q does not match release asset %q", pattern, name)
 	}
 }
 
