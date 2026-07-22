@@ -589,7 +589,7 @@ func composeRunID(projectID, service string) string {
 // FollowContainerLogs 起一个 docker logs -f 长驻进程,日志走 log:<runID>。
 func (a *App) FollowContainerLogs(id string) error {
 	return a.runner.Start(runner.Spec{
-		ID: containerRunID(id), Command: "docker", Args: []string{"logs", "-f", "--tail", "200", id},
+		ID: containerRunID(id), Command: a.docker.Command(), Args: []string{"logs", "-f", "--tail", "200", id},
 	})
 }
 func (a *App) StopFollowContainerLogs(id string) error {
@@ -610,7 +610,7 @@ func (a *App) FollowComposeLogs(projectID, service string) error {
 	if service != "" {
 		args = append(args, service)
 	}
-	return a.runner.Start(runner.Spec{ID: composeRunID(projectID, service), Command: "docker", Args: args})
+	return a.runner.Start(runner.Spec{ID: composeRunID(projectID, service), Command: a.docker.Command(), Args: args})
 }
 func (a *App) StopFollowComposeLogs(projectID, service string) error {
 	return a.runner.Stop(composeRunID(projectID, service))
