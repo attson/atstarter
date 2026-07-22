@@ -54,3 +54,31 @@ func (c *Client) ListContainers(ctx context.Context) ([]ContainerState, error) {
 	}
 	return parsePs(res.Stdout)
 }
+
+// runVoid 执行一条命令,非零退出返回归类后的错误。
+func (c *Client) runVoid(ctx context.Context, args ...string) error {
+	res := c.exec(ctx, "docker", args...)
+	if res.Err != nil {
+		return res.Err
+	}
+	if res.ExitCode != 0 {
+		return errFromResult(res)
+	}
+	return nil
+}
+
+func (c *Client) StartContainer(ctx context.Context, id string) error {
+	return c.runVoid(ctx, "start", id)
+}
+func (c *Client) StopContainer(ctx context.Context, id string) error {
+	return c.runVoid(ctx, "stop", id)
+}
+func (c *Client) RestartContainer(ctx context.Context, id string) error {
+	return c.runVoid(ctx, "restart", id)
+}
+func (c *Client) RemoveContainer(ctx context.Context, id string, force bool) error {
+	if force {
+		return c.runVoid(ctx, "rm", "-f", id)
+	}
+	return c.runVoid(ctx, "rm", id)
+}

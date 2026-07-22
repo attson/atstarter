@@ -60,3 +60,45 @@ func TestListContainers(t *testing.T) {
 		t.Errorf("got = %+v", got)
 	}
 }
+
+func TestContainerLifecycleArgs(t *testing.T) {
+	var gotArgs []string
+	rec := func(ctx context.Context, name string, args ...string) execResult {
+		gotArgs = append([]string{name}, args...)
+		return execResult{}
+	}
+	c := newWithExec(rec)
+	ctx := context.Background()
+
+	c.StartContainer(ctx, "abc")
+	if got := join(gotArgs); got != "docker start abc" {
+		t.Errorf("start = %q", got)
+	}
+	c.StopContainer(ctx, "abc")
+	if got := join(gotArgs); got != "docker stop abc" {
+		t.Errorf("stop = %q", got)
+	}
+	c.RestartContainer(ctx, "abc")
+	if got := join(gotArgs); got != "docker restart abc" {
+		t.Errorf("restart = %q", got)
+	}
+	c.RemoveContainer(ctx, "abc", false)
+	if got := join(gotArgs); got != "docker rm abc" {
+		t.Errorf("rm = %q", got)
+	}
+	c.RemoveContainer(ctx, "abc", true)
+	if got := join(gotArgs); got != "docker rm -f abc" {
+		t.Errorf("rm -f = %q", got)
+	}
+}
+
+func join(parts []string) string {
+	out := ""
+	for i, p := range parts {
+		if i > 0 {
+			out += " "
+		}
+		out += p
+	}
+	return out
+}
