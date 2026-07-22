@@ -2,8 +2,14 @@ package docker
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 )
+
+// errFromResult 从非零退出的结果构造错误(归类后的原因)。
+func errFromResult(res execResult) error {
+	return errors.New(classifyReason(res.Stderr, false))
+}
 
 // classifyReason 把 docker 命令的 stderr / 启动错误归类成人类可读原因。
 func classifyReason(stderr string, startErr bool) string {

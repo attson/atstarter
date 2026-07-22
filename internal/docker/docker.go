@@ -42,3 +42,15 @@ func (c *Client) Detect(ctx context.Context) Info {
 	}
 	return Info{Available: false, Reason: classifyReason(res.Stderr, res.Err != nil)}
 }
+
+// ListContainers 返回 `docker ps -a` 快照。
+func (c *Client) ListContainers(ctx context.Context) ([]ContainerState, error) {
+	res := c.exec(ctx, "docker", "ps", "-a", "--format", "{{json .}}")
+	if res.Err != nil {
+		return nil, res.Err
+	}
+	if res.ExitCode != 0 {
+		return nil, errFromResult(res)
+	}
+	return parsePs(res.Stdout)
+}

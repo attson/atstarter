@@ -46,3 +46,17 @@ func TestDetectDaemonDown(t *testing.T) {
 		t.Errorf("Reason = %q", info.Reason)
 	}
 }
+
+func TestListContainers(t *testing.T) {
+	sample := `{"ID":"abc","Names":"redis","Image":"redis:7","State":"running","Status":"Up 1m","Ports":"","Labels":""}`
+	c := newWithExec(fakeExec(map[string]execResult{
+		"docker ps": {Stdout: sample},
+	}))
+	got, err := c.ListContainers(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Name != "redis" {
+		t.Errorf("got = %+v", got)
+	}
+}
