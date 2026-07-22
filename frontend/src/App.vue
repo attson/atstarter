@@ -13,12 +13,16 @@ import AppPill from './components/ui/AppPill.vue'
 import AppIcon from './components/ui/AppIcon.vue'
 import ThemeToggle from './components/ui/ThemeToggle.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
+import ComposeDetail from './components/ComposeDetail.vue'
+import ContainerPanel from './components/ContainerPanel.vue'
+import ConfirmDialog from './components/ConfirmDialog.vue'
 import { FolderPlus, Radar, Plus } from 'lucide-vue-next'
 import {
   ListProjects, AddProject, StartProjectCommand, StopProjectCommand,
   GetStatus, UpdateProjectCommands, ListGroups, SaveGroup, RemoveGroup,
   StartGroup, StopGroup,
 } from '../wailsjs/go/main/App'
+import { ComposeDown, RemoveContainer, DockerAvailable } from '../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 
 const projects = ref([])
@@ -34,6 +38,33 @@ const showAddProject = ref(false)
 const showAddToGroup = ref(false)
 const editingGroup = ref(null)
 const statusFilter = ref(null) // null | 'running' | 'exited'
+
+const activeTab = ref('projects') // 'projects' | 'containers'
+const dockerAvailable = ref(true)
+const confirm = ref({ show: false, kind: '', payload: null, title: '', message: '', confirmText: '', danger: true })
+const containerPanelRef = ref(null)
+
+const isComposeSelected = computed(() => selected.value && selected.value.detectedType === 'compose')
+
+async function checkDocker() {
+  const info = await DockerAvailable()
+  dockerAvailable.value = info.available
+}
+
+function onConfirmDown(projectId) {
+  confirm.value = { show: true, kind: 'down', payload: projectId, title: 'Compose Down', message: '将停止并删除该 compose 项目的所有容器与网络(数据卷保留)。确认继续?', confirmText: 'Down', danger: true }
+}
+function onConfirmRemove(container) {
+  const running = container.state === 'running'
+  confirm.value = { show: true, kind: 'remove', payload: container, title: '删除容器', message: running ? `容器「${container.name}」正在运行,将强制删除(rm -f)。确认?` : `删除容器「${container.name}」?`, confirmText: '删除', danger: true }
+}
+async function onConfirmAccept() {
+  const { kind, payload } = confirm.value
+  if (kind === 'down') await ComposeDown(payload)
+  else if (kind === 'remove') await RemoveContainer(payload.id, payload.state === 'running')
+  confirm.value = { ...confirm.value, show: false }
+  if (kind === 'remove' && containerPanelRef.value) await containerPanelRef.value.refresh()
+}
 
 function toggleStatusFilter(kind) {
   statusFilter.value = statusFilter.value === kind ? null : kind
@@ -228,6 +259,7 @@ let timer
 onMounted(async () => {
   await refresh()
   await pollStatuses()
+  await checkDocker()
   timer = setInterval(pollStatuses, 1500)
 })
 onUnmounted(() => {
@@ -257,6 +289,10 @@ onUnmounted(() => {
           @click="toggleStatusFilter('exited')"
         >{{ exitedCount }} exited</AppPill>
       </div>
+      <div class="tabs">
+        <button class="tab" :class="{ active: activeTab === 'projects' }" @click="activeTab = 'projects'">Projects</button>
+        <button class="tab" :class="{ active: activeTab === 'containers' }" @click="activeTab = 'containers'">Containers</button>
+      </div>
       <div class="top-actions">
         <ThemeToggle />
         <AppButton variant="secondary" size="sm" @click="editingGroup = null; showGroup = true">
@@ -274,16 +310,21 @@ onUnmounted(() => {
       </div>
     </header>
     <main class="workspace">
-      <ProjectList :projects="projects" :groups="groups" :selectedId="selectedId" :selectedGroupId="selectedGroupId"
-        :statuses="projectStatuses" :statusFilter="statusFilter"
-        @select="selectProject" @select-group="selectGroup"
-        @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true" />
-      <GroupDetail v-if="selectedGroup" :group="selectedGroup" :projects="projects"
-        @start="onStartGroup" @stop="onStopGroup" @edit="onEditGroup" @remove="onRemoveGroup"
-        @select-command="selectCommand" />
-      <ProjectDetail v-else :project="selected" :status="selectedStatus"
-        :selectedCommandId="selectedCommandId" @command-change="setSelectedCommand"
-        @start="onStart" @stop="onStop" @restart="onRestart" @edit="showEdit = true" @add-to-group="showAddToGroup = true" />
+      <template v-if="activeTab === 'projects'">
+        <ProjectList :projects="projects" :groups="groups" :selectedId="selectedId" :selectedGroupId="selectedGroupId"
+          :statuses="projectStatuses" :statusFilter="statusFilter"
+          @select="selectProject" @select-group="selectGroup"
+          @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true" />
+        <GroupDetail v-if="selectedGroup" :group="selectedGroup" :projects="projects"
+          @start="onStartGroup" @stop="onStopGroup" @edit="onEditGroup" @remove="onRemoveGroup"
+          @select-command="selectCommand" />
+        <ComposeDetail v-else-if="isComposeSelected" :project="selected" :dockerAvailable="dockerAvailable"
+          @confirm-down="onConfirmDown" />
+        <ProjectDetail v-else :project="selected" :status="selectedStatus"
+          :selectedCommandId="selectedCommandId" @command-change="setSelectedCommand"
+          @start="onStart" @stop="onStop" @restart="onRestart" @edit="showEdit = true" @add-to-group="showAddToGroup = true" />
+      </template>
+      <ContainerPanel v-else ref="containerPanelRef" @confirm-remove="onConfirmRemove" />
     </main>
   </div>
 
@@ -302,6 +343,9 @@ onUnmounted(() => {
     <AddToGroupDialog :show="showAddToGroup" :groups="groups" :project="selected" :command="selectedCommand"
       @close="showAddToGroup = false" @save="onAddToGroup" />
     <ScanDialog :show="showScan" @close="showScan = false" @added="refresh" />
+    <ConfirmDialog :show="confirm.show" :title="confirm.title" :message="confirm.message"
+      :confirmText="confirm.confirmText" :danger="confirm.danger"
+      @close="confirm = { ...confirm, show: false }" @confirm="onConfirmAccept" />
   </Teleport>
 </template>
 
@@ -363,6 +407,10 @@ html, body, #app { height: 100%; margin: 0; }
   color: var(--text-secondary);
   font-weight: var(--fw-medium);
 }
+
+.tabs { display: flex; gap: var(--space-2); }
+.tab { height: 28px; padding: 0 var(--space-5); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-medium); cursor: pointer; }
+.tab.active { background: var(--elevated); color: var(--text); border-color: var(--border-strong); }
 
 .top-actions {
   margin-left: auto;
