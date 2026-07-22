@@ -82,3 +82,46 @@ func (c *Client) RemoveContainer(ctx context.Context, id string, force bool) err
 	}
 	return c.runVoid(ctx, "rm", id)
 }
+
+// composeBase 构造 `compose --project-directory <dir>` 前缀 + 后续参数。
+func (c *Client) composeBase(dir string) []string {
+	return []string{"compose", "--project-directory", dir}
+}
+
+func (c *Client) ComposeUp(ctx context.Context, dir, service string) error {
+	args := append(c.composeBase(dir), "up", "-d")
+	if service != "" {
+		args = append(args, service)
+	}
+	return c.runVoid(ctx, args...)
+}
+func (c *Client) ComposeStop(ctx context.Context, dir, service string) error {
+	args := append(c.composeBase(dir), "stop")
+	if service != "" {
+		args = append(args, service)
+	}
+	return c.runVoid(ctx, args...)
+}
+func (c *Client) ComposeRestart(ctx context.Context, dir, service string) error {
+	args := append(c.composeBase(dir), "restart")
+	if service != "" {
+		args = append(args, service)
+	}
+	return c.runVoid(ctx, args...)
+}
+func (c *Client) ComposeDown(ctx context.Context, dir string) error {
+	return c.runVoid(ctx, append(c.composeBase(dir), "down")...)
+}
+
+// ListServiceNames 返回 compose 项目的 service 名列表。
+func (c *Client) ListServiceNames(ctx context.Context, dir string) ([]string, error) {
+	args := append(c.composeBase(dir), "config", "--services")
+	res := c.exec(ctx, "docker", args...)
+	if res.Err != nil {
+		return nil, res.Err
+	}
+	if res.ExitCode != 0 {
+		return nil, errFromResult(res)
+	}
+	return parseServiceNames(res.Stdout), nil
+}

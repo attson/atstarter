@@ -102,3 +102,39 @@ func join(parts []string) string {
 	}
 	return out
 }
+
+func TestComposeArgs(t *testing.T) {
+	var gotArgs []string
+	rec := func(ctx context.Context, name string, args ...string) execResult {
+		gotArgs = append([]string{name}, args...)
+		return execResult{Stdout: "web\napi\n"}
+	}
+	c := newWithExec(rec)
+	ctx := context.Background()
+	dir := "/home/u/myapp"
+
+	c.ComposeUp(ctx, dir, "")
+	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp up -d" {
+		t.Errorf("up all = %q", got)
+	}
+	c.ComposeUp(ctx, dir, "web")
+	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp up -d web" {
+		t.Errorf("up web = %q", got)
+	}
+	c.ComposeStop(ctx, dir, "api")
+	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp stop api" {
+		t.Errorf("stop api = %q", got)
+	}
+	c.ComposeRestart(ctx, dir, "web")
+	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp restart web" {
+		t.Errorf("restart = %q", got)
+	}
+	c.ComposeDown(ctx, dir)
+	if got := join(gotArgs); got != "docker compose --project-directory /home/u/myapp down" {
+		t.Errorf("down = %q", got)
+	}
+	names, _ := c.ListServiceNames(ctx, dir)
+	if len(names) != 2 || names[0] != "web" {
+		t.Errorf("services = %v", names)
+	}
+}
