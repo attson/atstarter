@@ -161,8 +161,9 @@ onMounted(() => {
     convertEol: true,
     disableStdin: true,
     cursorBlink: false,
-    fontFamily: 'var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace',
-    fontSize: 12,
+    fontFamily: '"SF Mono", SFMono-Regular, ui-monospace, Menlo, Consolas, "Liberation Mono", monospace',
+    fontSize: 11,
+    lineHeight: 1.25,
     theme: readThemeColors(),
   })
   fitAddon = new FitAddon()
