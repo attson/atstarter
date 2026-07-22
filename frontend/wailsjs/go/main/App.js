@@ -14,6 +14,34 @@ export function ClearLogs(arg1) {
   return window['go']['main']['App']['ClearLogs'](arg1);
 }
 
+export function ComposeDown(arg1) {
+  return window['go']['main']['App']['ComposeDown'](arg1);
+}
+
+export function ComposeRestart(arg1, arg2) {
+  return window['go']['main']['App']['ComposeRestart'](arg1, arg2);
+}
+
+export function ComposeStop(arg1, arg2) {
+  return window['go']['main']['App']['ComposeStop'](arg1, arg2);
+}
+
+export function ComposeUp(arg1, arg2) {
+  return window['go']['main']['App']['ComposeUp'](arg1, arg2);
+}
+
+export function DockerAvailable() {
+  return window['go']['main']['App']['DockerAvailable']();
+}
+
+export function FollowComposeLogs(arg1, arg2) {
+  return window['go']['main']['App']['FollowComposeLogs'](arg1, arg2);
+}
+
+export function FollowContainerLogs(arg1) {
+  return window['go']['main']['App']['FollowContainerLogs'](arg1);
+}
+
 export function GetLogs(arg1) {
   return window['go']['main']['App']['GetLogs'](arg1);
 }
@@ -30,6 +58,14 @@ export function GetWorkspaces() {
   return window['go']['main']['App']['GetWorkspaces']();
 }
 
+export function ListComposeServices(arg1) {
+  return window['go']['main']['App']['ListComposeServices'](arg1);
+}
+
+export function ListContainers() {
+  return window['go']['main']['App']['ListContainers']();
+}
+
 export function ListGroups() {
   return window['go']['main']['App']['ListGroups']();
 }
@@ -42,12 +78,20 @@ export function PickDirectory() {
   return window['go']['main']['App']['PickDirectory']();
 }
 
+export function RemoveContainer(arg1, arg2) {
+  return window['go']['main']['App']['RemoveContainer'](arg1, arg2);
+}
+
 export function RemoveGroup(arg1) {
   return window['go']['main']['App']['RemoveGroup'](arg1);
 }
 
 export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
+}
+
+export function RestartContainer(arg1) {
+  return window['go']['main']['App']['RestartContainer'](arg1);
 }
 
 export function SaveGroup(arg1) {
@@ -62,6 +106,10 @@ export function SetWorkspaces(arg1) {
   return window['go']['main']['App']['SetWorkspaces'](arg1);
 }
 
+export function StartContainer(arg1) {
+  return window['go']['main']['App']['StartContainer'](arg1);
+}
+
 export function StartGroup(arg1) {
   return window['go']['main']['App']['StartGroup'](arg1);
 }
@@ -72,6 +120,18 @@ export function StartProject(arg1) {
 
 export function StartProjectCommand(arg1, arg2) {
   return window['go']['main']['App']['StartProjectCommand'](arg1, arg2);
+}
+
+export function StopContainer(arg1) {
+  return window['go']['main']['App']['StopContainer'](arg1);
+}
+
+export function StopFollowComposeLogs(arg1, arg2) {
+  return window['go']['main']['App']['StopFollowComposeLogs'](arg1, arg2);
+}
+
+export function StopFollowContainerLogs(arg1) {
+  return window['go']['main']['App']['StopFollowContainerLogs'](arg1);
 }
 
 export function StopGroup(arg1) {
