@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -90,6 +92,24 @@ func TestAssetPatternForMatchesReleasedMacOSDMGName(t *testing.T) {
 	name := "AT-Starter_0.4.3_arm64.dmg"
 	if !contains(name, pattern) {
 		t.Fatalf("macOS update pattern %q does not match release asset %q", pattern, name)
+	}
+}
+
+func TestMacOSReleasePublishesLegacyDMGAlias(t *testing.T) {
+	script, err := os.ReadFile(".github/scripts/package-macos-dmg.sh")
+	if err != nil {
+		t.Fatalf("read package-macos-dmg.sh: %v", err)
+	}
+	if !strings.Contains(string(script), "${ARTIFACT_NAME}-darwin-${ARCH}.dmg") {
+		t.Fatalf("package-macos-dmg.sh must create a -darwin-${ARCH}.dmg alias for old updaters")
+	}
+
+	workflow, err := os.ReadFile(".github/workflows/build.yml")
+	if err != nil {
+		t.Fatalf("read build.yml: %v", err)
+	}
+	if !strings.Contains(string(workflow), "${{ env.APP_ARTIFACT_NAME }}-darwin-${{ matrix.arch }}.dmg") {
+		t.Fatalf("build.yml must upload the -darwin-${{ matrix.arch }}.dmg compatibility alias")
 	}
 }
 
