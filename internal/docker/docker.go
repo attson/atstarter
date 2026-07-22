@@ -9,14 +9,15 @@ import (
 
 // ContainerState 是一个容器的运行时快照(不落库)。
 type ContainerState struct {
-	ID      string   `json:"id"`
-	Name    string   `json:"name"`
-	Image   string   `json:"image"`
-	State   string   `json:"state"`   // running / exited / created / paused ...
-	Status  string   `json:"status"`  // "Up 3 minutes" 人类可读串
-	Compose string   `json:"compose"` // 所属 compose project 名;独立容器为空
-	Service string   `json:"service"` // compose service 名;独立容器为空
-	Ports   []string `json:"ports"`
+	ID                string   `json:"id"`
+	Name              string   `json:"name"`
+	Image             string   `json:"image"`
+	State             string   `json:"state"`             // running / exited / created / paused ...
+	Status            string   `json:"status"`            // "Up 3 minutes" 人类可读串
+	Compose           string   `json:"compose"`           // 所属 compose project 名;独立容器为空
+	Service           string   `json:"service"`           // compose service 名;独立容器为空
+	ComposeWorkingDir string   `json:"composeWorkingDir"` // compose project 工作目录;独立容器为空
+	Ports             []string `json:"ports"`
 }
 
 // ComposeService 是 compose 项目下一个 service 的聚合视图。

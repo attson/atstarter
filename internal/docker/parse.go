@@ -65,14 +65,15 @@ func parsePs(out string) ([]ContainerState, error) {
 		}
 		labels := parseLabels(pl.Labels)
 		res = append(res, ContainerState{
-			ID:      pl.ID,
-			Name:    pl.Names,
-			Image:   pl.Image,
-			State:   pl.State,
-			Status:  pl.Status,
-			Compose: labels["com.docker.compose.project"],
-			Service: labels["com.docker.compose.service"],
-			Ports:   splitPorts(pl.Ports),
+			ID:                pl.ID,
+			Name:              pl.Names,
+			Image:             pl.Image,
+			State:             pl.State,
+			Status:            pl.Status,
+			Compose:           labels["com.docker.compose.project"],
+			Service:           labels["com.docker.compose.service"],
+			ComposeWorkingDir: labels["com.docker.compose.project.working_dir"],
+			Ports:             splitPorts(pl.Ports),
 		})
 	}
 	return res, nil

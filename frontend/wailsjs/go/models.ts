@@ -26,6 +26,7 @@ export namespace docker {
 	    status: string;
 	    compose: string;
 	    service: string;
+	    composeWorkingDir: string;
 	    ports: string[];
 	
 	    static createFrom(source: any = {}) {
@@ -41,6 +42,7 @@ export namespace docker {
 	        this.status = source["status"];
 	        this.compose = source["compose"];
 	        this.service = source["service"];
+	        this.composeWorkingDir = source["composeWorkingDir"];
 	        this.ports = source["ports"];
 	    }
 	}

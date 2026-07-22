@@ -1,12 +1,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Search } from 'lucide-vue-next'
+import { RefreshCw, Search } from 'lucide-vue-next'
 import { buildProjectTree } from '../projectTree'
 import ProjectTreeNode from './ProjectTreeNode.vue'
 import GroupTreeItem from './GroupTreeItem.vue'
 import AppIcon from './ui/AppIcon.vue'
+import AppButton from './ui/AppButton.vue'
 
-const emit = defineEmits(['select', 'select-group', 'select-command', 'add', 'scan'])
+const emit = defineEmits(['select', 'select-group', 'select-command', 'add', 'scan', 'rescan'])
 
 const props = defineProps({
   projects: Array,
@@ -15,6 +16,7 @@ const props = defineProps({
   selectedGroupId: String,
   statuses: Object,
   statusFilter: { type: String, default: null },
+  rescanning: { type: Boolean, default: false },
 })
 const query = ref('')
 const expandedDirs = ref({})
@@ -60,6 +62,18 @@ watch(() => props.projects, () => {
       <div class="search-field">
         <AppIcon :icon="Search" :size="14" class="search-icon" />
         <input v-model="query" class="search" placeholder="Search projects, path, command…" />
+        <AppButton
+          variant="secondary"
+          size="sm"
+          icon-only
+          class="rescan-btn"
+          :class="{ spinning: rescanning }"
+          title="重新扫描工作区"
+          :disabled="rescanning"
+          @click="emit('rescan')"
+        >
+          <template #icon><AppIcon :icon="RefreshCw" :size="14" /></template>
+        </AppButton>
       </div>
     </div>
     <div class="tree-scroll">
@@ -117,9 +131,11 @@ watch(() => props.projects, () => {
 }
 
 .search-field {
-  position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
   align-items: center;
+  position: relative;
 }
 
 .search-icon {
@@ -152,6 +168,12 @@ watch(() => props.projects, () => {
   outline: none;
   box-shadow: var(--surface-highlight);
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+
+.rescan-btn { flex: 0 0 auto; }
+.rescan-btn.spinning :deep(.app-icon) { animation: project-rescan-spin .9s linear infinite; }
+@keyframes project-rescan-spin {
+  to { transform: rotate(360deg); }
 }
 
 .search:focus {
