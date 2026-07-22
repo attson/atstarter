@@ -86,7 +86,9 @@ func (a *App) startup(ctx context.Context) {
 		updateTrayRunning(a.runner.RunningCount())
 	})
 	a.startDockerPoll()
-	startTray(a)
+	if traySupported() {
+		startTray(a)
+	}
 }
 
 // shutdown 由 Wails 在退出时调用,停掉所有进程。

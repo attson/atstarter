@@ -1,3 +1,5 @@
+//go:build !darwin
+
 package main
 
 import (
@@ -6,14 +8,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	_ "embed"
-
 	"github.com/energye/systray"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
-
-//go:embed build/appicon.png
-var trayIcon []byte
 
 // quitRequested 标记用户已从托盘主动选择「退出」。beforeClose 据此区分
 // 退出来源:窗口关闭(X)应隐藏到托盘,而主动退出必须放行。没有这个标志,
@@ -50,6 +47,10 @@ func startTray(a *App) {
 		}()
 		systray.Run(trayOnReady, trayOnExit)
 	}()
+}
+
+func traySupported() bool {
+	return true
 }
 
 func trayOnReady() {
