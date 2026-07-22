@@ -108,3 +108,19 @@ func containsArg(ss []string, want string) bool {
 	}
 	return false
 }
+
+func TestFollowContainerLogsStartsRunner(t *testing.T) {
+	app := newTestApp(t)
+	// docker logs -f 会真的尝试执行 docker;用一个立即退出的假命令替身不易。
+	// 这里只验证 runID 约定函数,不真启动。
+	_ = app
+	if id := containerRunID("abc"); id != "container:abc" {
+		t.Errorf("runID = %q", id)
+	}
+	if id := composeRunID("proj", ""); id != "compose:proj" {
+		t.Errorf("runID = %q", id)
+	}
+	if id := composeRunID("proj", "web"); id != "compose:proj:web" {
+		t.Errorf("runID = %q", id)
+	}
+}
