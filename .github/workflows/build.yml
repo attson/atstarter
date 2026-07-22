@@ -225,6 +225,7 @@ jobs:
           name: AT-Starter-darwin-${{ matrix.arch }}
           path: |
             build/bin/${{ env.APP_ARTIFACT_NAME }}_*_${{ matrix.arch }}.dmg
+            build/bin/${{ env.APP_ARTIFACT_NAME }}-darwin-${{ matrix.arch }}.dmg
             build/bin/AT-Starter-darwin-${{ matrix.arch }}.zip
           if-no-files-found: error
 
