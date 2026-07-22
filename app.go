@@ -478,14 +478,25 @@ func (a *App) GetProjectBranch(projectPath string) string {
 
 // ---- Docker 绑定方法 ----
 
+// shortCtx 给快命令(探测/查询)一个 10s 超时 ctx。
+// 生命周期命令(compose up/down、容器 start/stop 等)不用它,走 defaultExec 的 5min 兜底,
+// 以免首次拉镜像等耗时操作被 10s 误杀。
+func shortCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 10*time.Second)
+}
+
 // DockerAvailable 探测 Docker 可用性(前端据此降级)。
 func (a *App) DockerAvailable() docker.Info {
-	return a.docker.Detect(context.Background())
+	ctx, cancel := shortCtx()
+	defer cancel()
+	return a.docker.Detect(ctx)
 }
 
 // ListContainers 返回宿主机所有容器快照。
 func (a *App) ListContainers() ([]docker.ContainerState, error) {
-	return a.docker.ListContainers(context.Background())
+	ctx, cancel := shortCtx()
+	defer cancel()
+	return a.docker.ListContainers(ctx)
 }
 func (a *App) StartContainer(id string) error {
 	return a.docker.StartContainer(context.Background(), id)
@@ -522,7 +533,8 @@ func (a *App) ListComposeServices(projectID string) ([]docker.ComposeService, er
 	if err != nil {
 		return nil, err
 	}
-	ctx := context.Background()
+	ctx, cancel := shortCtx()
+	defer cancel()
 	names, err := a.docker.ListServiceNames(ctx, dir)
 	if err != nil {
 		return nil, err
@@ -615,12 +627,14 @@ func (a *App) startDockerPoll() {
 }
 
 func (a *App) pollDockerOnce() {
-	info := a.docker.Detect(context.Background())
+	ctx, cancel := shortCtx()
+	defer cancel()
+	info := a.docker.Detect(ctx)
 	runtime.EventsEmit(a.ctx, "docker:available", info)
 	if !info.Available {
 		return
 	}
-	containers, err := a.docker.ListContainers(context.Background())
+	containers, err := a.docker.ListContainers(ctx)
 	if err != nil {
 		return
 	}
