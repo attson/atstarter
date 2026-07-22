@@ -107,6 +107,10 @@ wait $!`
 // 会话的子进程 —— 这类子进程进程组信号覆盖不到,是 dev.sh 孤儿的来源。setsid 不改
 // ppid,故只要父进程还活着就能经 ppid 链找到。
 func TestCollectDescendantsFindsSetsidChild(t *testing.T) {
+	if _, err := exec.LookPath("setsid"); err != nil {
+		t.Skip("setsid command unavailable")
+	}
+
 	// 父:sh;子:setsid 出去的 sleep(另开组/会话)。父保持存活以维持 ppid 链。
 	parent := exec.Command("sh", "-c", "setsid sleep 30 & echo $! ; sleep 30")
 	stdout, err := parent.StdoutPipe()
