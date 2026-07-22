@@ -16,7 +16,7 @@ atstarter 是一个 Wails v2(Go 后端 + WebKit 前端)桌面应用,把「识别
 │        │  调用绑定方法 / 订阅 log·status·update 事件          │
 │  ──────┼──────────────────────────────────────────────────  │
 │  后端 (Go)                                                    │
-│    app.go   绑定层(28 方法)+ 事件推送                        │
+│    app.go   绑定层(44 方法)+ 事件推送                        │
 │    tray.go  系统托盘        updater.go  自更新 + 下载加速      │
 │    internal/ cmdparse · detector · scanner · store · runner  │
 └──────────────────────────────────────────────────────────────┘
@@ -33,6 +33,7 @@ atstarter 是一个 Wails v2(Go 后端 + WebKit 前端)桌面应用,把「识别
 | `internal/scanner` | 遍历工作区子目录调 detector,产候选 | detector | 只读 FS |
 | `internal/store` | config.json 读写、路径去重、多命令/分组模型 | 无 | 有状态(文件) |
 | `internal/runner` | 子进程启停、登录 shell、日志缓冲、进程树清理 | os/exec、syscall | 并发 |
+| `internal/docker` | docker/compose CLI 封装:探测、ps/services 解析、生命周期命令 | 可注入 exec | 纯 parser + 有状态 client |
 | `app.go` | 组装模块,暴露方法,转发事件 | 上述全部 | 绑定层 |
 | `tray.go` | 系统托盘菜单、关闭到托盘、运行数 | wails runtime | 有状态 |
 | `updater.go` | 检查/下载/校验/安装/取消 + 镜像加速 | net/http、crypto | 有状态 |
@@ -116,7 +117,39 @@ detector.Detect(dir) → Result{Type, Command}
 - **分支/发布**:main 禁直接 push,走 GitHub PR;从 main HEAD 打 `v*` tag 触发 CI 发布。
 - **commit**:不加 `Co-Authored-By` 尾注;语义化 commit message(feat/fix/test/docs)。
 
-## 8. 已知限制
+## 8. Docker / docker compose 管理
+
+两条线,复用现有抽象:
+
+- **compose 项目融入项目树**:detector 识别 `docker-compose.yml` / `compose.yaml` 等 →
+  `DetectedType == "compose"`;前端 compose 项目渲染 `ComposeDetail`,支持 project 级
+  (Up/Stop/Down all)与 service 级(单 service start/stop/restart/logs)。
+- **独立容器面板**:前端顶部 Tab 切到 `Containers`,展示 `docker ps -a` 快照,
+  支持 start/stop/restart/remove/logs。
+
+关键契约:
+
+- **detached + 轮询**:生命周期命令(`up -d` / `stop` / `down` / 容器 start 等)是一次性
+  执行,容器独立于 app 存活;app 每 2s 轮询 `docker ps` 推 `docker:state`(diff 后才推),
+  探测结果推 `docker:available`。轮询 goroutine 在 `startup` 起、`shutdown` 关(`dockerStop` channel)。
+- **services 不落库**:compose service 列表运行时 `docker compose config --services` 现解析,
+  状态由 `docker ps` 的 compose label 聚合(`aggregateServices`)。容器也不落库。
+- **project 名 normalize**:聚合比对用 `NormalizeProjectName(basename)`(小写 + 只留 `[a-z0-9_-]`),
+  对齐 docker 写 label 的规则,否则大写/特殊字符目录名会匹配不上导致状态恒为 stopped。
+- **logs 复用 runner**:`docker logs -f` / `docker compose logs -f` 交给 `runner` 托管,
+  runID 约定 `container:<id>` / `compose:<projectID>[:<service>]`,日志走现有 `log:<runID>` 事件。
+  ComposeDetail/ContainerPanel 在切换/卸载时必须 Stop 对应 follow 进程,避免孤儿堆积。
+- **超时分层**:`internal/docker` 的 `defaultExec` 沿用调用方 ctx 的 deadline;无 deadline 时兜底
+  5 分钟。app 层对快命令(探测/ps/config)包 10s 短超时,对生命周期命令(可能拉镜像数分钟)
+  用无 deadline 的 ctx 走 5 分钟兜底。
+- **CLI 可注入**:所有 docker 调用走 `execFunc`,parser 是纯函数,单测注 fake 不碰真实 daemon。
+- **删除二次确认**:compose `down`、容器 `remove` 在前端 `ConfirmDialog` 拦截;`down -v`(删卷)不做。
+- **优雅降级**:Docker 不可用时 `docker:available{available:false, reason}` 推给前端,
+  容器面板显示原因 + 重试,compose 操作禁用。原因归类见 `classifyReason`(未安装/daemon 未运行/权限不足)。
+
+## 9. 已知限制
 
 - Windows 进程树终止用 `cmd.Process.Kill()` 兜底,完整 Job Object 待后续。
 - 自行 `setsid`/`disown` 脱离会话组的孙进程不受 Stop 的进程组信号覆盖。
+- compose service 暂不支持加入「启动分组」(分组模型只引用项目命令);容器面板批量操作为基础版。
+- `ComposeFile` 支持单文件 `-f`;`docker-compose.override.yml` 多文件合并交给 docker 默认发现。

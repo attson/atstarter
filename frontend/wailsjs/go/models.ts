@@ -1,3 +1,68 @@
+export namespace docker {
+	
+	export class ComposeService {
+	    name: string;
+	    state: string;
+	    image: string;
+	    ports: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ComposeService(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.state = source["state"];
+	        this.image = source["image"];
+	        this.ports = source["ports"];
+	    }
+	}
+	export class ContainerState {
+	    id: string;
+	    name: string;
+	    image: string;
+	    state: string;
+	    status: string;
+	    compose: string;
+	    service: string;
+	    ports: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ContainerState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.image = source["image"];
+	        this.state = source["state"];
+	        this.status = source["status"];
+	        this.compose = source["compose"];
+	        this.service = source["service"];
+	        this.ports = source["ports"];
+	    }
+	}
+	export class Info {
+	    available: boolean;
+	    version: string;
+	    reason: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Info(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.version = source["version"];
+	        this.reason = source["reason"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
 	export class CommandInput {
@@ -185,6 +250,7 @@ export namespace store {
 	    detectedType: string;
 	    autoDetected: boolean;
 	    commands?: LaunchCommand[];
+	    composeFile?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -202,6 +268,7 @@ export namespace store {
 	        this.detectedType = source["detectedType"];
 	        this.autoDetected = source["autoDetected"];
 	        this.commands = this.convertValues(source["commands"], LaunchCommand);
+	        this.composeFile = source["composeFile"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

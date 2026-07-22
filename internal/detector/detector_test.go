@@ -55,6 +55,12 @@ func TestDetect(t *testing.T) {
 			"python-django", "python manage.py runserver"},
 		{"python main", map[string]string{"main.py": "", "requirements.txt": ""},
 			"python", "python main.py"},
+		{"compose yml", map[string]string{"docker-compose.yml": "services:\n  web:\n    image: nginx\n"},
+			"compose", ""},
+		{"compose yaml", map[string]string{"compose.yaml": "services: {}\n"},
+			"compose", ""},
+		{"compose over node", map[string]string{"package.json": pkg(map[string]string{"dev": "vite"}), "docker-compose.yml": "services: {}\n"},
+			"compose", ""},
 		{"unknown", map[string]string{"README.md": "hi"},
 			"unknown", ""},
 	}

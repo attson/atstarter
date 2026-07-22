@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 
 	"atstarter/internal/cmdparse"
 	"atstarter/internal/detector"
+	"atstarter/internal/docker"
 	"atstarter/internal/runner"
 	"atstarter/internal/scanner"
 	"atstarter/internal/store"
@@ -20,10 +22,13 @@ import (
 
 // App 是 Wails 绑定层,组装各内部模块并暴露方法给前端。
 type App struct {
-	ctx     context.Context
-	store   *store.Store
-	runner  *runner.Runner
-	updater *updater
+	ctx                context.Context
+	store              *store.Store
+	runner             *runner.Runner
+	updater            *updater
+	docker             *docker.Client
+	dockerStop         chan struct{}
+	lastDockerSnapshot string // 上次快照的序列化,用于 diff
 }
 
 type CommandInput struct {
@@ -53,6 +58,7 @@ func NewAppWithConfig(cfgPath string) *App {
 		store:   store.New(cfgPath),
 		runner:  runner.New(5000),
 		updater: newUpdater(),
+		docker:  docker.New(),
 	}
 }
 
@@ -79,11 +85,15 @@ func (a *App) startup(ctx context.Context) {
 		})
 		updateTrayRunning(a.runner.RunningCount())
 	})
+	a.startDockerPoll()
 	startTray(a)
 }
 
 // shutdown 由 Wails 在退出时调用,停掉所有进程。
 func (a *App) shutdown(ctx context.Context) {
+	if a.dockerStop != nil {
+		close(a.dockerStop)
+	}
 	a.runner.StopAll()
 }
 
@@ -464,4 +474,179 @@ func (a *App) GetProjectBranch(projectPath string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// ---- Docker 绑定方法 ----
+
+// shortCtx 给快命令(探测/查询)一个 10s 超时 ctx。
+// 生命周期命令(compose up/down、容器 start/stop 等)不用它,走 defaultExec 的 5min 兜底,
+// 以免首次拉镜像等耗时操作被 10s 误杀。
+func shortCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 10*time.Second)
+}
+
+// DockerAvailable 探测 Docker 可用性(前端据此降级)。
+func (a *App) DockerAvailable() docker.Info {
+	ctx, cancel := shortCtx()
+	defer cancel()
+	return a.docker.Detect(ctx)
+}
+
+// ListContainers 返回宿主机所有容器快照。
+func (a *App) ListContainers() ([]docker.ContainerState, error) {
+	ctx, cancel := shortCtx()
+	defer cancel()
+	return a.docker.ListContainers(ctx)
+}
+func (a *App) StartContainer(id string) error {
+	return a.docker.StartContainer(context.Background(), id)
+}
+func (a *App) StopContainer(id string) error {
+	return a.docker.StopContainer(context.Background(), id)
+}
+func (a *App) RestartContainer(id string) error {
+	return a.docker.RestartContainer(context.Background(), id)
+}
+
+// RemoveContainer 删除容器;force=true 对应 rm -f(前端已二次确认)。
+func (a *App) RemoveContainer(id string, force bool) error {
+	return a.docker.RemoveContainer(context.Background(), id, force)
+}
+
+// composeDir 返回 compose 项目的工作目录(项目 path)、规整后的 project 名与 compose 文件。
+// project 名按 docker compose 规则 normalize(小写 + 过滤),用于与容器 label 比对。
+func (a *App) composeDir(projectID string) (dir, project, file string, err error) {
+	cfg, e := a.store.Load()
+	if e != nil {
+		return "", "", "", e
+	}
+	for _, p := range cfg.Projects {
+		if p.ID == projectID {
+			return p.Path, docker.NormalizeProjectName(filepath.Base(p.Path)), p.ComposeFile, nil
+		}
+	}
+	return "", "", "", errors.New("project not found: " + projectID)
+}
+
+// ListComposeServices 运行时解析 service 列表并聚合状态。
+func (a *App) ListComposeServices(projectID string) ([]docker.ComposeService, error) {
+	dir, project, file, err := a.composeDir(projectID)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := shortCtx()
+	defer cancel()
+	names, err := a.docker.ListServiceNames(ctx, dir, file)
+	if err != nil {
+		return nil, err
+	}
+	containers, err := a.docker.ListContainers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return docker.ComposeServices(project, names, containers), nil
+}
+
+func (a *App) ComposeUp(projectID, service string) error {
+	dir, _, file, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	return a.docker.ComposeUp(context.Background(), dir, file, service)
+}
+func (a *App) ComposeStop(projectID, service string) error {
+	dir, _, file, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	return a.docker.ComposeStop(context.Background(), dir, file, service)
+}
+func (a *App) ComposeRestart(projectID, service string) error {
+	dir, _, file, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	return a.docker.ComposeRestart(context.Background(), dir, file, service)
+}
+func (a *App) ComposeDown(projectID string) error {
+	dir, _, file, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	return a.docker.ComposeDown(context.Background(), dir, file)
+}
+
+func containerRunID(id string) string { return "container:" + id }
+func composeRunID(projectID, service string) string {
+	if service == "" {
+		return "compose:" + projectID
+	}
+	return "compose:" + projectID + ":" + service
+}
+
+// FollowContainerLogs 起一个 docker logs -f 长驻进程,日志走 log:<runID>。
+func (a *App) FollowContainerLogs(id string) error {
+	return a.runner.Start(runner.Spec{
+		ID: containerRunID(id), Command: "docker", Args: []string{"logs", "-f", "--tail", "200", id},
+	})
+}
+func (a *App) StopFollowContainerLogs(id string) error {
+	return a.runner.Stop(containerRunID(id))
+}
+
+// FollowComposeLogs 起 docker compose logs -f;service 为空=全部。
+func (a *App) FollowComposeLogs(projectID, service string) error {
+	dir, _, file, err := a.composeDir(projectID)
+	if err != nil {
+		return err
+	}
+	args := []string{"compose", "--project-directory", dir}
+	if file != "" {
+		args = append(args, "-f", file)
+	}
+	args = append(args, "logs", "-f", "--tail", "200")
+	if service != "" {
+		args = append(args, service)
+	}
+	return a.runner.Start(runner.Spec{ID: composeRunID(projectID, service), Command: "docker", Args: args})
+}
+func (a *App) StopFollowComposeLogs(projectID, service string) error {
+	return a.runner.Stop(composeRunID(projectID, service))
+}
+
+// startDockerPoll 起一个 2s ticker 轮询容器状态,变化才推 docker:state。
+func (a *App) startDockerPoll() {
+	a.dockerStop = make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-a.dockerStop:
+				return
+			case <-ticker.C:
+				a.pollDockerOnce()
+			}
+		}
+	}()
+}
+
+func (a *App) pollDockerOnce() {
+	ctx, cancel := shortCtx()
+	defer cancel()
+	info := a.docker.Detect(ctx)
+	runtime.EventsEmit(a.ctx, "docker:available", info)
+	if !info.Available {
+		return
+	}
+	containers, err := a.docker.ListContainers(ctx)
+	if err != nil {
+		return
+	}
+	b, _ := json.Marshal(containers)
+	if string(b) == a.lastDockerSnapshot {
+		return // 无变化,不推
+	}
+	a.lastDockerSnapshot = string(b)
+	runtime.EventsEmit(a.ctx, "docker:state", containers)
 }

@@ -1,0 +1,150 @@
+package docker
+
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+)
+
+// NormalizeProjectName 把目录名规整为 docker compose 生成的 project 名。
+// docker compose 会将默认 project 名转小写并只保留 [a-z0-9_-],其余字符去掉。
+// 例:"AtStarter_Case-Test" → "atstarter_case-test","my.app" → "myapp"。
+// 用于把本地目录名与容器上 com.docker.compose.project label 对齐比对。
+func NormalizeProjectName(dir string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(dir) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// errFromResult 从非零退出的结果构造错误(归类后的原因)。
+func errFromResult(res execResult) error {
+	return errors.New(classifyReason(res.Stderr, false))
+}
+
+// classifyReason 把 docker 命令的 stderr / 启动错误归类成人类可读原因。
+func classifyReason(stderr string, startErr bool) string {
+	if startErr {
+		return "docker 未安装或不在 PATH"
+	}
+	low := strings.ToLower(stderr)
+	switch {
+	case strings.Contains(low, "cannot connect to the docker daemon"),
+		strings.Contains(low, "is the docker daemon running"):
+		return "docker daemon 未运行"
+	case strings.Contains(low, "permission denied") && strings.Contains(low, "docker daemon"):
+		return "权限不足(当前用户可能不在 docker 组)"
+	}
+	return strings.TrimSpace(stderr)
+}
+
+type psLine struct {
+	ID     string `json:"ID"`
+	Names  string `json:"Names"`
+	Image  string `json:"Image"`
+	State  string `json:"State"`
+	Status string `json:"Status"`
+	Ports  string `json:"Ports"`
+	Labels string `json:"Labels"`
+}
+
+// parsePs 解析 `docker ps -a --format '{{json .}}'`(每行一个 JSON)。
+func parsePs(out string) ([]ContainerState, error) {
+	var res []ContainerState
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		var pl psLine
+		if err := json.Unmarshal([]byte(line), &pl); err != nil {
+			return nil, err
+		}
+		labels := parseLabels(pl.Labels)
+		res = append(res, ContainerState{
+			ID:      pl.ID,
+			Name:    pl.Names,
+			Image:   pl.Image,
+			State:   pl.State,
+			Status:  pl.Status,
+			Compose: labels["com.docker.compose.project"],
+			Service: labels["com.docker.compose.service"],
+			Ports:   splitPorts(pl.Ports),
+		})
+	}
+	return res, nil
+}
+
+// parseLabels 解析 "k1=v1,k2=v2" 形式的 label 串。
+func parseLabels(s string) map[string]string {
+	m := map[string]string{}
+	for _, kv := range strings.Split(s, ",") {
+		if i := strings.IndexByte(kv, '='); i > 0 {
+			m[strings.TrimSpace(kv[:i])] = strings.TrimSpace(kv[i+1:])
+		}
+	}
+	return m
+}
+
+// splitPorts 把逗号分隔的端口串拆成切片;空串返回 nil。
+func splitPorts(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	var out []string
+	for _, p := range strings.Split(s, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// parseServiceNames 解析 `docker compose config --services`(一行一个)。
+func parseServiceNames(out string) []string {
+	var res []string
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			res = append(res, line)
+		}
+	}
+	return res
+}
+
+// aggregateServices 把 service 名列表与容器快照聚合成 ComposeService。
+// 某 service 有任一 running 容器 → running;有容器但都不 running → partial;无容器 → stopped。
+func aggregateServices(project string, names []string, containers []ContainerState) []ComposeService {
+	byService := map[string][]ContainerState{}
+	for _, c := range containers {
+		if c.Compose == project && c.Service != "" {
+			byService[c.Service] = append(byService[c.Service], c)
+		}
+	}
+	res := make([]ComposeService, 0, len(names))
+	for _, name := range names {
+		svc := ComposeService{Name: name, State: "stopped"}
+		cs := byService[name]
+		if len(cs) > 0 {
+			svc.Image = cs[0].Image
+			svc.Ports = cs[0].Ports
+			running := false
+			for _, c := range cs {
+				if c.State == "running" {
+					running = true
+					break
+				}
+			}
+			if running {
+				svc.State = "running"
+			} else {
+				svc.State = "partial"
+			}
+		}
+		res = append(res, svc)
+	}
+	return res
+}

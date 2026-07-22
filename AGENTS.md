@@ -12,7 +12,8 @@
 - **登录 shell 启动**:子进程经 `$SHELL -l -i -c` 包裹,拿到用户完整 PATH(修复 GUI 启动时 `pnpm/nvm not found`);
 - **进程树清理**:setsid 进程组,Stop 杀掉整棵子进程树(shell→pnpm→node→esbuild),不留孤儿占端口;
 - **系统托盘**:关闭窗口即隐藏到托盘,托盘显示运行数、可一键停全部;
-- **自更新**:轮询 GitHub Release,签名校验后自安装,内置国内下载加速镜像。
+- **自更新**:轮询 GitHub Release,签名校验后自安装,内置国内下载加速镜像;
+- **Docker 管理**:compose 项目(`docker-compose.yml` 等)融入项目树,支持整体与单 service 启停/日志;顶部 `Containers` Tab 管理宿主机独立容器(start/stop/restart/remove/logs)。detached + 2s 轮询,Docker 不可用时优雅降级。
 
 ## 硬约束(必须遵守)
 
@@ -40,7 +41,8 @@ internal/
   scanner/              遍历工作区直接子目录调 detector,产出候选(含 .worktrees)
   store/                配置 JSON 持久化 + 路径去重(sha1(path) 生成 ID)
   runner/               子进程启停 + 环形缓冲日志 + 进程组清理(build tag 分平台)
-frontend/src/           Vue3(App.vue + 13 业务组件 + 4 个自写 ui/ 组件 + 主题系统)
+  docker/               docker/compose CLI 封装(可注入 exec + 纯 parser + Client),logs -f 复用 runner
+frontend/src/           Vue3(App.vue + 业务组件 + 4 个自写 ui/ 组件 + 主题系统)
 ```
 
 **数据流**:`detector.Detect(dir) → Result{Type,Command}` → `cmdparse.Parse` 拆成 command+args → `store.Project`(可含多条 `Commands`)→ `runner.Spec` 启动。
@@ -53,12 +55,14 @@ frontend/src/           Vue3(App.vue + 13 业务组件 + 4 个自写 ui/ 组件 
 - 进程退出时 runner 向日志追加 `[process exited with code N]` 尾行。
 - **登录 shell**:`runner.buildCmd` 在 unix 用 `$SHELL -l -i -c '<shellJoin 的命令>'`(拿完整 PATH),windows 直接 exec。`isShellNoise` 过滤无 TTY 时 shell 打到 stderr 的 job-control 噪声。进程组用 `Setsid`,`killTree` 对 `-pgid` 发 SIGTERM→5s→SIGKILL。
 
-## 后端绑定方法(28 个:`app.go` 23 + `updater.go` 5)
+## 后端绑定方法(44 个:`app.go` 39 + `updater.go` 5)
 
 - **项目**:`ListProjects` `AddProject` `RemoveProject` `UpdateProject` `UpdateProjectCommand` `UpdateProjectCommands`
 - **扫描/选择**:`ScanWorkspaces` `AddScanned` `PickDirectory` `GetWorkspaces` `SetWorkspaces`
-- **启停/状态**:`StartProject` `StartProjectCommand` `StopProject` `StopProjectCommand` `GetStatus` `GetLogs`
+- **启停/状态**:`StartProject` `StartProjectCommand` `StopProject` `StopProjectCommand` `GetStatus` `GetLogs` `ClearLogs`
 - **分组**:`ListGroups` `SaveGroup` `RemoveGroup` `StartGroup` `StopGroup`
+- **Docker 探测/容器**:`DockerAvailable` `ListContainers` `StartContainer` `StopContainer` `RestartContainer` `RemoveContainer` `FollowContainerLogs` `StopFollowContainerLogs`
+- **compose**:`ListComposeServices` `ComposeUp` `ComposeStop` `ComposeRestart` `ComposeDown` `FollowComposeLogs` `StopFollowComposeLogs`
 - **其它**:`GetProjectBranch`(git 分支,纯展示)
 - **自更新**:`UpdateGetState` `UpdateCheck` `UpdateStartDownload` `UpdateInstall` `UpdateCancel`
 
