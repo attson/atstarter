@@ -32,6 +32,7 @@ type Project struct {
 	DetectedType string            `json:"detectedType"`
 	AutoDetected bool              `json:"autoDetected"`
 	Commands     []LaunchCommand   `json:"commands,omitempty"`
+	ComposeFile  string            `json:"composeFile,omitempty"` // compose 文件相对路径;空则用 docker 默认发现
 }
 
 // GroupItem 指向一个项目的一条明确启动命令。
