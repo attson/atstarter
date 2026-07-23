@@ -5,13 +5,15 @@ import LogPanel from './LogPanel.vue'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
 import AppIcon from './ui/AppIcon.vue'
+import DetectionSwitch from './DetectionSwitch.vue'
+import { hasDetectionSwitch } from '../projectDetection.js'
 import {
   ListComposeServices, ComposeUp, ComposeStop, ComposeRestart, ComposeDown,
   FollowComposeLogs, StopFollowComposeLogs,
 } from '../../wailsjs/go/main/App'
 
 const props = defineProps({ project: Object, dockerAvailable: Boolean })
-const emit = defineEmits(['confirm-down'])
+const emit = defineEmits(['confirm-down', 'switch-type'])
 const services = ref([])
 const followRunId = ref('')
 const followServiceName = ref('')
@@ -71,7 +73,8 @@ onUnmounted(() => { clearInterval(timer); stopActiveFollow() })
         <div class="title-line">
           <h1>{{ project.name }}</h1>
           <AppPill :variant="aggregate.variant" :dot="aggregate.variant === 'running'">{{ aggregate.label }}</AppPill>
-          <AppPill variant="neutral">compose</AppPill>
+          <DetectionSwitch v-if="hasDetectionSwitch(project)" :project="project" @switch="emit('switch-type', $event)" />
+          <AppPill v-else variant="neutral">compose</AppPill>
         </div>
         <div class="path">{{ project.path }}</div>
         <div class="ops">

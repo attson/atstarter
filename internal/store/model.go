@@ -20,19 +20,27 @@ type LaunchCommand struct {
 	IsDefault bool              `json:"isDefault"`
 }
 
+// DetectionOption 是同一项目目录可切换的识别结果。
+type DetectionOption struct {
+	Type    string   `json:"type"`
+	Command string   `json:"command"`
+	Args    []string `json:"args"`
+}
+
 // Project 是一个可启动项目的完整配置。
 type Project struct {
-	ID           string            `json:"id"`
-	Name         string            `json:"name"`
-	Path         string            `json:"path"`
-	Command      string            `json:"command"`
-	Args         []string          `json:"args"`
-	Cwd          string            `json:"cwd"`
-	Env          map[string]string `json:"env"`
-	DetectedType string            `json:"detectedType"`
-	AutoDetected bool              `json:"autoDetected"`
-	Commands     []LaunchCommand   `json:"commands,omitempty"`
-	ComposeFile  string            `json:"composeFile,omitempty"` // compose 文件相对路径;空则用 docker 默认发现
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Path             string            `json:"path"`
+	Command          string            `json:"command"`
+	Args             []string          `json:"args"`
+	Cwd              string            `json:"cwd"`
+	Env              map[string]string `json:"env"`
+	DetectedType     string            `json:"detectedType"`
+	AutoDetected     bool              `json:"autoDetected"`
+	Commands         []LaunchCommand   `json:"commands,omitempty"`
+	ComposeFile      string            `json:"composeFile,omitempty"` // compose 文件相对路径;空则用 docker 默认发现
+	DetectionOptions []DetectionOption `json:"detectionOptions,omitempty"`
 }
 
 // GroupItem 指向一个项目的一条明确启动命令。

@@ -77,3 +77,22 @@ func TestDetect(t *testing.T) {
 		})
 	}
 }
+
+func TestDetectOptionsIncludesComposeAndFallback(t *testing.T) {
+	dir := mkProject(t, map[string]string{
+		"docker-compose.yml": "services:\n  web:\n    image: nginx\n",
+		"go.mod":             "module x\n",
+		"main.go":            "package main\nfunc main(){}\n",
+	})
+
+	got := DetectOptions(dir)
+	if len(got) != 2 {
+		t.Fatalf("DetectOptions len = %d, want 2: %+v", len(got), got)
+	}
+	if got[0].Type != "compose" || got[0].Command != "" {
+		t.Fatalf("first option = %+v, want compose with empty command", got[0])
+	}
+	if got[1].Type != "go" || got[1].Command != "go run main.go" {
+		t.Fatalf("fallback option = %+v, want go run main.go", got[1])
+	}
+}

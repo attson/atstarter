@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"atstarter/internal/store"
 )
 
 func newTestApp(t *testing.T) *App {
@@ -19,6 +21,64 @@ func writeFile(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(old); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestNewAppUsesDevConfigInWorkingDirectory(t *testing.T) {
+	oldVersion := Version
+	Version = "dev"
+	t.Cleanup(func() { Version = oldVersion })
+
+	dir := t.TempDir()
+	chdir(t, dir)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
+
+	app := NewApp()
+	if err := app.SetWorkspaces([]string{"/tmp/workspace"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, ".dev")); err != nil {
+		t.Fatalf("expected dev config at .dev: %v", err)
+	}
+}
+
+func TestNewAppUsesUserConfigOutsideDev(t *testing.T) {
+	oldVersion := Version
+	Version = "v1.2.3"
+	t.Cleanup(func() { Version = oldVersion })
+
+	dir := t.TempDir()
+	configHome := filepath.Join(t.TempDir(), "config")
+	chdir(t, dir)
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+
+	app := NewApp()
+	if err := app.SetWorkspaces([]string{"/tmp/workspace"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, ".dev")); !os.IsNotExist(err) {
+		t.Fatalf("expected no .dev config outside dev, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(configHome, "atstarter", "config.json")); err != nil {
+		t.Fatalf("expected user config outside dev: %v", err)
 	}
 }
 
@@ -100,6 +160,50 @@ func TestAppAddProjectNormalizesPath(t *testing.T) {
 	}
 }
 
+func TestAppResetProjectsClearsProjectsAndGroupsButKeepsWorkspaces(t *testing.T) {
+	app := newTestApp(t)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "go.mod"), "module x\n")
+	writeFile(t, filepath.Join(dir, "main.go"), "package main\nfunc main(){}\n")
+
+	p, err := app.AddProject(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.SetWorkspaces([]string{"/workspace"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.SaveGroup(store.LaunchGroup{Name: "stack", Items: []store.GroupItem{{ProjectID: p.ID, CommandID: store.DefaultCommandID}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := app.ResetProjects(); err != nil {
+		t.Fatal(err)
+	}
+
+	projects, err := app.ListProjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(projects) != 0 {
+		t.Fatalf("expected projects cleared, got %+v", projects)
+	}
+	groups, err := app.ListGroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(groups) != 0 {
+		t.Fatalf("expected groups cleared, got %+v", groups)
+	}
+	workspaces, err := app.GetWorkspaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(workspaces) != 1 || workspaces[0] != "/workspace" {
+		t.Fatalf("expected workspaces preserved, got %+v", workspaces)
+	}
+}
+
 func TestExpandHome(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -138,6 +242,36 @@ func TestScanWorkspacesExpandsHome(t *testing.T) {
 	}
 	if got[0].Name != "proj" || got[0].DetectedType != "go" {
 		t.Errorf("candidate = %+v", got[0])
+	}
+}
+
+func TestListProjectsAddsDetectionOptionsForSavedComposeProject(t *testing.T) {
+	app := newTestApp(t)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "docker-compose.yml"), "services: {}\n")
+	writeFile(t, filepath.Join(dir, "go.mod"), "module x\n")
+	writeFile(t, filepath.Join(dir, "main.go"), "package main\nfunc main(){}\n")
+
+	p, err := app.AddProject(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.DetectionOptions) != 2 {
+		t.Fatalf("AddProject DetectionOptions = %+v, want compose and go", p.DetectionOptions)
+	}
+
+	list, err := app.ListProjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("ListProjects len = %d, want 1", len(list))
+	}
+	if len(list[0].DetectionOptions) != 2 {
+		t.Fatalf("ListProjects DetectionOptions = %+v, want compose and go", list[0].DetectionOptions)
+	}
+	if list[0].DetectionOptions[1].Type != "go" {
+		t.Fatalf("fallback option = %+v, want go", list[0].DetectionOptions[1])
 	}
 }
 

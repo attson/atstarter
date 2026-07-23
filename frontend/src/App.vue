@@ -21,10 +21,12 @@ import {
   ListProjects, AddProject, StartProjectCommand, StopProjectCommand,
   GetStatus, UpdateProjectCommands, ListGroups, SaveGroup, RemoveGroup,
   StartGroup, StopGroup, GetWorkspaces, SetWorkspaces, ScanWorkspaces, AddScanned,
+  UpdateProject, ResetProjects,
 } from '../wailsjs/go/main/App'
 import { ComposeDown, RemoveContainer, DockerAvailable } from '../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 import { inferWorkspaceRoots } from './workspaceRoots'
+import { applyDetectionOption } from './projectDetection.js'
 
 const projects = ref([])
 const groups = ref([])
@@ -62,6 +64,9 @@ function onConfirmRemove(container) {
   const running = container.state === 'running'
   confirm.value = { show: true, kind: 'remove', payload: container, title: '删除容器', message: running ? `容器「${container.name}」正在运行,将强制删除(rm -f)。确认?` : `删除容器「${container.name}」?`, confirmText: '删除', danger: true }
 }
+function onConfirmResetProjects() {
+  confirm.value = { show: true, kind: 'reset-projects', payload: null, title: '重置项目列表', message: '将清空所有项目和启动分组,保留扫描工作区。正在运行的普通项目会先停止。确认继续?', confirmText: '重置', danger: true }
+}
 function onContainerSummary(summary) {
   containerSummary.value = summary || { total: 0, running: 0, exited: 0 }
 }
@@ -70,8 +75,16 @@ async function onConfirmAccept() {
   try {
     if (kind === 'down') await ComposeDown(payload)
     else if (kind === 'remove') await RemoveContainer(payload.id, payload.state === 'running')
+    else if (kind === 'reset-projects') {
+      await ResetProjects()
+      selectedId.value = ''
+      selectedGroupId.value = ''
+      selectedCommandIds.value = {}
+      statuses.value = {}
+      await refresh()
+    }
   } catch (e) {
-    console.error('docker 操作失败:', e)
+    console.error('操作失败:', e)
   } finally {
     confirm.value = { ...confirm.value, show: false }
   }
@@ -178,6 +191,8 @@ function resubscribeStatus() {
 async function refresh() {
   projects.value = (await ListProjects()) || []
   groups.value = (await ListGroups()) || []
+  if (selectedId.value && !projects.value.some((p) => p.id === selectedId.value)) selectedId.value = ''
+  if (selectedGroupId.value && !groups.value.some((g) => g.id === selectedGroupId.value)) selectedGroupId.value = ''
   if (!selectedId.value && projects.value.length) selectedId.value = projects.value[0].id
   const nextSelected = { ...selectedCommandIds.value }
   for (const p of projects.value) {
@@ -250,6 +265,13 @@ async function onRestart(commandId) {
 async function onSaveEdit(payload) {
   await UpdateProjectCommands(selectedId.value, payload.name, payload.commands)
   showEdit.value = false
+  await refresh()
+  await pollStatuses()
+}
+
+async function onSwitchDetection(option) {
+  if (!selected.value) return
+  await UpdateProject(applyDetectionOption(selected.value, option))
   await refresh()
   await pollStatuses()
 }
@@ -362,15 +384,17 @@ onUnmounted(() => {
         <ProjectList :projects="projects" :groups="groups" :selectedId="selectedId" :selectedGroupId="selectedGroupId"
           :statuses="projectStatuses" :statusFilter="statusFilter" :rescanning="rescanning"
           @select="selectProject" @select-group="selectGroup"
-          @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true" @rescan="onRescanProjects" />
+          @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true"
+          @rescan="onRescanProjects" @reset="onConfirmResetProjects" />
         <GroupDetail v-if="selectedGroup" :group="selectedGroup" :projects="projects"
           @start="onStartGroup" @stop="onStopGroup" @edit="onEditGroup" @remove="onRemoveGroup"
           @select-command="selectCommand" />
         <ComposeDetail v-else-if="isComposeSelected" :project="selected" :dockerAvailable="dockerAvailable"
-          @confirm-down="onConfirmDown" />
+          @confirm-down="onConfirmDown" @switch-type="onSwitchDetection" />
         <ProjectDetail v-else :project="selected" :status="selectedStatus"
           :selectedCommandId="selectedCommandId" @command-change="setSelectedCommand"
-          @start="onStart" @stop="onStop" @restart="onRestart" @edit="showEdit = true" @add-to-group="showAddToGroup = true" />
+          @start="onStart" @stop="onStop" @restart="onRestart" @edit="showEdit = true"
+          @add-to-group="showAddToGroup = true" @switch-type="onSwitchDetection" />
       </template>
       <ContainerPanel v-else ref="containerPanelRef" :projects="projects" @confirm-remove="onConfirmRemove" @summary="onContainerSummary" />
     </main>

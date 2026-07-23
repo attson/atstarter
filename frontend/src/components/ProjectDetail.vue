@@ -5,11 +5,13 @@ import LogPanel from './LogPanel.vue'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
 import AppIcon from './ui/AppIcon.vue'
+import DetectionSwitch from './DetectionSwitch.vue'
 import { typeLabel } from '../typeLabel.js'
+import { hasDetectionSwitch } from '../projectDetection.js'
 import { GetProjectBranch } from '../../wailsjs/go/main/App'
 
 const props = defineProps({ project: Object, status: Object, selectedCommandId: String })
-const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group'])
+const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group', 'switch-type'])
 const commandMenuOpen = ref(false)
 const branch = ref('')
 let branchToken = 0
@@ -76,7 +78,8 @@ function chooseCommand(command) {
         <div class="title-line">
           <h1>{{ project.name }}</h1>
           <AppPill :variant="pillVariant" :dot="state === 'running'">{{ state }}</AppPill>
-          <AppPill variant="neutral">{{ typeLabel(project.detectedType) }}</AppPill>
+          <DetectionSwitch v-if="hasDetectionSwitch(project)" :project="project" @switch="emit('switch-type', $event)" />
+          <AppPill v-else variant="neutral">{{ typeLabel(project.detectedType) }}</AppPill>
           <AppPill v-if="branch" variant="neutral" class="branch-pill">
             <AppIcon :icon="GitBranch" :size="11" />
             {{ branch }}
