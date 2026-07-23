@@ -56,6 +56,27 @@ func TestScanSkipsMissingRoot(t *testing.T) {
 	}
 }
 
+func TestScanAddsDetectionOptionsForComposeFallback(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "svc", "docker-compose.yml"), "services: {}\n")
+	write(t, filepath.Join(root, "svc", "go.mod"), "module svc\n")
+	write(t, filepath.Join(root, "svc", "main.go"), "package main\nfunc main(){}\n")
+
+	got := Scan([]string{root})
+	if len(got) != 1 {
+		t.Fatalf("expected 1 candidate, got %d: %+v", len(got), got)
+	}
+	if got[0].DetectedType != "compose" {
+		t.Fatalf("DetectedType = %q, want compose", got[0].DetectedType)
+	}
+	if len(got[0].DetectionOptions) != 2 {
+		t.Fatalf("DetectionOptions = %+v, want compose and go", got[0].DetectionOptions)
+	}
+	if got[0].DetectionOptions[1].Type != "go" || got[0].DetectionOptions[1].Command != "go" {
+		t.Fatalf("fallback option = %+v, want go command", got[0].DetectionOptions[1])
+	}
+}
+
 func TestScanIncludesWorktreeDirectories(t *testing.T) {
 	root := t.TempDir()
 	write(t, filepath.Join(root, ".worktrees", "feature-a", "go.mod"), "module a\n")

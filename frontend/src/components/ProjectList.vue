@@ -1,13 +1,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { RefreshCw, Search } from 'lucide-vue-next'
+import { RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { buildProjectTree } from '../projectTree'
 import ProjectTreeNode from './ProjectTreeNode.vue'
 import GroupTreeItem from './GroupTreeItem.vue'
 import AppIcon from './ui/AppIcon.vue'
 import AppButton from './ui/AppButton.vue'
 
-const emit = defineEmits(['select', 'select-group', 'select-command', 'add', 'scan', 'rescan'])
+const emit = defineEmits(['select', 'select-group', 'select-command', 'add', 'scan', 'rescan', 'reset'])
 
 const props = defineProps({
   projects: Array,
@@ -74,6 +74,17 @@ watch(() => props.projects, () => {
         >
           <template #icon><AppIcon :icon="RefreshCw" :size="14" /></template>
         </AppButton>
+        <AppButton
+          variant="danger"
+          size="sm"
+          icon-only
+          class="reset-btn"
+          title="重置项目列表"
+          :disabled="!(projects || []).length"
+          @click="emit('reset')"
+        >
+          <template #icon><AppIcon :icon="Trash2" :size="14" /></template>
+        </AppButton>
       </div>
     </div>
     <div class="tree-scroll">
@@ -132,7 +143,7 @@ watch(() => props.projects, () => {
 
 .search-field {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: var(--space-3);
   align-items: center;
   position: relative;
@@ -170,7 +181,8 @@ watch(() => props.projects, () => {
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-.rescan-btn { flex: 0 0 auto; }
+.rescan-btn,
+.reset-btn { flex: 0 0 auto; }
 .rescan-btn.spinning :deep(.app-icon) { animation: project-rescan-spin .9s linear infinite; }
 @keyframes project-rescan-spin {
   to { transform: rotate(360deg); }

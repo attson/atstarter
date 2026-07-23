@@ -32,6 +32,7 @@ test:
 	node --test frontend/src/projectTree.test.mjs
 	node --test frontend/src/composables/useTheme.test.mjs
 	node --test frontend/src/dockerState.test.mjs
+	node --test frontend/src/projectDetection.test.mjs
 	node --test frontend/src/updateSchedule.test.mjs
 	node --test frontend/src/workspaceRoots.test.mjs
 

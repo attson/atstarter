@@ -90,6 +90,10 @@ export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
 }
 
+export function ResetProjects() {
+  return window['go']['main']['App']['ResetProjects']();
+}
+
 export function RestartContainer(arg1) {
   return window['go']['main']['App']['RestartContainer'](arg1);
 }

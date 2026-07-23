@@ -90,6 +90,37 @@ func TestRemove(t *testing.T) {
 	}
 }
 
+func TestResetProjectsClearsProjectsAndGroupsButKeepsWorkspaces(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.SetWorkspaces([]string{"/workspace"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Add(Project{Name: "a", Path: "/x/proj"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SaveGroup(LaunchGroup{Name: "stack", Items: []GroupItem{{ProjectID: IDForPath("/x/proj"), CommandID: DefaultCommandID}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.ResetProjects(); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := s.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Projects) != 0 {
+		t.Fatalf("expected projects cleared, got %+v", cfg.Projects)
+	}
+	if len(cfg.Groups) != 0 {
+		t.Fatalf("expected groups cleared, got %+v", cfg.Groups)
+	}
+	if len(cfg.Workspaces) != 1 || cfg.Workspaces[0] != "/workspace" {
+		t.Fatalf("expected workspaces preserved, got %+v", cfg.Workspaces)
+	}
+}
+
 func TestLoadCorruptJSONReturnsError(t *testing.T) {
 	s := newTestStore(t)
 	if err := os.WriteFile(s.path, []byte("{not json"), 0o644); err != nil {
