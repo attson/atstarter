@@ -62,8 +62,15 @@ func NewAppWithConfig(cfgPath string) *App {
 	}
 }
 
-// defaultConfigPath 返回各平台标准配置目录下的 config.json。
+// defaultConfigPath 返回配置文件路径。dev 构建使用项目目录下的 .dev 隔离本地数据。
 func defaultConfigPath() string {
+	if Version == "dev" {
+		dir, err := os.Getwd()
+		if err != nil {
+			dir = "."
+		}
+		return filepath.Join(dir, ".dev")
+	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		dir = "."
@@ -123,6 +130,9 @@ func (a *App) ListProjects() ([]store.Project, error) {
 	if err != nil {
 		return nil, err
 	}
+	for i := range cfg.Projects {
+		cfg.Projects[i] = scanner.AddDetectionOptions(cfg.Projects[i])
+	}
 	return cfg.Projects, nil
 }
 
@@ -172,6 +182,7 @@ func (a *App) AddProject(path string) (store.Project, error) {
 			p.Command, p.Args = cmd, args
 		}
 	}
+	p = scanner.AddDetectionOptions(p)
 	p = store.NormalizeProjectCommands(p)
 	if err := a.store.Add(p); err != nil {
 		return store.Project{}, err
@@ -201,6 +212,7 @@ func (a *App) PickDirectory() (string, error) {
 func (a *App) AddScanned(projects []store.Project) error {
 	for _, p := range projects {
 		p.Path = normalizePath(p.Path)
+		p = scanner.AddDetectionOptions(p)
 		p = store.NormalizeProjectCommands(p)
 		if err := a.store.Add(p); err != nil {
 			return err
@@ -213,6 +225,12 @@ func (a *App) AddScanned(projects []store.Project) error {
 func (a *App) UpdateProject(p store.Project) error {
 	p = store.NormalizeProjectCommands(p)
 	return a.store.Update(p)
+}
+
+// ResetProjects 清空项目和启动分组,保留工作区配置。
+func (a *App) ResetProjects() error {
+	a.runner.StopAll()
+	return a.store.ResetProjects()
 }
 
 // UpdateProjectCommand 用 UI 单行命令更新项目的 command/args,并标记为手动。

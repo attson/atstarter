@@ -70,5 +70,34 @@ func projectForDir(dir, name string) store.Project {
 			p.Args = args
 		}
 	}
+	p.DetectionOptions = detectionOptionsForDir(dir)
 	return store.NormalizeProjectCommands(p)
+}
+
+// AddDetectionOptions 填充同一路径可切换的识别结果,不改变项目当前类型与命令。
+func AddDetectionOptions(p store.Project) store.Project {
+	if p.Path == "" {
+		return p
+	}
+	p.DetectionOptions = detectionOptionsForDir(p.Path)
+	return p
+}
+
+func detectionOptionsForDir(dir string) []store.DetectionOption {
+	results := detector.DetectOptions(dir)
+	options := make([]store.DetectionOption, 0, len(results))
+	for _, res := range results {
+		option := store.DetectionOption{Type: res.Type, Args: []string{}}
+		if res.Command != "" {
+			if cmd, args, err := cmdparse.Parse(res.Command); err == nil {
+				option.Command = cmd
+				option.Args = args
+			}
+		}
+		options = append(options, option)
+	}
+	if len(options) <= 1 {
+		return nil
+	}
+	return options
 }

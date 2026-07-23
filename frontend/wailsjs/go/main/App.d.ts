@@ -49,6 +49,8 @@ export function RemoveGroup(arg1:string):Promise<void>;
 
 export function RemoveProject(arg1:string):Promise<void>;
 
+export function ResetProjects():Promise<void>;
+
 export function RestartContainer(arg1:string):Promise<void>;
 
 export function SaveGroup(arg1:store.LaunchGroup):Promise<store.LaunchGroup>;
