@@ -122,6 +122,17 @@ func (s *Store) Remove(id string) error {
 	return s.save(cfg)
 }
 
+// ResetProjects 清空项目和启动分组,保留工作区等其它配置。
+func (s *Store) ResetProjects() error {
+	cfg, err := s.Load()
+	if err != nil {
+		return err
+	}
+	cfg.Projects = []Project{}
+	cfg.Groups = []LaunchGroup{}
+	return s.save(cfg)
+}
+
 // SetWorkspaces 覆盖工作区根目录列表。
 func (s *Store) SetWorkspaces(dirs []string) error {
 	cfg, err := s.Load()

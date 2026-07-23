@@ -7,6 +7,7 @@ node_modules/
 frontend/package.json.md5
 .playwright-mcp/
 *-verify.png
+.dev
 
 # === AI workflow temporary artifacts ===
 .workflow-plan/

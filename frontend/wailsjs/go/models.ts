@@ -169,6 +169,22 @@ export namespace runner {
 
 export namespace store {
 	
+	export class DetectionOption {
+	    type: string;
+	    command: string;
+	    args: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DetectionOption(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.command = source["command"];
+	        this.args = source["args"];
+	    }
+	}
 	export class GroupItem {
 	    projectId: string;
 	    commandId: string;
@@ -253,6 +269,7 @@ export namespace store {
 	    autoDetected: boolean;
 	    commands?: LaunchCommand[];
 	    composeFile?: string;
+	    detectionOptions?: DetectionOption[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -271,6 +288,7 @@ export namespace store {
 	        this.autoDetected = source["autoDetected"];
 	        this.commands = this.convertValues(source["commands"], LaunchCommand);
 	        this.composeFile = source["composeFile"];
+	        this.detectionOptions = this.convertValues(source["detectionOptions"], DetectionOption);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

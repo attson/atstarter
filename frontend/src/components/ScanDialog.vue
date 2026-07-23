@@ -1,10 +1,12 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { FolderOpen } from 'lucide-vue-next'
 import { ScanWorkspaces, AddScanned, PickDirectory, GetWorkspaces, SetWorkspaces } from '../../wailsjs/go/main/App'
 import AppButton from './ui/AppButton.vue'
 import AppIcon from './ui/AppIcon.vue'
+import DetectionSwitch from './DetectionSwitch.vue'
 import { typeLabel } from '../typeLabel.js'
+import { applyDetectionOption, canIgnoreComposeDetection, hasDetectionSwitch, ignoreComposeDetections } from '../projectDetection.js'
 import { inferWorkspaceRoots, parseWorkspaceRoots } from '../workspaceRoots.js'
 
 const props = defineProps({
@@ -16,6 +18,7 @@ const emit = defineEmits(['close', 'added'])
 const rootsText = ref('')
 const candidates = ref([])
 const checked = ref({})
+const canIgnoreCompose = computed(() => candidates.value.some(canIgnoreComposeDetection))
 
 async function scan() {
   const roots = parseWorkspaceRoots(rootsText.value)
@@ -43,6 +46,16 @@ async function add() {
 
 function toggle(id) {
   checked.value = { ...checked.value, [id]: !checked.value[id] }
+}
+
+function switchCandidate(candidate, option) {
+  candidates.value = candidates.value.map((c) =>
+    c.id === candidate.id ? applyDetectionOption(c, option) : c
+  )
+}
+
+function ignoreAllCompose() {
+  candidates.value = ignoreComposeDetections(candidates.value)
 }
 
 async function loadRoots() {
@@ -73,11 +86,15 @@ watch(() => props.show, loadRoots, { immediate: true })
             </AppButton>
             <AppButton variant="primary" @click="scan">扫描</AppButton>
           </div>
+          <div v-if="canIgnoreCompose" class="bulk-actions">
+            <AppButton variant="secondary" size="sm" @click="ignoreAllCompose">全部忽略 compose</AppButton>
+          </div>
           <div class="results">
             <button v-for="c in candidates" :key="c.id" :class="['row', { selected: checked[c.id] }]" @click="toggle(c.id)">
               <span class="check-mark">{{ checked[c.id] ? '✓' : '' }}</span>
               <span class="nm">{{ c.name }}</span>
-              <span class="ty" :class="{ unknown: c.detectedType === 'unknown' }">{{ typeLabel(c.detectedType) }}</span>
+              <DetectionSwitch v-if="hasDetectionSwitch(c)" :project="c" @switch="switchCandidate(c, $event)" />
+              <span v-else class="ty" :class="{ unknown: c.detectedType === 'unknown' }">{{ typeLabel(c.detectedType) }}</span>
               <code>{{ [c.command, ...(c.args || [])].join(' ').trim() || '—' }}</code>
             </button>
           </div>
@@ -150,6 +167,12 @@ textarea:focus {
 
 .root-actions > * { flex: 1; }
 
+.bulk-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: calc(var(--space-4) * -1);
+}
+
 .results {
   max-height: 340px;
   overflow-y: auto;
@@ -161,7 +184,7 @@ textarea:focus {
 .row {
   width: 100%;
   display: grid;
-  grid-template-columns: 18px minmax(160px, 220px) 92px minmax(0, 1fr);
+  grid-template-columns: 18px minmax(150px, 210px) 124px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-5);
   padding: var(--space-4) var(--space-5);

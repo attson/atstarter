@@ -12,10 +12,28 @@ type Result struct {
 
 // Detect 按优先级从上到下匹配规则,命中即返回。
 func Detect(dir string) Result {
+	return detect(dir, false)
+}
+
+// DetectOptions 返回可供用户切换的识别结果。compose 仍作为主结果,但会追加忽略
+// compose 文件后的普通项目识别结果,用于目录里同时存在 compose 与源码入口的场景。
+func DetectOptions(dir string) []Result {
+	primary := Detect(dir)
+	options := []Result{primary}
+	if primary.Type == "compose" {
+		fallback := detect(dir, true)
+		if fallback.Type != "unknown" && fallback.Type != primary.Type {
+			options = append(options, fallback)
+		}
+	}
+	return options
+}
+
+func detect(dir string, ignoreCompose bool) Result {
 	hasPkg := exists(dir, "package.json")
 
 	switch {
-	case firstExisting(dir, "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml") != "":
+	case !ignoreCompose && firstExisting(dir, "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml") != "":
 		return Result{"compose", ""}
 
 	case hasPkg && exists(dir, "pnpm-lock.yaml"):
