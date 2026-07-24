@@ -70,12 +70,20 @@ export function ListGroups() {
   return window['go']['main']['App']['ListGroups']();
 }
 
+export function ListProjectDir(arg1, arg2) {
+  return window['go']['main']['App']['ListProjectDir'](arg1, arg2);
+}
+
 export function ListProjects() {
   return window['go']['main']['App']['ListProjects']();
 }
 
 export function PickDirectory() {
   return window['go']['main']['App']['PickDirectory']();
+}
+
+export function ReadProjectFile(arg1, arg2) {
+  return window['go']['main']['App']['ReadProjectFile'](arg1, arg2);
 }
 
 export function RemoveContainer(arg1, arg2) {

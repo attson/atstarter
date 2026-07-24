@@ -65,6 +65,45 @@ export namespace docker {
 
 }
 
+export namespace filetree {
+	
+	export class Entry {
+	    name: string;
+	    isDir: boolean;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Entry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.isDir = source["isDir"];
+	        this.size = source["size"];
+	    }
+	}
+	export class FileContent {
+	    content: string;
+	    size: number;
+	    truncated: boolean;
+	    binary: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileContent(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.content = source["content"];
+	        this.size = source["size"];
+	        this.truncated = source["truncated"];
+	        this.binary = source["binary"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
 	export class CommandInput {
