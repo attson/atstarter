@@ -18,6 +18,7 @@ async function loadRoot() {
   selectedPath.value = ''
   preview.value = null
   previewError.value = ''
+  loadingPreview.value = false
   if (!props.projectId) return
   try {
     rootEntries.value = await ListProjectDir(props.projectId, '')
@@ -32,11 +33,14 @@ async function onSelect(path) {
   preview.value = null
   loadingPreview.value = true
   try {
-    preview.value = await ReadProjectFile(props.projectId, path)
+    const result = await ReadProjectFile(props.projectId, path)
+    if (selectedPath.value !== path) return // 已切到别的文件,丢弃过期响应
+    preview.value = result
   } catch (e) {
+    if (selectedPath.value !== path) return
     previewError.value = String(e)
   } finally {
-    loadingPreview.value = false
+    if (selectedPath.value === path) loadingPreview.value = false
   }
 }
 
