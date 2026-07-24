@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 )
 
 // State 是一个受管进程的运行时状态。
@@ -155,6 +156,26 @@ func (r *Runner) pump(id string, m *managed, pipe interface{ Read([]byte) (int, 
 	}
 }
 
+// pumpDrainTimeout 是 wait 等待 stdout/stderr pump 收尾(读到 EOF)的上限。
+// 正常退出/被杀时 pump 会迅速 EOF,远不及此;超时只在有孤儿持管道时兜底触发。
+const pumpDrainTimeout = 3 * time.Second
+
+// waitPumpsWithTimeout 等待 wg 完成,但最多等 d。返回 true 表示 pump 已正常收尾,
+// false 表示超时兜底(可能有孤儿仍持管道)。
+func waitPumpsWithTimeout(wg *sync.WaitGroup, d time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-time.After(d):
+		return false
+	}
+}
+
 // wait 等待进程结束并更新状态,并向日志追加一行退出标记。
 func (r *Runner) wait(id string, m *managed) {
 	// CRUCIAL: pumps must finish reading BEFORE cmd.Wait — the Go exec
@@ -164,7 +185,12 @@ func (r *Runner) wait(id string, m *managed) {
 	// truncate pending reads. Pumps naturally exit on EOF once the child
 	// closes its write ends (normal exit or kill), so waiting on them
 	// blocks only until the process is actually done.
-	m.pumps.Wait()
+	//
+	// 防御纵深:进程树清理若漏杀了仍持有管道写端的孤儿(竞态、新派生、或某平台
+	// 采集不全),pump 读不到 EOF 会永久阻塞,进而 cmd.Wait 永不返回、状态卡死在
+	// running —— 这正是退出/停止无响应的根源。故对 pump 收尾设超时兜底:超时后
+	// 放弃等待 pump,照常 cmd.Wait 落终态。宁可丢几行迟到日志,也不能让进程永挂。
+	waitPumpsWithTimeout(&m.pumps, pumpDrainTimeout)
 	err := m.cmd.Wait()
 	r.mu.Lock()
 	var marker string

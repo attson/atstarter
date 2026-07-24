@@ -1,4 +1,4 @@
-//go:build !windows
+//go:build linux
 
 package runner
 
@@ -7,29 +7,9 @@ import (
 	"strconv"
 )
 
-// collectDescendants 返回 root(含)及其所有子孙进程的 pid,按"子孙在前、root 在后"
-// 排序(叶子优先),便于杀进程时先杀子再杀父。
-//
-// 通过 /proc/<pid>/stat 读取每个进程的 ppid 构建父子关系。关键前提:调用时进程树
-// 尚未因根进程退出而被 reparent —— setsid 只改子进程的 sid/pgid,不改 ppid,所以
-// 只要根进程还活着,像 dev.sh 那样另开进程组/会话的子进程仍能经 ppid 链被找到。
-// 这正是进程组信号覆盖不到、却必须清理的孤儿来源。
-func collectDescendants(root int) []int {
-	children := readProcChildren() // ppid -> []pid
-
-	var order []int
-	var walk func(pid int)
-	walk = func(pid int) {
-		for _, c := range children[pid] {
-			walk(c)
-		}
-		order = append(order, pid) // 后序:子孙先入,自身后入
-	}
-	walk(root)
-	return order
-}
-
 // readProcChildren 扫描 /proc,返回 ppid -> 子 pid 列表 的映射。
+// Linux 专有:进程信息经 /proc/<pid>/stat 暴露。darwin 无 /proc,由
+// process_tree_darwin.go 用 sysctl 提供等价映射。
 func readProcChildren() map[int][]int {
 	out := map[int][]int{}
 	entries, err := os.ReadDir("/proc")
