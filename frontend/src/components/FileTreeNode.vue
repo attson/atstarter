@@ -13,6 +13,7 @@ const emit = defineEmits(['select'])
 
 const expanded = ref(false)
 const loaded = ref(false)
+const loading = ref(false)
 const children = ref([])
 const error = ref('')
 
@@ -22,12 +23,16 @@ async function toggle() {
     return
   }
   expanded.value = !expanded.value
-  if (expanded.value && !loaded.value) {
+  if (expanded.value && !loaded.value && !loading.value) {
+    loading.value = true
+    error.value = ''
     try {
       children.value = await ListProjectDir(props.projectId, props.path)
       loaded.value = true
     } catch (e) {
       error.value = String(e)
+    } finally {
+      loading.value = false
     }
   }
 }
@@ -35,7 +40,8 @@ async function toggle() {
 
 <template>
   <div>
-    <div
+    <button
+      type="button"
       class="node"
       :class="{ selected: !entry.isDir && selectedPath === path }"
       :style="{ paddingLeft: depth * 14 + 8 + 'px' }"
@@ -43,7 +49,7 @@ async function toggle() {
     >
       <span class="twisty">{{ entry.isDir ? (expanded ? '▾' : '▸') : '' }}</span>
       <span class="name">{{ entry.name }}</span>
-    </div>
+    </button>
     <div v-if="error" class="node-error" :style="{ paddingLeft: (depth + 1) * 14 + 8 + 'px' }">{{ error }}</div>
     <template v-if="entry.isDir && expanded">
       <FileTreeNode
@@ -61,10 +67,10 @@ async function toggle() {
 </template>
 
 <style scoped>
-.node { display: flex; align-items: center; gap: var(--space-1); height: 24px; cursor: pointer; font-size: var(--fs-sm); color: var(--text); border-radius: var(--radius-sm); }
+.node { display: flex; align-items: center; gap: var(--space-1); height: 24px; cursor: pointer; font-size: var(--fs-sm); color: var(--text); border-radius: var(--radius-sm); width: 100%; border: none; background: transparent; font: inherit; text-align: left; }
 .node:hover { background: var(--elevated); }
-.node.selected { background: var(--elevated); color: var(--text); font-weight: var(--fw-medium); }
+.node.selected { background: var(--elevated); color: var(--primary); font-weight: var(--fw-medium); }
 .twisty { width: 12px; display: inline-block; text-align: center; color: var(--text-muted); }
-.name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .node-error { color: var(--danger, #e55); font-size: var(--fs-sm); }
 </style>
