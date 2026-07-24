@@ -64,3 +64,10 @@ func TestListDirTraversalRejected(t *testing.T) {
 		}
 	}
 }
+
+func TestListDirNotExist(t *testing.T) {
+	root := setupTree(t)
+	if _, err := ListDir(root, "nope"); err == nil {
+		t.Error("want error for non-existent path")
+	}
+}

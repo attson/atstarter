@@ -19,6 +19,7 @@ type Entry struct {
 
 // resolve 把 relPath 安全解析到 root 之内的绝对路径。
 // 越出 root 返回错误。
+// 注意:guard 是纯词法的,不解析符号链接;指向 root 外的软链不会被拦截(对本地项目浏览器可接受)。
 func resolve(root, relPath string) (string, error) {
 	// Join then Clean: filepath.Join already calls Clean internally.
 	full := filepath.Join(root, relPath)
