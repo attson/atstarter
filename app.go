@@ -13,6 +13,7 @@ import (
 	"atstarter/internal/cmdparse"
 	"atstarter/internal/detector"
 	"atstarter/internal/docker"
+	"atstarter/internal/filetree"
 	"atstarter/internal/runner"
 	"atstarter/internal/scanner"
 	"atstarter/internal/store"
@@ -134,6 +135,38 @@ func (a *App) ListProjects() ([]store.Project, error) {
 		cfg.Projects[i] = scanner.AddDetectionOptions(cfg.Projects[i])
 	}
 	return cfg.Projects, nil
+}
+
+// projectRoot 用 projectID 从 store 查出项目根路径,作为文件浏览的 root。
+func (a *App) projectRoot(projectID string) (string, error) {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return "", err
+	}
+	for _, p := range cfg.Projects {
+		if p.ID == projectID {
+			return p.Path, nil
+		}
+	}
+	return "", errors.New("project not found: " + projectID)
+}
+
+// ListProjectDir 列出项目 projectID 下 relPath 这一层的文件/子目录。
+func (a *App) ListProjectDir(projectID, relPath string) ([]filetree.Entry, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return nil, err
+	}
+	return filetree.ListDir(root, relPath)
+}
+
+// ReadProjectFile 读取项目 projectID 下 relPath 文件的预览内容。
+func (a *App) ReadProjectFile(projectID, relPath string) (filetree.FileContent, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return filetree.FileContent{}, err
+	}
+	return filetree.ReadFile(root, relPath)
 }
 
 // expandHome 把开头的 ~ 或 ~/... 展开为用户家目录。
