@@ -3,6 +3,7 @@
 import {store} from '../models';
 import {docker} from '../models';
 import {runner} from '../models';
+import {filetree} from '../models';
 import {main} from '../models';
 
 export function AddProject(arg1:string):Promise<store.Project>;
@@ -39,9 +40,13 @@ export function ListContainers():Promise<Array<docker.ContainerState>>;
 
 export function ListGroups():Promise<Array<store.LaunchGroup>>;
 
+export function ListProjectDir(arg1:string,arg2:string):Promise<Array<filetree.Entry>>;
+
 export function ListProjects():Promise<Array<store.Project>>;
 
 export function PickDirectory():Promise<string>;
+
+export function ReadProjectFile(arg1:string,arg2:string):Promise<filetree.FileContent>;
 
 export function RemoveContainer(arg1:string,arg2:boolean):Promise<void>;
 

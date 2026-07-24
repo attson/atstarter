@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { Play, Square, RotateCcw, Pencil, FolderPlus, ChevronDown, ChevronUp, GitBranch } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
+import FileBrowser from './FileBrowser.vue'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
 import AppIcon from './ui/AppIcon.vue'
@@ -14,6 +15,8 @@ const props = defineProps({ project: Object, status: Object, selectedCommandId: 
 const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group', 'switch-type'])
 const commandMenuOpen = ref(false)
 const branch = ref('')
+const detailTab = ref('logs') // 'logs' | 'files'
+watch(() => props.project?.id, () => { detailTab.value = 'logs' })
 let branchToken = 0
 
 async function refreshBranch(path) {
@@ -150,7 +153,14 @@ function chooseCommand(command) {
         </div>
       </div>
     </div>
-    <LogPanel :projectId="selectedRunId" :status="status" />
+    <div class="detail-tabs">
+      <button class="tab" :class="{ active: detailTab === 'logs' }" @click="detailTab = 'logs'">日志</button>
+      <button class="tab" :class="{ active: detailTab === 'files' }" @click="detailTab = 'files'">文件</button>
+    </div>
+    <div class="detail-tab-body">
+      <LogPanel v-show="detailTab === 'logs'" :projectId="selectedRunId" :status="status" />
+      <FileBrowser v-show="detailTab === 'files'" :projectId="project.id" />
+    </div>
   </section>
   <section class="detail empty" v-else>
     <div>
@@ -381,5 +391,37 @@ h1 {
   .command-box code {
     flex-basis: 100%;
   }
+}
+
+.detail-tabs {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-8) 0;
+}
+.detail-tabs .tab {
+  height: 28px;
+  padding: 0 var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+.detail-tabs .tab.active {
+  background: var(--elevated);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.detail-tab-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.detail-tab-body > * {
+  flex: 1;
+  min-height: 0;
 }
 </style>
