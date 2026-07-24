@@ -4,6 +4,173 @@
    - 变量本地定义,避免依赖 --vp-c-* 在浅色模式破功
    ============================================================ */
 
+/* ============================================================
+   整页深色化 · 作用域严格限定「首页」
+   ------------------------------------------------------------
+   作用域机制(两层,均只命中首页,绝不波及 /guide/ 文档页):
+   1. .VPHome —— VitePress 仅在 home layout 的内容根挂这个 class;
+      文档页用 .VPDoc / .VPContent.has-sidebar,不含 .VPHome。
+      hero(.VPHero)、features(.VPFeatures)、自定义 .tech-home
+      全部是 .VPHome 的后代,SSR 即渲染,故首屏无浅色闪烁。
+   2. body.home-dark —— 由 theme/index.js 依路由动态挂/摘,仅用于
+      给「.VPHome 之外」的导航栏(.VPNav)上色;离开首页(进 /guide/)
+      立即移除,文档页导航栏恢复默认。
+   强制深色、与站点 light/dark toggle 无关(直接写死颜色)。
+   ============================================================ */
+
+:root {
+  --home-bg: #0a0e1a;
+  --home-bg-2: #0d1117;
+}
+
+/* 首页内容区整体深色底(hero + features + tech-home 连续统一) */
+.VPHome {
+  background:
+    radial-gradient(60% 50% at 18% 0%, rgba(99, 102, 241, 0.16), transparent 60%),
+    radial-gradient(55% 45% at 88% 8%, rgba(139, 92, 246, 0.14), transparent 62%),
+    linear-gradient(180deg, var(--home-bg) 0%, var(--home-bg-2) 100%);
+  color: #e7ecf5;
+}
+
+/* 首页外层容器同色,消除 VPContent 默认白底导致的边缘割裂 */
+.VPContent.is-home,
+body.home-dark .VPContent.is-home {
+  background: var(--home-bg);
+}
+body.home-dark {
+  background: var(--home-bg);
+}
+
+/* ---------------- Hero 区适配深色 ---------------- */
+/* 大标题:靛蓝 → 紫 → 青 渐变文字,高字重、负字距 */
+.VPHome .VPHero .name {
+  background: linear-gradient(96deg, #818cf8 0%, #a78bfa 42%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  filter: drop-shadow(0 4px 30px rgba(99, 102, 241, 0.35));
+}
+.VPHome .VPHero .text {
+  color: #eef2fb;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.VPHome .VPHero .tagline {
+  color: #9aa4b8;
+}
+
+/* hero 背景径向光晕,与下半部分呼应 */
+.VPHome .VPHero {
+  position: relative;
+}
+.VPHome .VPHero::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: -140px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  max-width: 120vw;
+  height: 520px;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.28), transparent 68%);
+  filter: blur(30px);
+  pointer-events: none;
+}
+.VPHome .VPHero .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* 主按钮:靛蓝紫发光渐变 */
+.VPHome .VPHero .actions .VPButton.brand {
+  border: 0;
+  background: linear-gradient(120deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+  box-shadow: 0 8px 26px rgba(99, 102, 241, 0.5), 0 0 0 1px rgba(139, 92, 246, 0.4);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+}
+.VPHome .VPHero .actions .VPButton.brand:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 12px 40px rgba(99, 102, 241, 0.68), 0 0 0 1px rgba(139, 92, 246, 0.6);
+}
+
+/* 次按钮:深色玻璃描边 */
+.VPHome .VPHero .actions .VPButton.alt {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e7ecf5;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+}
+.VPHome .VPHero .actions .VPButton.alt:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(139, 92, 246, 0.55);
+}
+
+/* ---------------- Features 8 卡片深色玻璃化 ---------------- */
+.VPHome .VPFeature {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.3);
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.VPHome .VPFeature:hover {
+  transform: translateY(-4px);
+  border-color: rgba(99, 102, 241, 0.55);
+  box-shadow: 0 14px 40px rgba(99, 102, 241, 0.28), 0 0 0 1px rgba(99, 102, 241, 0.25);
+}
+.VPHome .VPFeature .icon {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+.VPHome .VPFeature .title {
+  color: #eef2fb;
+  letter-spacing: -0.01em;
+}
+.VPHome .VPFeature .details {
+  color: #9aa4b8;
+}
+
+/* ---------------- 首页导航栏协调(仅首页) ---------------- */
+/* 直接改写导航栏用到的 CSS 变量(强制,盖过默认白底),仅在 body.home-dark 生效;
+   离开首页(去掉 home-dark)自动恢复默认。半透明深底 + 模糊,融入深色首页。 */
+body.home-dark {
+  --vp-nav-bg-color: rgba(10, 14, 26, 0.72);
+  --vp-c-gutter: rgba(255, 255, 255, 0.08);
+}
+body.home-dark .VPNavBar {
+  background-color: rgba(10, 14, 26, 0.72) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+/* 滚动到顶部时(.top)导航栏透明,让 hero 光晕透出 */
+body.home-dark .VPNavBar.home.top {
+  background-color: transparent !important;
+  border-bottom-color: transparent;
+}
+body.home-dark .VPNavBar .VPNavBarTitle .title,
+body.home-dark .VPNavBarMenuLink {
+  color: #e7ecf5;
+}
+body.home-dark .VPNavBarMenuLink:hover,
+body.home-dark .VPNavBarMenuLink.active {
+  color: #a5b4fc;
+}
+/* 导航栏分隔线在深底上淡化 */
+body.home-dark .VPNavBar .divider-line {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
 .tech-home {
   --tech-bg: #0a0e1a;
   --tech-bg-2: #0d1117;
@@ -17,22 +184,12 @@
   --tech-cyan: #06b6d4;
 
   position: relative;
-  background: var(--tech-bg);
+  /* 背景透明,继承 .VPHome 的连续深色底,消除与 hero/features 的明暗交界 */
+  background: transparent;
   color: var(--tech-text);
   margin-top: 8px;
   padding-bottom: 96px;
   overflow: hidden;
-  border-top: 1px solid var(--tech-border);
-}
-
-/* 顶部与 features 之间的过渡渐隐 */
-.tech-home::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 220px;
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.12), transparent 70%);
-  pointer-events: none;
 }
 
 /* ---- 径向光晕 / 辉光 ---- */
@@ -403,18 +560,6 @@
   .tech-home .badge {
     transition: none;
   }
-}
-
-/* ============================================================
-   与浅色 features 区域的呼应:给 hero features 卡片加渐变 hover
-   ============================================================ */
-.VPHome .VPFeature {
-  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-}
-.VPHome .VPFeature:hover {
-  transform: translateY(-4px);
-  border-color: rgba(99, 102, 241, 0.5);
-  box-shadow: 0 12px 36px rgba(99, 102, 241, 0.18);
 }
 
 /* ---- 响应式 ---- */
