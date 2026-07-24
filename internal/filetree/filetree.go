@@ -3,7 +3,9 @@
 package filetree
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -60,4 +62,50 @@ func ListDir(root, relPath string) ([]Entry, error) {
 		return entries[i].Name < entries[j].Name
 	})
 	return entries, nil
+}
+
+// maxReadBytes 是预览读取上限。超过则截断。
+const maxReadBytes = 1 << 20 // 1MB
+
+// FileContent 是一次文件预览的结果。
+type FileContent struct {
+	Content   string `json:"content"`   // 文本内容;Binary 时为空
+	Size      int64  `json:"size"`      // 原始文件字节数
+	Truncated bool   `json:"truncated"` // 超过上限只读了前 maxReadBytes
+	Binary    bool   `json:"binary"`    // 检测到二进制,不返回内容
+}
+
+// ReadFile 读取 root/relPath 文件,做大小截断与二进制检测。
+func ReadFile(root, relPath string) (FileContent, error) {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return FileContent{}, err
+	}
+	info, err := os.Stat(full)
+	if err != nil {
+		return FileContent{}, err
+	}
+	if info.IsDir() {
+		return FileContent{}, errors.New("is a directory: " + relPath)
+	}
+	f, err := os.Open(full)
+	if err != nil {
+		return FileContent{}, err
+	}
+	defer f.Close()
+
+	buf := make([]byte, maxReadBytes)
+	n, err := io.ReadFull(f, buf)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return FileContent{}, err
+	}
+	data := buf[:n]
+
+	fc := FileContent{Size: info.Size(), Truncated: info.Size() > maxReadBytes}
+	if bytes.IndexByte(data, 0x00) >= 0 {
+		fc.Binary = true
+		return fc, nil
+	}
+	fc.Content = string(data)
+	return fc, nil
 }
