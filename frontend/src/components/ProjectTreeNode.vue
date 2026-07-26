@@ -9,8 +9,13 @@ const props = defineProps({
   level: Number,
   expandedDirs: Object,
   forceExpanded: Boolean,
+  missingIds: { type: Set, default: () => new Set() },
 })
 const emit = defineEmits(['select', 'toggle'])
+
+function isMissing(node) {
+  return node.type === 'project' && props.missingIds && props.missingIds.has(node.project.id)
+}
 
 function stateClass(state) {
   if (state === 'running') return 'running'
@@ -57,10 +62,11 @@ function hasChildren(node) {
 
   <div v-else class="tree-group">
     <div
-      :class="['tree-row', 'project-row', { active: node.project.id === selectedId }]"
+      :class="['tree-row', 'project-row', { active: node.project.id === selectedId, missing: isMissing(node) }]"
       :style="{ paddingLeft: `${4 + level * 12}px` }"
       role="button"
       tabindex="0"
+      :title="isMissing(node) ? '项目路径已不存在' : undefined"
       @click="emit('select', node.project.id)"
       @keydown.enter.prevent="emit('select', node.project.id)"
       @keydown.space.prevent="emit('select', node.project.id)"
@@ -77,6 +83,7 @@ function hasChildren(node) {
         <span :class="['status-dot', stateClass((node.status || {}).State)]" />
         <span class="project-name">{{ node.project.name }}</span>
         <span v-if="hasChildren(node)" class="count">{{ node.count }}</span>
+        <span v-else-if="isMissing(node)" class="type-pill missing-pill">missing</span>
         <span v-else class="type-pill">{{ typeLabel(node.project.detectedType) }}</span>
       </span>
     </div>
@@ -89,6 +96,7 @@ function hasChildren(node) {
         :level="level + 1"
         :expandedDirs="expandedDirs"
         :forceExpanded="forceExpanded"
+        :missingIds="missingIds"
         @select="emit('select', $event)"
         @toggle="emit('toggle', $event)"
       />
@@ -249,5 +257,17 @@ function hasChildren(node) {
   padding: 1px 7px;
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
+}
+
+.type-pill.missing-pill {
+  color: var(--danger, #ef4444);
+  border-color: var(--danger-line, rgba(239, 68, 68, .35));
+  background: var(--danger-soft, rgba(239, 68, 68, .08));
+}
+
+.project-row.missing .project-name {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-subtle);
 }
 </style>

@@ -40,6 +40,8 @@ export function ListContainers():Promise<Array<docker.ContainerState>>;
 
 export function ListGroups():Promise<Array<store.LaunchGroup>>;
 
+export function ListMissingProjectIDs():Promise<Array<string>>;
+
 export function ListProjectDir(arg1:string,arg2:string):Promise<Array<filetree.Entry>>;
 
 export function ListProjects():Promise<Array<store.Project>>;

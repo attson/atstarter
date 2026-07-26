@@ -70,6 +70,10 @@ export function ListGroups() {
   return window['go']['main']['App']['ListGroups']();
 }
 
+export function ListMissingProjectIDs() {
+  return window['go']['main']['App']['ListMissingProjectIDs']();
+}
+
 export function ListProjectDir(arg1, arg2) {
   return window['go']['main']['App']['ListProjectDir'](arg1, arg2);
 }

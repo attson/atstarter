@@ -40,6 +40,47 @@ func chdir(t *testing.T, dir string) {
 	})
 }
 
+// TestListMissingProjectIDs 验证只有 Path 不存在的项目 ID 会被返回,存在的项目
+// 不会被误报。前端据此显示 missing 标记 + 快捷移除,不做静默清理是刻意选择:
+// worktree 临时删除、外置盘未挂载等场景常见,静默删会丢用户配置的 commands
+// 与分组归属。
+func TestListMissingProjectIDs(t *testing.T) {
+	app := newTestApp(t)
+	dir := t.TempDir()
+	realPath := filepath.Join(dir, "real")
+	if err := os.MkdirAll(realPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(realPath, "package.json"), `{}`)
+	real, err := app.AddProject(realPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 直接注入一个 Path 不存在的项目,绕过 AddProject 的 os.Stat 校验。
+	ghost := store.Project{
+		ID:   store.IDForPath("/nonexistent/ghost"),
+		Name: "ghost",
+		Path: "/nonexistent/ghost",
+	}
+	if err := app.store.Add(ghost); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := app.ListMissingProjectIDs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != ghost.ID {
+		t.Fatalf("missing ids = %v, want exactly [%s]", got, ghost.ID)
+	}
+	// real 项目路径存在,绝不能出现在返回里。
+	for _, id := range got {
+		if id == real.ID {
+			t.Fatalf("real project %s wrongly reported missing", real.ID)
+		}
+	}
+}
+
 func TestNewAppUsesDevConfigInWorkingDirectory(t *testing.T) {
 	oldVersion := Version
 	Version = "dev"

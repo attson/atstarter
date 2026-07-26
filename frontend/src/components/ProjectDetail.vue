@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Play, Square, RotateCcw, Pencil, FolderPlus, ChevronDown, ChevronUp, GitBranch } from 'lucide-vue-next'
+import { Play, Square, RotateCcw, Pencil, FolderPlus, ChevronDown, ChevronUp, GitBranch, Trash2 } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
 import FileBrowser from './FileBrowser.vue'
 import AppButton from './ui/AppButton.vue'
@@ -11,8 +11,8 @@ import { typeLabel } from '../typeLabel.js'
 import { hasDetectionSwitch } from '../projectDetection.js'
 import { GetProjectBranch } from '../../wailsjs/go/main/App'
 
-const props = defineProps({ project: Object, status: Object, selectedCommandId: String })
-const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group', 'switch-type'])
+const props = defineProps({ project: Object, status: Object, selectedCommandId: String, missing: { type: Boolean, default: false } })
+const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group', 'switch-type', 'remove'])
 const commandMenuOpen = ref(false)
 const branch = ref('')
 const detailTab = ref('logs') // 'logs' | 'files'
@@ -87,8 +87,16 @@ function chooseCommand(command) {
             <AppIcon :icon="GitBranch" :size="11" />
             {{ branch }}
           </AppPill>
+          <AppPill v-if="missing" variant="error" title="项目路径已不存在">missing</AppPill>
         </div>
         <div class="path">{{ project.path }}</div>
+        <div v-if="missing" class="missing-notice">
+          <span>路径已不存在,项目配置(命令 / 分组归属)仍保留。可点右侧「移除项目」清理。</span>
+          <AppButton variant="danger" size="sm" @click="emit('remove')">
+            <template #icon><AppIcon :icon="Trash2" :size="13" /></template>
+            移除项目
+          </AppButton>
+        </div>
         <div class="command-box">
           <span class="cmd-label">CMD</span>
           <div class="command-picker">
@@ -256,6 +264,19 @@ h1 {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.missing-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--danger-line, rgba(239, 68, 68, .35));
+  border-radius: var(--radius-md);
+  background: var(--danger-soft, rgba(239, 68, 68, .08));
+  color: var(--danger-fg, var(--danger, #ef4444));
+  font-size: var(--fs-sm);
+}
+.missing-notice > span { flex: 1; min-width: 0; }
 
 .command-box {
   display: flex;

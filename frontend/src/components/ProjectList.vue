@@ -17,6 +17,7 @@ const props = defineProps({
   statuses: Object,
   statusFilter: { type: String, default: null },
   rescanning: { type: Boolean, default: false },
+  missingIds: { type: Set, default: () => new Set() },
 })
 const query = ref('')
 const expandedDirs = ref({})
@@ -111,6 +112,7 @@ watch(() => props.projects, () => {
         :level="0"
         :expandedDirs="expandedDirs"
         :forceExpanded="forceExpanded"
+        :missingIds="missingIds"
         @select="emit('select', $event)"
         @toggle="toggleDir"
       />
