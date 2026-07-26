@@ -10,22 +10,23 @@ import (
 	"time"
 )
 
-// TestUpdateInstallSetsQuitRequested 回归:UpdateInstall 成功启动安装脚本后
-// 必须置位 quitRequested,否则 beforeClose(app.go)会把 wailsruntime.Quit
-// 拦成"隐藏窗口"(托盘存在时的默认路径),导致老进程不退、新版本 open -n
-// 起不来。用户表现:点"立即安装"仅关窗、没升级。
-// v0.5.3 首发即触发,v0.5.4 修复。
+// TestUpdateInstallSetsQuitRequested 回归:UpdateInstall 成功执行安装后必须置位
+// quitRequested,否则 beforeClose(app.go)会把 wailsruntime.Quit 拦成"隐藏窗
+// 口"(托盘存在时的默认路径),老进程不退、Launch Services 不会启动新版。
+// 用户表现:点"立即安装"仅关窗、没升级。v0.5.3 首发即触发,v0.5.4 修复。
+// v0.5.6 起 darwin 走 runInstall → installDarwin 内联路径,test 也从原来直接
+// 覆盖 installScriptRunner 迁到覆盖 runInstall,确保跨平台都覆盖到本条不变式。
 func TestUpdateInstallSetsQuitRequested(t *testing.T) {
-	origRunner, origQuit := installScriptRunner, installQuitFn
+	origInstall, origQuit := runInstall, installQuitFn
 	t.Cleanup(func() {
-		installScriptRunner = origRunner
+		runInstall = origInstall
 		installQuitFn = origQuit
 		quitRequested.Store(false)
 	})
 
-	scriptCalls := 0
-	installScriptRunner = func(asset, target, exec string) error {
-		scriptCalls++
+	installCalls := 0
+	runInstall = func(asset, target, exec string) error {
+		installCalls++
 		return nil
 	}
 	// 屏蔽真正的 wailsruntime.Quit(nil ctx 会 panic)。
@@ -48,11 +49,11 @@ func TestUpdateInstallSetsQuitRequested(t *testing.T) {
 	if st.Error != "" {
 		t.Fatalf("UpdateInstall error: %s", st.Error)
 	}
-	if scriptCalls != 1 {
-		t.Fatalf("installScriptRunner calls = %d, want 1", scriptCalls)
+	if installCalls != 1 {
+		t.Fatalf("runInstall calls = %d, want 1", installCalls)
 	}
 	if !quitRequested.Load() {
-		t.Fatal("quitRequested must be set after UpdateInstall spawns the install script; without it beforeClose intercepts the Quit and only hides the window")
+		t.Fatal("quitRequested must be set after UpdateInstall completes the install; without it beforeClose intercepts the Quit and only hides the window")
 	}
 }
 
