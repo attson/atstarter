@@ -397,19 +397,26 @@ func (a *App) UpdateInstall() UpdateState {
 		}
 	}
 
-	if err := installScriptRunner(asset, target, exePath); err != nil {
+	if err := runInstall(asset, target, exePath); err != nil {
 		u.setError(err)
 		u.emit(a.ctx)
 		return u.snapshot()
 	}
 
-	// Hand off cleanly — the script has already spawned the replacement.
-	// quitRequested 必须置位,否则 beforeClose 会把 runtime.Quit 拦成"隐藏窗口"
-	// (托盘存在时的默认行为),脚本会跑但老进程不退,新版本 open -n 起不来。
+	// Hand off cleanly — the install pipeline has already spawned `open` on
+	// the new bundle. quitRequested 必须置位,否则 beforeClose 会把
+	// runtime.Quit 拦成"隐藏窗口"(托盘存在时的默认行为),老进程不退、
+	// Launch Services 不会启动新版。
 	quitRequested.Store(true)
 	go installQuitFn(a.ctx)
 	return u.snapshot()
 }
+
+// runInstall 是平台分发点。真正的实现按 GOOS 分文件(install_darwin.go /
+// install_other.go),暴露成变量便于测试注入。darwin 走内联实现(挂载/拷贝/
+// rename 全在 App 还活着时同步做完,错误能返回给前端);其它平台暂时保留外部
+// 脚本方案 —— windows/linux 的更新流程与 darwin 差别较大,单独重构更清晰。
+var runInstall = platformInstall
 
 // installScriptRunner 与 installQuitFn 是可注入的钩子,测试用来验证成功路径下
 // UpdateInstall 会置位 quitRequested。默认实现即真正的 runInstallScript /
