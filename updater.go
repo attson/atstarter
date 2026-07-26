@@ -397,18 +397,28 @@ func (a *App) UpdateInstall() UpdateState {
 		}
 	}
 
-	if err := runInstallScript(asset, target, exePath); err != nil {
+	if err := installScriptRunner(asset, target, exePath); err != nil {
 		u.setError(err)
 		u.emit(a.ctx)
 		return u.snapshot()
 	}
 
 	// Hand off cleanly — the script has already spawned the replacement.
-	go func() {
-		time.Sleep(300 * time.Millisecond)
-		wailsruntime.Quit(a.ctx)
-	}()
+	// quitRequested 必须置位,否则 beforeClose 会把 runtime.Quit 拦成"隐藏窗口"
+	// (托盘存在时的默认行为),脚本会跑但老进程不退,新版本 open -n 起不来。
+	quitRequested.Store(true)
+	go installQuitFn(a.ctx)
 	return u.snapshot()
+}
+
+// installScriptRunner 与 installQuitFn 是可注入的钩子,测试用来验证成功路径下
+// UpdateInstall 会置位 quitRequested。默认实现即真正的 runInstallScript /
+// 300ms 后 wailsruntime.Quit。
+var installScriptRunner = runInstallScript
+
+var installQuitFn = func(ctx context.Context) {
+	time.Sleep(300 * time.Millisecond)
+	wailsruntime.Quit(ctx)
 }
 
 // runInstallScript extracts the platform install script from the
