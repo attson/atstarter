@@ -21,7 +21,7 @@ import {
   ListProjects, AddProject, StartProjectCommand, StopProjectCommand,
   GetStatus, UpdateProjectCommands, ListGroups, SaveGroup, RemoveGroup,
   StartGroup, StopGroup, GetWorkspaces, SetWorkspaces, ScanWorkspaces, AddScanned,
-  UpdateProject, ResetProjects,
+  UpdateProject, ResetProjects, RemoveProject, ListMissingProjectIDs,
 } from '../wailsjs/go/main/App'
 import { ComposeDown, RemoveContainer, DockerAvailable } from '../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
@@ -42,6 +42,7 @@ const showAddToGroup = ref(false)
 const editingGroup = ref(null)
 const statusFilter = ref(null) // null | 'running' | 'exited'
 const rescanning = ref(false)
+const missingIds = ref(new Set()) // 项目 Path 已消失(如 worktree 删除),前端据此显示"missing"标记并给出快捷移除入口
 
 const activeTab = ref('projects') // 'projects' | 'containers'
 const dockerAvailable = ref(true)
@@ -191,6 +192,11 @@ function resubscribeStatus() {
 async function refresh() {
   projects.value = (await ListProjects()) || []
   groups.value = (await ListGroups()) || []
+  try {
+    missingIds.value = new Set((await ListMissingProjectIDs()) || [])
+  } catch (e) {
+    missingIds.value = new Set()
+  }
   if (selectedId.value && !projects.value.some((p) => p.id === selectedId.value)) selectedId.value = ''
   if (selectedGroupId.value && !groups.value.some((g) => g.id === selectedGroupId.value)) selectedGroupId.value = ''
   if (!selectedId.value && projects.value.length) selectedId.value = projects.value[0].id
@@ -201,6 +207,15 @@ async function refresh() {
   selectedCommandIds.value = nextSelected
   resubscribeStatus()
 }
+
+async function onRemoveSelectedProject() {
+  if (!selectedId.value) return
+  const id = selectedId.value
+  await RemoveProject(id)
+  await refresh()
+}
+
+const selectedIsMissing = computed(() => selectedId.value && missingIds.value.has(selectedId.value))
 
 async function pollStatuses() {
   const next = {}
@@ -382,7 +397,7 @@ onUnmounted(() => {
     <main class="workspace">
       <template v-if="activeTab === 'projects'">
         <ProjectList :projects="projects" :groups="groups" :selectedId="selectedId" :selectedGroupId="selectedGroupId"
-          :statuses="projectStatuses" :statusFilter="statusFilter" :rescanning="rescanning"
+          :statuses="projectStatuses" :statusFilter="statusFilter" :rescanning="rescanning" :missingIds="missingIds"
           @select="selectProject" @select-group="selectGroup"
           @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true"
           @rescan="onRescanProjects" @reset="onConfirmResetProjects" />
@@ -392,9 +407,9 @@ onUnmounted(() => {
         <ComposeDetail v-else-if="isComposeSelected" :project="selected" :dockerAvailable="dockerAvailable"
           @confirm-down="onConfirmDown" @switch-type="onSwitchDetection" />
         <ProjectDetail v-else :project="selected" :status="selectedStatus"
-          :selectedCommandId="selectedCommandId" @command-change="setSelectedCommand"
+          :selectedCommandId="selectedCommandId" :missing="selectedIsMissing" @command-change="setSelectedCommand"
           @start="onStart" @stop="onStop" @restart="onRestart" @edit="showEdit = true"
-          @add-to-group="showAddToGroup = true" @switch-type="onSwitchDetection" />
+          @add-to-group="showAddToGroup = true" @switch-type="onSwitchDetection" @remove="onRemoveSelectedProject" />
       </template>
       <ContainerPanel v-else ref="containerPanelRef" :projects="projects" @confirm-remove="onConfirmRemove" @summary="onContainerSummary" />
     </main>

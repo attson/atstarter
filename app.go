@@ -137,6 +137,27 @@ func (a *App) ListProjects() ([]store.Project, error) {
 	return cfg.Projects, nil
 }
 
+// ListMissingProjectIDs 返回配置里 Path 已不存在的项目 ID 列表。
+// 单独出一个方法而非改 Project struct,避免这种运行时状态被持久化回 config.json。
+// 前端可据此渲染"missing"标记并给出移除入口,让用户显式确认后再删,
+// 以免 worktree 临时删除或外置盘未挂载时误清理掉配置(commands / 分组归属都会一起丢)。
+func (a *App) ListMissingProjectIDs() ([]string, error) {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	missing := make([]string, 0)
+	for _, p := range cfg.Projects {
+		if p.Path == "" {
+			continue
+		}
+		if _, err := os.Stat(p.Path); err != nil && errors.Is(err, os.ErrNotExist) {
+			missing = append(missing, p.ID)
+		}
+	}
+	return missing, nil
+}
+
 // projectRoot 用 projectID 从 store 查出项目根路径,作为文件浏览的 root。
 func (a *App) projectRoot(projectID string) (string, error) {
 	cfg, err := a.store.Load()
