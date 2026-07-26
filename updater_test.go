@@ -10,6 +10,52 @@ import (
 	"time"
 )
 
+// TestUpdateInstallSetsQuitRequested 回归:UpdateInstall 成功启动安装脚本后
+// 必须置位 quitRequested,否则 beforeClose(app.go)会把 wailsruntime.Quit
+// 拦成"隐藏窗口"(托盘存在时的默认路径),导致老进程不退、新版本 open -n
+// 起不来。用户表现:点"立即安装"仅关窗、没升级。
+// v0.5.3 首发即触发,v0.5.4 修复。
+func TestUpdateInstallSetsQuitRequested(t *testing.T) {
+	origRunner, origQuit := installScriptRunner, installQuitFn
+	t.Cleanup(func() {
+		installScriptRunner = origRunner
+		installQuitFn = origQuit
+		quitRequested.Store(false)
+	})
+
+	scriptCalls := 0
+	installScriptRunner = func(asset, target, exec string) error {
+		scriptCalls++
+		return nil
+	}
+	// 屏蔽真正的 wailsruntime.Quit(nil ctx 会 panic)。
+	installQuitFn = func(ctx context.Context) {}
+
+	quitRequested.Store(false)
+	app := &App{updater: newUpdater(), ctx: nil}
+	tmp, err := os.CreateTemp(t.TempDir(), "asset-*.dmg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmp.Close()
+	app.updater.mu.Lock()
+	app.updater.state.Ready = true
+	app.updater.state.CanInstall = true
+	app.updater.assetPath = tmp.Name()
+	app.updater.mu.Unlock()
+
+	st := app.UpdateInstall()
+	if st.Error != "" {
+		t.Fatalf("UpdateInstall error: %s", st.Error)
+	}
+	if scriptCalls != 1 {
+		t.Fatalf("installScriptRunner calls = %d, want 1", scriptCalls)
+	}
+	if !quitRequested.Load() {
+		t.Fatal("quitRequested must be set after UpdateInstall spawns the install script; without it beforeClose intercepts the Quit and only hides the window")
+	}
+}
+
 // TestFetchFirstFallsBackToNextCandidate 验证:首个候选失败时,fetchFirst 会尝试
 // 下一个候选。这是校验文件(SHA256SUMS)能走镜像加速的基础 —— 此前 fetchText
 // 只直连原始 github URL,国内网络超时会导致整个更新失败。
