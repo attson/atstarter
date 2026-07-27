@@ -42,8 +42,6 @@ export function ListGroups():Promise<Array<store.LaunchGroup>>;
 
 export function ListMissingProjectIDs():Promise<Array<string>>;
 
-export function ListProjectDir(arg1:string,arg2:string):Promise<Array<filetree.Entry>>;
-
 export function ListProjects():Promise<Array<store.Project>>;
 
 export function PickDirectory():Promise<string>;
@@ -101,3 +99,7 @@ export function UpdateProjectCommand(arg1:string,arg2:string):Promise<store.Proj
 export function UpdateProjectCommands(arg1:string,arg2:string,arg3:Array<main.CommandInput>):Promise<store.Project>;
 
 export function UpdateStartDownload():Promise<main.UpdateState>;
+
+export function WalkProjectPaths(arg1:string):Promise<main.ProjectPaths>;
+
+export function WriteProjectFile(arg1:string,arg2:string,arg3:string):Promise<void>;

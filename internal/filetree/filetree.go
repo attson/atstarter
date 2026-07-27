@@ -64,6 +64,54 @@ func ListDir(root, relPath string) ([]Entry, error) {
 	return entries, nil
 }
 
+// maxWalkEntries 是 WalkPaths 返回路径数的上限。超过即停止并标记截断,
+// 防止误选巨型目录(如含 node_modules 的仓库)后一次性返回海量路径卡死前端。
+const maxWalkEntries = 50000
+
+// WalkPaths 递归 walk root 下所有文件与目录,返回相对 root 的路径列表。
+// 目录路径以 "/" 结尾(@pierre/trees 用尾斜杠区分目录);文件不带尾斜杠。
+// 路径统一用 "/" 分隔(即使在 Windows 上),直接符合 trees 期望的输入形态。
+// 仍限定在 root 内(WalkDir 天然不越界,不跟随软链出 root)。
+//
+// 本版不做任何忽略目录剪枝:全量返回。若后续需要剪掉 .git / node_modules 等,
+// 在下方 walk 回调里对目录名做判断 fs.SkipDir 即可。
+//
+// 返回的 truncated 为 true 表示命中 maxWalkEntries 上限,列表被截断。
+func WalkPaths(root string) (paths []string, truncated bool, err error) {
+	return walkPaths(root, maxWalkEntries)
+}
+
+// walkPaths 是 WalkPaths 的内部实现,limit 可注入以便测试截断逻辑。
+func walkPaths(root string, limit int) (paths []string, truncated bool, err error) {
+	rootClean := filepath.Clean(root)
+	walkErr := filepath.WalkDir(rootClean, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if p == rootClean {
+			return nil // 跳过 root 自身
+		}
+		if len(paths) >= limit {
+			truncated = true
+			return filepath.SkipAll
+		}
+		rel, err := filepath.Rel(rootClean, p)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if d.IsDir() {
+			rel += "/"
+		}
+		paths = append(paths, rel)
+		return nil
+	})
+	if walkErr != nil {
+		return nil, false, walkErr
+	}
+	return paths, truncated, nil
+}
+
 // maxReadBytes 是预览读取上限。超过则截断。
 const maxReadBytes = 1 << 20 // 1MB
 
@@ -108,4 +156,40 @@ func ReadFile(root, relPath string) (FileContent, error) {
 	}
 	fc.Content = string(data)
 	return fc, nil
+}
+
+// WriteFile 把 content 写回 root/relPath。只允许写「可完整读取的文本文件」:
+// 目标必须已存在、是文件、非二进制、且原大小 ≤ maxReadBytes(1MB)。
+// 校验基于磁盘上的原文件(不信任调用方),不支持新建文件/目录。
+// 覆盖写并保留原文件权限位。
+func WriteFile(root, relPath, content string) error {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(full)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return errors.New("is a directory: " + relPath)
+	}
+	if info.Size() > maxReadBytes {
+		return errors.New("file too large to edit: " + relPath)
+	}
+	// 读原文件头部按 ReadFile 相同规则判定二进制,二进制拒绝写。
+	f, err := os.Open(full)
+	if err != nil {
+		return err
+	}
+	buf := make([]byte, maxReadBytes)
+	n, err := io.ReadFull(f, buf)
+	f.Close()
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return err
+	}
+	if bytes.IndexByte(buf[:n], 0x00) >= 0 {
+		return errors.New("cannot edit binary file: " + relPath)
+	}
+	return os.WriteFile(full, []byte(content), info.Mode().Perm())
 }
