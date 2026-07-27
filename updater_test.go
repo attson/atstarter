@@ -142,21 +142,23 @@ func TestAssetPatternForMatchesReleasedMacOSDMGName(t *testing.T) {
 	}
 }
 
-func TestMacOSReleasePublishesLegacyDMGAlias(t *testing.T) {
+// legacy 别名 -darwin-${ARCH}.dmg 已移除(不再兼容老版本更新器),
+// 确保打包脚本与 workflow 都不再产出/上传它,避免 release 里出现重复 dmg。
+func TestMacOSReleaseDropsLegacyDMGAlias(t *testing.T) {
 	script, err := os.ReadFile(".github/scripts/package-macos-dmg.sh")
 	if err != nil {
 		t.Fatalf("read package-macos-dmg.sh: %v", err)
 	}
-	if !strings.Contains(string(script), "${ARTIFACT_NAME}-darwin-${ARCH}.dmg") {
-		t.Fatalf("package-macos-dmg.sh must create a -darwin-${ARCH}.dmg alias for old updaters")
+	if strings.Contains(string(script), "${ARTIFACT_NAME}-darwin-${ARCH}.dmg") {
+		t.Fatalf("package-macos-dmg.sh must not create the legacy -darwin-${ARCH}.dmg alias")
 	}
 
 	workflow, err := os.ReadFile(".github/workflows/build.yml")
 	if err != nil {
 		t.Fatalf("read build.yml: %v", err)
 	}
-	if !strings.Contains(string(workflow), "${{ env.APP_ARTIFACT_NAME }}-darwin-${{ matrix.arch }}.dmg") {
-		t.Fatalf("build.yml must upload the -darwin-${{ matrix.arch }}.dmg compatibility alias")
+	if strings.Contains(string(workflow), "${{ env.APP_ARTIFACT_NAME }}-darwin-${{ matrix.arch }}.dmg") {
+		t.Fatalf("build.yml must not upload the legacy -darwin-${{ matrix.arch }}.dmg alias")
 	}
 }
 
