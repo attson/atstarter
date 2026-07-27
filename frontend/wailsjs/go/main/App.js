@@ -74,10 +74,6 @@ export function ListMissingProjectIDs() {
   return window['go']['main']['App']['ListMissingProjectIDs']();
 }
 
-export function ListProjectDir(arg1, arg2) {
-  return window['go']['main']['App']['ListProjectDir'](arg1, arg2);
-}
-
 export function ListProjects() {
   return window['go']['main']['App']['ListProjects']();
 }
@@ -192,4 +188,12 @@ export function UpdateProjectCommands(arg1, arg2, arg3) {
 
 export function UpdateStartDownload() {
   return window['go']['main']['App']['UpdateStartDownload']();
+}
+
+export function WalkProjectPaths(arg1) {
+  return window['go']['main']['App']['WalkProjectPaths'](arg1);
+}
+
+export function WriteProjectFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['WriteProjectFile'](arg1, arg2, arg3);
 }

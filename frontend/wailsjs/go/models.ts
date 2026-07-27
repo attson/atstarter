@@ -67,22 +67,6 @@ export namespace docker {
 
 export namespace filetree {
 	
-	export class Entry {
-	    name: string;
-	    isDir: boolean;
-	    size: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new Entry(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.isDir = source["isDir"];
-	        this.size = source["size"];
-	    }
-	}
 	export class FileContent {
 	    content: string;
 	    size: number;
@@ -144,6 +128,20 @@ export namespace main {
 	        this.commandId = source["commandId"];
 	        this.runId = source["runId"];
 	        this.error = source["error"];
+	    }
+	}
+	export class ProjectPaths {
+	    paths: string[];
+	    truncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProjectPaths(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.paths = source["paths"];
+	        this.truncated = source["truncated"];
 	    }
 	}
 	export class UpdateState {

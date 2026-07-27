@@ -167,7 +167,7 @@ function chooseCommand(command) {
     </div>
     <div class="detail-tab-body">
       <LogPanel v-show="detailTab === 'logs'" :projectId="selectedRunId" :status="status" />
-      <FileBrowser v-show="detailTab === 'files'" :projectId="project.id" />
+      <FileBrowser v-if="detailTab === 'files'" :projectId="project.id" />
     </div>
   </section>
   <section class="detail empty" v-else>

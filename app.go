@@ -172,13 +172,23 @@ func (a *App) projectRoot(projectID string) (string, error) {
 	return "", errors.New("project not found: " + projectID)
 }
 
-// ListProjectDir 列出项目 projectID 下 relPath 这一层的文件/子目录。
-func (a *App) ListProjectDir(projectID, relPath string) ([]filetree.Entry, error) {
+// ProjectPaths 是 WalkProjectPaths 的结果:全量相对路径 + 是否命中上限被截断。
+type ProjectPaths struct {
+	Paths     []string `json:"paths"`     // 相对项目根的路径;目录带尾 "/",/ 分隔
+	Truncated bool     `json:"truncated"` // 命中 walk 上限被截断
+}
+
+// WalkProjectPaths 返回项目 projectID 下全部相对路径(供 @pierre/trees FileTree 渲染)。
+func (a *App) WalkProjectPaths(projectID string) (ProjectPaths, error) {
 	root, err := a.projectRoot(projectID)
 	if err != nil {
-		return nil, err
+		return ProjectPaths{}, err
 	}
-	return filetree.ListDir(root, relPath)
+	paths, truncated, err := filetree.WalkPaths(root)
+	if err != nil {
+		return ProjectPaths{}, err
+	}
+	return ProjectPaths{Paths: paths, Truncated: truncated}, nil
 }
 
 // ReadProjectFile 读取项目 projectID 下 relPath 文件的预览内容。
@@ -188,6 +198,16 @@ func (a *App) ReadProjectFile(projectID, relPath string) (filetree.FileContent, 
 		return filetree.FileContent{}, err
 	}
 	return filetree.ReadFile(root, relPath)
+}
+
+// WriteProjectFile 把 content 写回项目 projectID 下的 relPath 文本文件。
+// 仅允许写「可完整读取的文本文件」,约束见 filetree.WriteFile。
+func (a *App) WriteProjectFile(projectID, relPath, content string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.WriteFile(root, relPath, content)
 }
 
 // expandHome 把开头的 ~ 或 ~/... 展开为用户家目录。
