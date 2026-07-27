@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Download, X, Loader2, Sparkles, AlertTriangle } from 'lucide-vue-next'
 import { isUpdateBannerVisible, startUpdateCheckTimer } from '../updateSchedule'
 import {
@@ -75,10 +75,25 @@ async function install() {
   state.value = await UpdateInstall()
 }
 
+let autoHideTimer = null
+function clearAutoHide() {
+  if (autoHideTimer) { clearTimeout(autoHideTimer); autoHideTimer = null }
+}
+
 function dismiss() {
+  clearAutoHide()
   dismissed.value = true
   manualNotice.value = false
 }
+
+// After a manual "already up to date" result, fade the banner out on its own
+// so the user isn't forced to close a purely informational notice by hand.
+watch([kind, manualNotice], ([k, manual]) => {
+  clearAutoHide()
+  if (manual && k === 'idle') {
+    autoHideTimer = setTimeout(dismiss, 4000)
+  }
+})
 
 function openReleasePage() {
   if (state.value.assetUrl) {
@@ -100,6 +115,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (unsub) EventsOff('update:state')
   if (stopTimer) stopTimer()
+  clearAutoHide()
 })
 
 defineExpose({ check })
@@ -168,6 +184,11 @@ defineExpose({ check })
         </template>
         <template v-else-if="kind === 'error'">
           <AppButton variant="secondary" size="sm" @click="check">重试</AppButton>
+          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" aria-label="dismiss">
+            <template #icon><AppIcon :icon="X" :size="12" /></template>
+          </AppButton>
+        </template>
+        <template v-else>
           <AppButton variant="secondary" size="sm" icon-only @click="dismiss" aria-label="dismiss">
             <template #icon><AppIcon :icon="X" :size="12" /></template>
           </AppButton>
