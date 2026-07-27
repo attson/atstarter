@@ -22,6 +22,11 @@ var Version = "dev"
 var UpdateVerifyPublicKey = ""
 
 func main() {
+	// Linux 下若探测到会让 WebKitGTK 在 DMABUF/GBM 路径 abort 的 GPU 环境
+	// (如 NVIDIA 驱动升级后未重启的版本 mismatch),兜底禁用 DMABUF 渲染器,
+	// 避免进程 SIGABRT。其他平台为空操作。详见 gpu_linux.go。
+	maybeDisableDMABUF()
+
 	// Create an instance of the app structure
 	app := NewApp()
 
