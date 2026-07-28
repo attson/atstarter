@@ -430,6 +430,47 @@ func TestRenameTraversalRejected(t *testing.T) {
 	}
 }
 
+func TestRemoveFile(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "a.txt", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a.txt")); !os.IsNotExist(err) {
+		t.Error("file should be removed")
+	}
+}
+
+func TestRemoveDirRecursive(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "sub", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "sub")); !os.IsNotExist(err) {
+		t.Error("dir should be removed")
+	}
+}
+
+func TestRemoveNonEmptyDirNonRecursive(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "sub", false); err == nil {
+		t.Error("want error removing non-empty dir without recursive")
+	}
+}
+
+func TestRemoveMissing(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "nope", false); err == nil {
+		t.Error("want error removing missing path")
+	}
+}
+
+func TestRemoveTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "../a.txt", false); err == nil {
+		t.Error("want error for traversal")
+	}
+}
+
 func containsBackslash(s string) bool {
 	for _, r := range s {
 		if r == '\\' {

@@ -285,3 +285,21 @@ func Rename(root, from, to string) error {
 	}
 	return os.Rename(src, dst)
 }
+
+// Remove 删除 root/relPath。recursive=false 用 os.Remove(非空目录会失败),
+// recursive=true 用 os.RemoveAll。目标不存在则报错。
+func Remove(root, relPath string, recursive bool) error {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(full); os.IsNotExist(err) {
+		return errors.New("not found: " + relPath)
+	} else if err != nil {
+		return err
+	}
+	if recursive {
+		return os.RemoveAll(full)
+	}
+	return os.Remove(full)
+}
