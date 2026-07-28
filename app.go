@@ -209,6 +209,52 @@ func (a *App) WriteProjectFile(projectID, relPath, content string) error {
 	return filetree.WriteFile(root, relPath, content)
 }
 
+// CreateProjectFile 在项目 projectID 下 relPath 创建空文件。
+func (a *App) CreateProjectFile(projectID, relPath string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.CreateFile(root, relPath)
+}
+
+// MkdirProject 在项目 projectID 下 relPath 创建目录。
+func (a *App) MkdirProject(projectID, relPath string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.Mkdir(root, relPath)
+}
+
+// RenameProject 把项目 projectID 下 from 重命名/移动到 to。
+func (a *App) RenameProject(projectID, from, to string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.Rename(root, from, to)
+}
+
+// RemoveProjectPath 删除项目 projectID 下 relPath(recursive 控制是否递归)。
+func (a *App) RemoveProjectPath(projectID, relPath string, recursive bool) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.Remove(root, relPath, recursive)
+}
+
+// TrashProjectPath 把项目 projectID 下 relPath 移入废纸篓。
+// 返回错误含 "trash unavailable" 时前端应降级为硬删确认。
+func (a *App) TrashProjectPath(projectID, relPath string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.Trash(root, relPath)
+}
+
 // expandHome 把开头的 ~ 或 ~/... 展开为用户家目录。
 // 其它形式(绝对路径、相对路径、~user)原样返回。空字符串原样返回。
 func expandHome(path string) string {
