@@ -227,6 +227,19 @@ func (a *App) ProjectAssetURL(projectID, relPath string) string {
 	return projectFSURLPrefix + projectID + "/" + base64.URLEncoding.EncodeToString([]byte(relPath))
 }
 
+// OpenProjectPath 用系统默认程序打开项目 projectID 下的 relPath(不支持预览的文件用)。
+func (a *App) OpenProjectPath(projectID, relPath string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	full, err := filetree.ResolveWithin(root, relPath)
+	if err != nil {
+		return err
+	}
+	return openInSystem(full)
+}
+
 // ReadProjectFile 读取项目 projectID 下 relPath 文件的预览内容。
 func (a *App) ReadProjectFile(projectID, relPath string) (filetree.FileContent, error) {
 	root, err := a.projectRoot(projectID)

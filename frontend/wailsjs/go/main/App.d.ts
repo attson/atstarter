@@ -50,6 +50,8 @@ export function ListProjects():Promise<Array<store.Project>>;
 
 export function MkdirProject(arg1:string,arg2:string):Promise<void>;
 
+export function OpenProjectPath(arg1:string,arg2:string):Promise<void>;
+
 export function PickDirectory():Promise<string>;
 
 export function ProjectAssetURL(arg1:string,arg2:string):Promise<string>;

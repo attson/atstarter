@@ -7,6 +7,7 @@ import {
   ReadProjectFileBytes,
   WriteProjectFileBytes,
   ProjectAssetURL,
+  OpenProjectPath,
   ProjectFileMeta,
   CreateProjectFile,
   MkdirProject,
@@ -55,6 +56,8 @@ export interface FileSystemBridge {
   writeBytes(path: string, data: Uint8Array, expectedModTime: number, createIfMissing: boolean): Promise<number>
   // 资源 URL(img/video/pdf 预览用)。
   assetUrlFor(path: string): Promise<string>
+  // 用系统默认程序打开(不支持预览的文件用)。
+  openExternal(path: string): Promise<void>
   fileMeta(path: string): Promise<FileMetaInfo>
   createFile(path: string): Promise<void>
   mkdir(path: string): Promise<void>
@@ -80,6 +83,7 @@ export function createProjectFSBridge(projectId: string): FileSystemBridge {
     writeBytes: (path, data, expectedModTime, createIfMissing) =>
       WriteProjectFileBytes(projectId, path, Array.from(data), expectedModTime, createIfMissing),
     assetUrlFor: (path) => ProjectAssetURL(projectId, path),
+    openExternal: (path) => OpenProjectPath(projectId, path),
     fileMeta: (path) => ProjectFileMeta(projectId, path) as Promise<FileMetaInfo>,
     createFile: (path) => CreateProjectFile(projectId, path),
     mkdir: (path) => MkdirProject(projectId, path),

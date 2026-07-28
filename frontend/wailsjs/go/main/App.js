@@ -90,6 +90,10 @@ export function MkdirProject(arg1, arg2) {
   return window['go']['main']['App']['MkdirProject'](arg1, arg2);
 }
 
+export function OpenProjectPath(arg1, arg2) {
+  return window['go']['main']['App']['OpenProjectPath'](arg1, arg2);
+}
+
 export function PickDirectory() {
   return window['go']['main']['App']['PickDirectory']();
 }
