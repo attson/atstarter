@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"os"
@@ -30,6 +31,7 @@ type App struct {
 	docker             *docker.Client
 	dockerStop         chan struct{}
 	lastDockerSnapshot string // 上次快照的序列化,用于 diff
+	watcher            *filetree.Watcher
 }
 
 type CommandInput struct {
@@ -94,6 +96,12 @@ func (a *App) startup(ctx context.Context) {
 		updateTrayRunning(a.runner.RunningCount())
 	})
 	a.startDockerPoll()
+	if w, err := filetree.NewWatcher(); err == nil {
+		a.watcher = w
+		w.OnChange(func(relDir string) {
+			runtime.EventsEmit(a.ctx, "fs:dir-changed", relDir)
+		})
+	}
 	if traySupported() {
 		startTray(a)
 	}
@@ -103,6 +111,9 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) shutdown(ctx context.Context) {
 	if a.dockerStop != nil {
 		close(a.dockerStop)
+	}
+	if a.watcher != nil {
+		a.watcher.Close()
 	}
 	a.runner.StopAll()
 }
@@ -172,23 +183,61 @@ func (a *App) projectRoot(projectID string) (string, error) {
 	return "", errors.New("project not found: " + projectID)
 }
 
-// ProjectPaths 是 WalkProjectPaths 的结果:全量相对路径 + 是否命中上限被截断。
-type ProjectPaths struct {
-	Paths     []string `json:"paths"`     // 相对项目根的路径;目录带尾 "/",/ 分隔
-	Truncated bool     `json:"truncated"` // 命中 walk 上限被截断
-}
-
-// WalkProjectPaths 返回项目 projectID 下全部相对路径(供 @pierre/trees FileTree 渲染)。
-func (a *App) WalkProjectPaths(projectID string) (ProjectPaths, error) {
+// ListProjectDir 列出项目 projectID 下 relPath 目录的直接子项(懒加载用)。
+func (a *App) ListProjectDir(projectID, relPath string) ([]filetree.Entry, error) {
 	root, err := a.projectRoot(projectID)
 	if err != nil {
-		return ProjectPaths{}, err
+		return nil, err
 	}
-	paths, truncated, err := filetree.WalkPaths(root)
+	return filetree.ListDir(root, relPath)
+}
+
+// ProjectFileMeta 返回项目 projectID 下 relPath 的元信息。
+func (a *App) ProjectFileMeta(projectID, relPath string) (filetree.FileMetaInfo, error) {
+	root, err := a.projectRoot(projectID)
 	if err != nil {
-		return ProjectPaths{}, err
+		return filetree.FileMetaInfo{}, err
 	}
-	return ProjectPaths{Paths: paths, Truncated: truncated}, nil
+	return filetree.FileMeta(root, relPath)
+}
+
+// ReadProjectFileBytes 读取项目 projectID 下 relPath 的原始字节(最多 maxBytes)。
+// 供 CodeMirror 编辑器加载(带 modtime 冲突检测)。
+func (a *App) ReadProjectFileBytes(projectID, relPath string, maxBytes int64) (filetree.FileBytes, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return filetree.FileBytes{}, err
+	}
+	return filetree.ReadFileBytes(root, relPath, maxBytes)
+}
+
+// WriteProjectFileBytes 原子写字节到项目 projectID 下 relPath,返回新 modtime。
+// expectedModTime!=0 时做冲突检测(不符返回 stale_modtime 错误)。
+func (a *App) WriteProjectFileBytes(projectID, relPath string, data []byte, expectedModTime int64, createIfMissing bool) (int64, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return 0, err
+	}
+	return filetree.WriteFileBytes(root, relPath, data, expectedModTime, createIfMissing)
+}
+
+// ProjectAssetURL 返回项目 projectID 下 relPath 的资源 URL,供 <img>/<video>/<embed>
+// 直接访问本地文件(见 projectFSHandler)。
+func (a *App) ProjectAssetURL(projectID, relPath string) string {
+	return projectFSURLPrefix + projectID + "/" + base64.URLEncoding.EncodeToString([]byte(relPath))
+}
+
+// OpenProjectPath 用系统默认程序打开项目 projectID 下的 relPath(不支持预览的文件用)。
+func (a *App) OpenProjectPath(projectID, relPath string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	full, err := filetree.ResolveWithin(root, relPath)
+	if err != nil {
+		return err
+	}
+	return openInSystem(full)
 }
 
 // ReadProjectFile 读取项目 projectID 下 relPath 文件的预览内容。
@@ -208,6 +257,73 @@ func (a *App) WriteProjectFile(projectID, relPath, content string) error {
 		return err
 	}
 	return filetree.WriteFile(root, relPath, content)
+}
+
+// CreateProjectFile 在项目 projectID 下 relPath 创建空文件。
+func (a *App) CreateProjectFile(projectID, relPath string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.CreateFile(root, relPath)
+}
+
+// MkdirProject 在项目 projectID 下 relPath 创建目录。
+func (a *App) MkdirProject(projectID, relPath string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.Mkdir(root, relPath)
+}
+
+// RenameProject 把项目 projectID 下 from 重命名/移动到 to。
+func (a *App) RenameProject(projectID, from, to string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.Rename(root, from, to)
+}
+
+// RemoveProjectPath 删除项目 projectID 下 relPath(recursive 控制是否递归)。
+func (a *App) RemoveProjectPath(projectID, relPath string, recursive bool) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.Remove(root, relPath, recursive)
+}
+
+// TrashProjectPath 把项目 projectID 下 relPath 移入废纸篓。
+// 返回错误含 "trash unavailable" 时前端应降级为硬删确认。
+func (a *App) TrashProjectPath(projectID, relPath string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	return filetree.Trash(root, relPath)
+}
+
+// WatchProjectDir 监听项目 projectID 下 relPath 目录变化,返回句柄。
+// 变化通过 "fs:dir-changed" 事件推送(payload 为变化目录的 relPath)。
+func (a *App) WatchProjectDir(projectID, relPath string) (int64, error) {
+	if a.watcher == nil {
+		return 0, errors.New("watcher unavailable")
+	}
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return 0, err
+	}
+	return a.watcher.Watch(root, relPath)
+}
+
+// UnwatchProjectDir 取消 WatchProjectDir 返回的句柄。
+func (a *App) UnwatchProjectDir(id int64) error {
+	if a.watcher == nil {
+		return nil
+	}
+	return a.watcher.Unwatch(id)
 }
 
 // expandHome 把开头的 ~ 或 ~/... 展开为用户家目录。

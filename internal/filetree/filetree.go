@@ -5,11 +5,14 @@ package filetree
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	trash "github.com/hymkor/trash-go"
 )
 
 // Entry 是目录下的一个直接子项。
@@ -32,6 +35,12 @@ func resolve(root, relPath string) (string, error) {
 		return "", errors.New("path escapes root: " + relPath)
 	}
 	return full, nil
+}
+
+// ResolveWithin 把 relPath 安全解析到 root 之内的绝对路径(导出版,供 asset handler 用)。
+// 越出 root 返回错误。
+func ResolveWithin(root, relPath string) (string, error) {
+	return resolve(root, relPath)
 }
 
 // ListDir 列出 root/relPath 这一层的直接子项。
@@ -194,4 +203,133 @@ func WriteFile(root, relPath, content string) error {
 		return errors.New("cannot edit binary file: " + relPath)
 	}
 	return os.WriteFile(full, []byte(content), info.Mode().Perm())
+}
+
+// FileMetaInfo 是文件/目录的元信息,供懒加载树与预览判断使用。
+type FileMetaInfo struct {
+	Size     int64 `json:"size"`     // 字节数;目录为 0
+	ModTime  int64 `json:"modTime"`  // 修改时间(Unix 毫秒)
+	IsDir    bool  `json:"isDir"`    // 是否目录
+	IsBinary bool  `json:"isBinary"` // 文件头部含 NUL 判为二进制;目录恒 false
+}
+
+// binaryProbeBytes 是二进制探测读取的头部字节数。
+const binaryProbeBytes = 4096
+
+// FileMeta 返回 root/relPath 的元信息。二进制探测只读头部 binaryProbeBytes。
+func FileMeta(root, relPath string) (FileMetaInfo, error) {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return FileMetaInfo{}, err
+	}
+	info, err := os.Stat(full)
+	if err != nil {
+		return FileMetaInfo{}, err
+	}
+	m := FileMetaInfo{
+		Size:    info.Size(),
+		ModTime: info.ModTime().UnixMilli(),
+		IsDir:   info.IsDir(),
+	}
+	if !info.IsDir() {
+		f, err := os.Open(full)
+		if err == nil {
+			probe := make([]byte, binaryProbeBytes)
+			n, _ := f.Read(probe)
+			f.Close()
+			m.IsBinary = bytes.IndexByte(probe[:n], 0x00) >= 0
+		}
+	}
+	return m, nil
+}
+
+// CreateFile 在 root/relPath 创建空文件。目标已存在则报错;父目录须已存在。
+func CreateFile(root, relPath string) error {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(full); err == nil {
+		return errors.New("already exists: " + relPath)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.WriteFile(full, nil, 0o644)
+}
+
+// Mkdir 在 root/relPath 创建单个目录。目标已存在则报错;父目录须已存在。
+func Mkdir(root, relPath string) error {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(full); err == nil {
+		return errors.New("already exists: " + relPath)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.Mkdir(full, 0o755)
+}
+
+// Rename 把 root/from 重命名/移动到 root/to。两端都过 resolve(对称防穿越)。
+// from 不存在或 to 已存在则报错。
+func Rename(root, from, to string) error {
+	src, err := resolve(root, from)
+	if err != nil {
+		return err
+	}
+	dst, err := resolve(root, to)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return errors.New("not found: " + from)
+	} else if err != nil {
+		return err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return errors.New("already exists: " + to)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.Rename(src, dst)
+}
+
+// Remove 删除 root/relPath。recursive=false 用 os.Remove(非空目录会失败),
+// recursive=true 用 os.RemoveAll。目标不存在则报错。
+func Remove(root, relPath string, recursive bool) error {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(full); os.IsNotExist(err) {
+		return errors.New("not found: " + relPath)
+	} else if err != nil {
+		return err
+	}
+	if recursive {
+		return os.RemoveAll(full)
+	}
+	return os.Remove(full)
+}
+
+// ErrTrashUnavailable 表示当前平台没有可用的废纸篓机制,调用方可降级为硬删。
+var ErrTrashUnavailable = errors.New("trash unavailable")
+
+// Trash 把 root/relPath 移入操作系统废纸篓。目标不存在则报错;
+// 平台无废纸篓机制时返回 ErrTrashUnavailable(调用方降级确认硬删)。
+func Trash(root, relPath string) error {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(full); os.IsNotExist(err) {
+		return errors.New("not found: " + relPath)
+	} else if err != nil {
+		return err
+	}
+	if err := trash.Throw(full); err != nil {
+		return fmt.Errorf("%w: %v", ErrTrashUnavailable, err)
+	}
+	return nil
 }

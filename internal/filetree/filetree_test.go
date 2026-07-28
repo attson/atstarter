@@ -1,6 +1,7 @@
 package filetree
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -305,6 +306,192 @@ func TestWriteFileNotExistRejected(t *testing.T) {
 	root := setupTree(t)
 	if err := WriteFile(root, "nope.txt", "x"); err == nil {
 		t.Error("want error writing a non-existent file")
+	}
+}
+
+func TestFileMetaText(t *testing.T) {
+	root := setupTree(t)
+	m, err := FileMeta(root, "a.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Size != 5 || m.IsBinary || m.IsDir {
+		t.Errorf("unexpected meta: %+v", m)
+	}
+	if m.ModTime == 0 {
+		t.Error("want non-zero ModTime")
+	}
+}
+
+func TestFileMetaBinary(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "bin"), []byte{0x1, 0x0, 0x2}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, err := FileMeta(root, "bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.IsBinary {
+		t.Error("want IsBinary=true")
+	}
+}
+
+func TestFileMetaDir(t *testing.T) {
+	root := setupTree(t)
+	m, err := FileMeta(root, "sub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.IsDir {
+		t.Error("want IsDir=true for directory")
+	}
+}
+
+func TestFileMetaTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if _, err := FileMeta(root, "../a.txt"); err == nil {
+		t.Error("want error for traversal")
+	}
+}
+
+func TestCreateFile(t *testing.T) {
+	root := setupTree(t)
+	if err := CreateFile(root, "new.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "new.txt")); err != nil {
+		t.Errorf("file not created: %v", err)
+	}
+}
+
+func TestCreateFileAlreadyExists(t *testing.T) {
+	root := setupTree(t)
+	if err := CreateFile(root, "a.txt"); err == nil {
+		t.Error("want error creating existing file")
+	}
+}
+
+func TestCreateFileTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if err := CreateFile(root, "../x.txt"); err == nil {
+		t.Error("want error for traversal")
+	}
+}
+
+func TestMkdir(t *testing.T) {
+	root := setupTree(t)
+	if err := Mkdir(root, "newdir"); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(root, "newdir"))
+	if err != nil || !info.IsDir() {
+		t.Errorf("dir not created: %v", err)
+	}
+}
+
+func TestMkdirAlreadyExists(t *testing.T) {
+	root := setupTree(t)
+	if err := Mkdir(root, "sub"); err == nil {
+		t.Error("want error creating existing dir")
+	}
+}
+
+func TestRename(t *testing.T) {
+	root := setupTree(t)
+	if err := Rename(root, "a.txt", "renamed.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "renamed.txt")); err != nil {
+		t.Errorf("renamed file missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a.txt")); !os.IsNotExist(err) {
+		t.Error("original should be gone")
+	}
+}
+
+func TestRenameSrcMissing(t *testing.T) {
+	root := setupTree(t)
+	if err := Rename(root, "nope.txt", "x.txt"); err == nil {
+		t.Error("want error renaming missing src")
+	}
+}
+
+func TestRenameDstExists(t *testing.T) {
+	root := setupTree(t)
+	if err := Rename(root, "a.txt", "a.txt"); err == nil {
+		t.Error("want error when dst exists")
+	}
+}
+
+func TestRenameTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if err := Rename(root, "a.txt", "../evil.txt"); err == nil {
+		t.Error("want error for traversal on dst")
+	}
+}
+
+func TestRemoveFile(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "a.txt", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a.txt")); !os.IsNotExist(err) {
+		t.Error("file should be removed")
+	}
+}
+
+func TestRemoveDirRecursive(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "sub", true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "sub")); !os.IsNotExist(err) {
+		t.Error("dir should be removed")
+	}
+}
+
+func TestRemoveNonEmptyDirNonRecursive(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "sub", false); err == nil {
+		t.Error("want error removing non-empty dir without recursive")
+	}
+}
+
+func TestRemoveMissing(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "nope", false); err == nil {
+		t.Error("want error removing missing path")
+	}
+}
+
+func TestRemoveTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if err := Remove(root, "../a.txt", false); err == nil {
+		t.Error("want error for traversal")
+	}
+}
+
+func TestTrashMissing(t *testing.T) {
+	root := setupTree(t)
+	if err := Trash(root, "nope"); err == nil {
+		t.Error("want error trashing missing path")
+	}
+}
+
+func TestTrashTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if err := Trash(root, "../a.txt"); err == nil {
+		t.Error("want error for traversal")
+	}
+}
+
+func TestTrashUnavailableIsDetectable(t *testing.T) {
+	// 存在的文件:trash 要么成功,要么返回可识别的 ErrTrashUnavailable。
+	root := setupTree(t)
+	err := Trash(root, "a.txt")
+	if err != nil && !errors.Is(err, ErrTrashUnavailable) {
+		t.Fatalf("unexpected trash error (want nil or ErrTrashUnavailable): %v", err)
 	}
 }
 
