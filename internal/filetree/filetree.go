@@ -113,7 +113,9 @@ func walkPaths(root string, limit int) (paths []string, truncated bool, err erro
 }
 
 // maxReadBytes 是预览读取上限。超过则截断。
-const maxReadBytes = 1 << 20 // 1MB
+// 4MB:前端用 VirtualizedFile 按可视区渲染,该量级实测首帧约 1.9s 可接受;
+// 再大(8MB+)pierre 首次行索引化会重新变卡。
+const maxReadBytes = 4 << 20 // 4MB
 
 // FileContent 是一次文件预览的结果。
 type FileContent struct {
