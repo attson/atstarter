@@ -1,6 +1,8 @@
 <script setup>
 import { ref, watch } from 'vue'
 import AppButton from './ui/AppButton.vue'
+import { commandFormsForProject } from '../commandForms.js'
+import { envTextToMap } from '../envVars.js'
 
 const props = defineProps({ project: Object, show: Boolean })
 const emit = defineEmits(['save', 'close'])
@@ -8,28 +10,10 @@ const emit = defineEmits(['save', 'close'])
 const name = ref('')
 const commands = ref([])
 
-function lineFor(command) {
-  return [command.command, ...(command.args || [])].filter(Boolean).join(' ')
-}
-
 function reset(p) {
   if (!p) return
   name.value = p.name
-  const source = p.commands && p.commands.length ? p.commands : [{
-    id: 'default',
-    name: 'Default',
-    command: p.command,
-    args: p.args || [],
-    cwd: p.cwd || '',
-    isDefault: true,
-  }]
-  commands.value = source.map((c, index) => ({
-    id: c.id || '',
-    name: c.name || (index === 0 ? 'Default' : `Command ${index + 1}`),
-    line: lineFor(c),
-    cwd: c.cwd || '',
-    isDefault: !!c.isDefault || index === 0,
-  }))
+  commands.value = commandFormsForProject(p)
 }
 
 watch(() => props.project, (p) => {
@@ -37,7 +21,13 @@ watch(() => props.project, (p) => {
 }, { immediate: true })
 
 function save() {
-  emit('save', { name: name.value, commands: commands.value })
+  emit('save', {
+    name: name.value,
+    commands: commands.value.map((cmd) => ({
+      ...cmd,
+      env: envTextToMap(cmd.envText),
+    })),
+  })
 }
 
 function addCommand() {
@@ -46,6 +36,7 @@ function addCommand() {
     name: `Command ${commands.value.length + 1}`,
     line: '',
     cwd: '',
+    envText: '',
     isDefault: commands.value.length === 0,
   })
 }
@@ -91,6 +82,11 @@ function setDefault(index) {
               </div>
               <input v-model="cmd.line" placeholder="如 pnpm run dev 或 go run main.go serve" />
               <input v-model="cmd.cwd" :placeholder="project && project.path" />
+              <textarea
+                v-model="cmd.envText"
+                spellcheck="false"
+                placeholder="环境变量,每行一个: KEY=value"
+              />
             </div>
           </div>
           <div class="btns">
@@ -146,7 +142,8 @@ h3 {
   font-weight: var(--fw-medium);
 }
 
-.dialog input {
+.dialog input,
+.dialog textarea {
   height: 32px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -158,7 +155,17 @@ h3 {
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-.dialog input:focus {
+.dialog textarea {
+  min-height: 76px;
+  resize: vertical;
+  padding: var(--space-4) var(--space-5);
+  line-height: 1.45;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.dialog input:focus,
+.dialog textarea:focus {
   border-color: var(--text-subtle);
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
