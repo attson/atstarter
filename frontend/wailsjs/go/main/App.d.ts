@@ -52,9 +52,13 @@ export function MkdirProject(arg1:string,arg2:string):Promise<void>;
 
 export function PickDirectory():Promise<string>;
 
+export function ProjectAssetURL(arg1:string,arg2:string):Promise<string>;
+
 export function ProjectFileMeta(arg1:string,arg2:string):Promise<filetree.FileMetaInfo>;
 
 export function ReadProjectFile(arg1:string,arg2:string):Promise<filetree.FileContent>;
+
+export function ReadProjectFileBytes(arg1:string,arg2:string,arg3:number):Promise<filetree.FileBytes>;
 
 export function RemoveContainer(arg1:string,arg2:boolean):Promise<void>;
 
@@ -119,3 +123,5 @@ export function UpdateStartDownload():Promise<main.UpdateState>;
 export function WatchProjectDir(arg1:string,arg2:string):Promise<number>;
 
 export function WriteProjectFile(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function WriteProjectFileBytes(arg1:string,arg2:string,arg3:Array<number>,arg4:number,arg5:boolean):Promise<number>;

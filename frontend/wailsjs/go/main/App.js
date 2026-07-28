@@ -94,12 +94,20 @@ export function PickDirectory() {
   return window['go']['main']['App']['PickDirectory']();
 }
 
+export function ProjectAssetURL(arg1, arg2) {
+  return window['go']['main']['App']['ProjectAssetURL'](arg1, arg2);
+}
+
 export function ProjectFileMeta(arg1, arg2) {
   return window['go']['main']['App']['ProjectFileMeta'](arg1, arg2);
 }
 
 export function ReadProjectFile(arg1, arg2) {
   return window['go']['main']['App']['ReadProjectFile'](arg1, arg2);
+}
+
+export function ReadProjectFileBytes(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ReadProjectFileBytes'](arg1, arg2, arg3);
 }
 
 export function RemoveContainer(arg1, arg2) {
@@ -228,4 +236,8 @@ export function WatchProjectDir(arg1, arg2) {
 
 export function WriteProjectFile(arg1, arg2, arg3) {
   return window['go']['main']['App']['WriteProjectFile'](arg1, arg2, arg3);
+}
+
+export function WriteProjectFileBytes(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['WriteProjectFileBytes'](arg1, arg2, arg3, arg4, arg5);
 }

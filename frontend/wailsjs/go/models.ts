@@ -83,6 +83,24 @@ export namespace filetree {
 	        this.size = source["size"];
 	    }
 	}
+	export class FileBytes {
+	    data: number[];
+	    modTime: number;
+	    isBinary: boolean;
+	    truncatedAt?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileBytes(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = source["data"];
+	        this.modTime = source["modTime"];
+	        this.isBinary = source["isBinary"];
+	        this.truncatedAt = source["truncatedAt"];
+	    }
+	}
 	export class FileContent {
 	    content: string;
 	    size: number;

@@ -4,6 +4,9 @@ import {
   ListProjectDir,
   ReadProjectFile,
   WriteProjectFile,
+  ReadProjectFileBytes,
+  WriteProjectFileBytes,
+  ProjectAssetURL,
   ProjectFileMeta,
   CreateProjectFile,
   MkdirProject,
@@ -35,11 +38,23 @@ export interface FileMetaInfo {
   isBinary: boolean
 }
 
+export interface FileBytes {
+  data: number[]
+  modTime: number
+  isBinary: boolean
+  truncatedAt?: number
+}
+
 export interface FileSystemBridge {
   readonly identity: string
   listDir(path: string): Promise<DirEntry[]>
   readFile(path: string): Promise<FileContent>
   writeFile(path: string, content: string): Promise<void>
+  // 字节接口(CodeMirror 编辑器用:带 modtime 冲突检测)。
+  readBytes(path: string, maxBytes: number): Promise<FileBytes>
+  writeBytes(path: string, data: Uint8Array, expectedModTime: number, createIfMissing: boolean): Promise<number>
+  // 资源 URL(img/video/pdf 预览用)。
+  assetUrlFor(path: string): Promise<string>
   fileMeta(path: string): Promise<FileMetaInfo>
   createFile(path: string): Promise<void>
   mkdir(path: string): Promise<void>
@@ -61,6 +76,10 @@ export function createProjectFSBridge(projectId: string): FileSystemBridge {
     },
     readFile: (path) => ReadProjectFile(projectId, path) as Promise<FileContent>,
     writeFile: (path, content) => WriteProjectFile(projectId, path, content),
+    readBytes: (path, maxBytes) => ReadProjectFileBytes(projectId, path, maxBytes) as Promise<FileBytes>,
+    writeBytes: (path, data, expectedModTime, createIfMissing) =>
+      WriteProjectFileBytes(projectId, path, Array.from(data), expectedModTime, createIfMissing),
+    assetUrlFor: (path) => ProjectAssetURL(projectId, path),
     fileMeta: (path) => ProjectFileMeta(projectId, path) as Promise<FileMetaInfo>,
     createFile: (path) => CreateProjectFile(projectId, path),
     mkdir: (path) => MkdirProject(projectId, path),
