@@ -261,3 +261,27 @@ func Mkdir(root, relPath string) error {
 	}
 	return os.Mkdir(full, 0o755)
 }
+
+// Rename 把 root/from 重命名/移动到 root/to。两端都过 resolve(对称防穿越)。
+// from 不存在或 to 已存在则报错。
+func Rename(root, from, to string) error {
+	src, err := resolve(root, from)
+	if err != nil {
+		return err
+	}
+	dst, err := resolve(root, to)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return errors.New("not found: " + from)
+	} else if err != nil {
+		return err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return errors.New("already exists: " + to)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.Rename(src, dst)
+}

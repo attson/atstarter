@@ -396,6 +396,40 @@ func TestMkdirAlreadyExists(t *testing.T) {
 	}
 }
 
+func TestRename(t *testing.T) {
+	root := setupTree(t)
+	if err := Rename(root, "a.txt", "renamed.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "renamed.txt")); err != nil {
+		t.Errorf("renamed file missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "a.txt")); !os.IsNotExist(err) {
+		t.Error("original should be gone")
+	}
+}
+
+func TestRenameSrcMissing(t *testing.T) {
+	root := setupTree(t)
+	if err := Rename(root, "nope.txt", "x.txt"); err == nil {
+		t.Error("want error renaming missing src")
+	}
+}
+
+func TestRenameDstExists(t *testing.T) {
+	root := setupTree(t)
+	if err := Rename(root, "a.txt", "a.txt"); err == nil {
+		t.Error("want error when dst exists")
+	}
+}
+
+func TestRenameTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if err := Rename(root, "a.txt", "../evil.txt"); err == nil {
+		t.Error("want error for traversal on dst")
+	}
+}
+
 func containsBackslash(s string) bool {
 	for _, r := range s {
 		if r == '\\' {
