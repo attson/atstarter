@@ -102,7 +102,7 @@ func TestReadFileBinary(t *testing.T) {
 
 func TestReadFileTruncated(t *testing.T) {
 	root := t.TempDir()
-	big := make([]byte, (1<<20)+100) // 1MB + 100
+	big := make([]byte, maxReadBytes+100) // 超过预览上限
 	for i := range big {
 		big[i] = 'x'
 	}
@@ -116,11 +116,11 @@ func TestReadFileTruncated(t *testing.T) {
 	if !fc.Truncated {
 		t.Error("want Truncated=true")
 	}
-	if len(fc.Content) != (1 << 20) {
-		t.Errorf("want content len 1MB, got %d", len(fc.Content))
+	if len(fc.Content) != maxReadBytes {
+		t.Errorf("want content len %d, got %d", maxReadBytes, len(fc.Content))
 	}
-	if fc.Size != (1<<20)+100 {
-		t.Errorf("want size 1MB+100, got %d", fc.Size)
+	if fc.Size != maxReadBytes+100 {
+		t.Errorf("want size %d, got %d", maxReadBytes+100, fc.Size)
 	}
 }
 
@@ -282,7 +282,7 @@ func TestWriteFileBinaryRejected(t *testing.T) {
 
 func TestWriteFileTooLargeRejected(t *testing.T) {
 	root := t.TempDir()
-	big := make([]byte, (1<<20)+100) // 1MB + 100
+	big := make([]byte, maxReadBytes+100) // 超过写入上限
 	for i := range big {
 		big[i] = 'x'
 	}

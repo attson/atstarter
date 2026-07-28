@@ -29,6 +29,18 @@ const dirty = ref(false)
 const saving = ref(false)
 const saveError = ref('')
 
+// 行号:默认隐藏,右键预览区可开关;偏好持久化到 localStorage。
+const showLineNumbers = ref(localStorage.getItem('fileBrowser.lineNumbers') === '1')
+// 右键菜单(切换行号)。
+const menu = ref({ open: false, x: 0, y: 0 })
+
+// 左侧文件树面板收起(腾空间给预览);偏好持久化。
+const treeCollapsed = ref(localStorage.getItem('fileBrowser.treeCollapsed') === '1')
+function toggleTree() {
+  treeCollapsed.value = !treeCollapsed.value
+  localStorage.setItem('fileBrowser.treeCollapsed', treeCollapsed.value ? '1' : '0')
+}
+
 // pierre 实例(非响应式,用 shallowRef 存句柄)。
 const tree = shallowRef(null)
 const diffFile = shallowRef(null)     // 当前 VirtualizedFile 实例
@@ -136,7 +148,7 @@ async function onSelect(selectedPaths) {
     return
   }
   if (content.truncated) {
-    previewNote.value = '文件较大,仅显示前 1MB。'
+    previewNote.value = '文件较大,仅显示前 4MB。'
   }
   // 仅「可完整读取的文本」可编辑:非二进制且未截断。
   canEdit.value = !content.binary && !content.truncated
@@ -146,10 +158,25 @@ async function onSelect(selectedPaths) {
   renderPreview(path, content.content || '')
 }
 
+// pierre 预览选项。注意:pierre 用 disableLineNumbers(不是 lineNumbers);
+// overflow:'scroll' 让长行不折行、底部出横向滚动条。
+function previewOptions() {
+  return {
+    theme: DIFF_THEMES,
+    themeType: resolvedTheme.value === 'dark' ? 'dark' : 'light',
+    disableLineNumbers: !showLineNumbers.value,
+    overflow: 'scroll',
+    disableFileHeader: true,
+  }
+}
+
+// 记住当前预览的文本,便于切换行号时原地重渲染。
+let currentPreviewText = ''
+
 function renderPreview(path, text) {
   if (!previewMount.value) return
+  currentPreviewText = text
   const filename = path.split('/').pop() || path
-  const themeType = resolvedTheme.value === 'dark' ? 'dark' : 'light'
 
   // 用 VirtualizedFile 按可视区渲染,避免大文件(如 3 万行 openapi.json)全量 DOM
   // 导致主线程冻结数秒。Virtualizer 的滚动 root 必须是实际滚动容器 previewMount。
@@ -158,12 +185,7 @@ function renderPreview(path, text) {
   const fileContainer = document.createElement(DIFFS_TAG_NAME)
   previewMount.value.appendChild(fileContainer)
 
-  const instance = new VirtualizedFile({
-    theme: DIFF_THEMES,
-    themeType,
-    lineNumbers: true,
-    disableFileHeader: true,
-  }, vz)
+  const instance = new VirtualizedFile(previewOptions(), vz)
   instance.render({
     // diffs 运行时按 file.name 推断语言(其 .d.ts 写的是 filename,beta 版名实不符),两者都给。
     file: { name: filename, filename, contents: text },
@@ -172,6 +194,28 @@ function renderPreview(path, text) {
   virtualizer.value = vz
   diffFile.value = instance
 }
+
+// 切换行号显隐:更新偏好并对当前预览实例 setOptions + rerender(编辑态不动)。
+function toggleLineNumbers() {
+  showLineNumbers.value = !showLineNumbers.value
+  localStorage.setItem('fileBrowser.lineNumbers', showLineNumbers.value ? '1' : '0')
+  menu.value.open = false
+  if (!isEditing.value && diffFile.value) {
+    try {
+      diffFile.value.setOptions(previewOptions())
+      diffFile.value.rerender()
+    } catch {}
+  }
+}
+
+// 预览区右键:弹出「显示/隐藏行号」菜单。
+function onPreviewContextMenu(e) {
+  if (isEditing.value) return // 编辑态交给编辑器自己的菜单
+  e.preventDefault()
+  menu.value = { open: true, x: e.clientX, y: e.clientY }
+}
+
+function closeMenu() { menu.value.open = false }
 
 // 进入编辑:对当前预览的 File 实例套 pierre Editor(编辑时实时高亮 + 撤销栈)。
 function startEdit() {
@@ -283,8 +327,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="file-browser">
-    <div class="tree-col">
+  <div class="file-browser" :class="{ 'tree-collapsed': treeCollapsed }">
+    <!-- 收起态:窄条,点击展开树 -->
+    <button v-if="treeCollapsed" class="tree-expand-strip" title="展开文件树" @click="toggleTree">›</button>
+    <div v-show="!treeCollapsed" class="tree-col">
+      <div class="tree-head">
+        <span class="tree-title">文件</span>
+        <button class="icon-btn" title="收起文件树" @click="toggleTree">‹</button>
+      </div>
       <div v-if="treeError" class="msg error">{{ treeError }}</div>
       <div v-else-if="loadingTree" class="msg">加载文件树…</div>
       <div v-if="truncated" class="msg warn">文件过多,仅显示前 50000 项。</div>
@@ -310,16 +360,30 @@ onBeforeUnmount(() => {
           <button v-else-if="canEdit" class="btn" @click="startEdit">编辑</button>
         </div>
         <div v-if="previewNote" class="msg warn">{{ previewNote }}</div>
-        <div ref="previewMount" class="preview-mount"></div>
+        <div ref="previewMount" class="preview-mount" @contextmenu="onPreviewContextMenu"></div>
       </template>
+    </div>
+
+    <!-- 预览区右键菜单:切换行号 -->
+    <div v-if="menu.open" class="ctx-backdrop" @click="closeMenu" @contextmenu.prevent="closeMenu">
+      <ul class="ctx-menu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }" @click.stop>
+        <li @click="toggleLineNumbers">{{ showLineNumbers ? '隐藏行号' : '显示行号' }}</li>
+      </ul>
     </div>
   </div>
 </template>
 
 <style scoped>
 .file-browser { display: grid; grid-template-columns: minmax(200px, 300px) 1fr; gap: var(--space-2); height: 100%; min-height: 0; }
+.file-browser.tree-collapsed { grid-template-columns: 24px 1fr; }
 .tree-col { overflow: hidden; border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .tree-mount { flex: 1; min-height: 0; overflow: auto; }
+.tree-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); }
+.tree-title { font-size: var(--fs-sm); color: var(--text-muted); }
+.icon-btn { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 3px; }
+.icon-btn:hover { background: var(--surface-hover, rgba(127,127,127,.15)); color: var(--text); }
+.tree-expand-strip { border: none; border-right: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 16px; writing-mode: vertical-rl; padding: var(--space-2) 0; }
+.tree-expand-strip:hover { background: var(--surface-hover, rgba(127,127,127,.15)); color: var(--text); }
 .preview-col { display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }
 .preview-mount { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
 .msg { padding: var(--space-2); color: var(--text-muted); font-size: var(--fs-sm); }
@@ -334,4 +398,12 @@ onBeforeUnmount(() => {
 .btn:hover:not(:disabled) { border-color: var(--text-muted); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn.primary { background: var(--accent, #37f); border-color: var(--accent, #37f); color: #fff; }
+
+/* 右键菜单 */
+.ctx-backdrop { position: fixed; inset: 0; z-index: 1000; }
+.ctx-menu { position: fixed; margin: 0; padding: 4px; list-style: none; min-width: 120px;
+  background: var(--surface, #222); border: 1px solid var(--border); border-radius: var(--radius-sm, 4px);
+  box-shadow: 0 4px 16px rgba(0,0,0,.3); font-size: var(--fs-sm); }
+.ctx-menu li { padding: 6px 12px; border-radius: 3px; cursor: pointer; color: var(--text); white-space: nowrap; }
+.ctx-menu li:hover { background: var(--accent, #37f); color: #fff; }
 </style>
