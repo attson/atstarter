@@ -37,6 +37,12 @@ func resolve(root, relPath string) (string, error) {
 	return full, nil
 }
 
+// ResolveWithin 把 relPath 安全解析到 root 之内的绝对路径(导出版,供 asset handler 用)。
+// 越出 root 返回错误。
+func ResolveWithin(root, relPath string) (string, error) {
+	return resolve(root, relPath)
+}
+
 // ListDir 列出 root/relPath 这一层的直接子项。
 // 目录在前,组内按名称升序。relPath 为空表示 root 本身。
 func ListDir(root, relPath string) ([]Entry, error) {

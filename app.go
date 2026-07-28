@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"os"
@@ -198,6 +199,32 @@ func (a *App) ProjectFileMeta(projectID, relPath string) (filetree.FileMetaInfo,
 		return filetree.FileMetaInfo{}, err
 	}
 	return filetree.FileMeta(root, relPath)
+}
+
+// ReadProjectFileBytes 读取项目 projectID 下 relPath 的原始字节(最多 maxBytes)。
+// 供 CodeMirror 编辑器加载(带 modtime 冲突检测)。
+func (a *App) ReadProjectFileBytes(projectID, relPath string, maxBytes int64) (filetree.FileBytes, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return filetree.FileBytes{}, err
+	}
+	return filetree.ReadFileBytes(root, relPath, maxBytes)
+}
+
+// WriteProjectFileBytes 原子写字节到项目 projectID 下 relPath,返回新 modtime。
+// expectedModTime!=0 时做冲突检测(不符返回 stale_modtime 错误)。
+func (a *App) WriteProjectFileBytes(projectID, relPath string, data []byte, expectedModTime int64, createIfMissing bool) (int64, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return 0, err
+	}
+	return filetree.WriteFileBytes(root, relPath, data, expectedModTime, createIfMissing)
+}
+
+// ProjectAssetURL 返回项目 projectID 下 relPath 的资源 URL,供 <img>/<video>/<embed>
+// 直接访问本地文件(见 projectFSHandler)。
+func (a *App) ProjectAssetURL(projectID, relPath string) string {
+	return projectFSURLPrefix + projectID + "/" + base64.URLEncoding.EncodeToString([]byte(relPath))
 }
 
 // ReadProjectFile 读取项目 projectID 下 relPath 文件的预览内容。
