@@ -57,7 +57,7 @@ const deleteConfirm = ref<DeleteConfirmSpec | null>(null);
 
 function parentDir(p: string): string {
   const i = p.lastIndexOf("/");
-  return i <= 0 ? "/" : p.slice(0, i);
+  return i < 0 ? "" : p.slice(0, i); // 顶层项的父目录是 root(空串)
 }
 
 function baseName(p: string): string {
@@ -175,6 +175,7 @@ async function loadDir(fs: FileSystemBridge, path: string, showHidden: boolean):
 }
 
 function joinPath(parent: string, name: string): string {
+  if (parent === "") return name; // root(空 relPath)下的子项不带前导 /
   return parent.endsWith("/") ? parent + name : parent + "/" + name;
 }
 
