@@ -1,6 +1,7 @@
 package filetree
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -468,6 +469,29 @@ func TestRemoveTraversalRejected(t *testing.T) {
 	root := setupTree(t)
 	if err := Remove(root, "../a.txt", false); err == nil {
 		t.Error("want error for traversal")
+	}
+}
+
+func TestTrashMissing(t *testing.T) {
+	root := setupTree(t)
+	if err := Trash(root, "nope"); err == nil {
+		t.Error("want error trashing missing path")
+	}
+}
+
+func TestTrashTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if err := Trash(root, "../a.txt"); err == nil {
+		t.Error("want error for traversal")
+	}
+}
+
+func TestTrashUnavailableIsDetectable(t *testing.T) {
+	// 存在的文件:trash 要么成功,要么返回可识别的 ErrTrashUnavailable。
+	root := setupTree(t)
+	err := Trash(root, "a.txt")
+	if err != nil && !errors.Is(err, ErrTrashUnavailable) {
+		t.Fatalf("unexpected trash error (want nil or ErrTrashUnavailable): %v", err)
 	}
 }
 

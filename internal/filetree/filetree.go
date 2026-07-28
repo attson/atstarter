@@ -5,11 +5,14 @@ package filetree
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	trash "github.com/hymkor/trash-go"
 )
 
 // Entry 是目录下的一个直接子项。
@@ -302,4 +305,25 @@ func Remove(root, relPath string, recursive bool) error {
 		return os.RemoveAll(full)
 	}
 	return os.Remove(full)
+}
+
+// ErrTrashUnavailable 表示当前平台没有可用的废纸篓机制,调用方可降级为硬删。
+var ErrTrashUnavailable = errors.New("trash unavailable")
+
+// Trash 把 root/relPath 移入操作系统废纸篓。目标不存在则报错;
+// 平台无废纸篓机制时返回 ErrTrashUnavailable(调用方降级确认硬删)。
+func Trash(root, relPath string) error {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(full); os.IsNotExist(err) {
+		return errors.New("not found: " + relPath)
+	} else if err != nil {
+		return err
+	}
+	if err := trash.Throw(full); err != nil {
+		return fmt.Errorf("%w: %v", ErrTrashUnavailable, err)
+	}
+	return nil
 }
