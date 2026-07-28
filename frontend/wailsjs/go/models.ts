@@ -67,6 +67,22 @@ export namespace docker {
 
 export namespace filetree {
 	
+	export class Entry {
+	    name: string;
+	    isDir: boolean;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Entry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.isDir = source["isDir"];
+	        this.size = source["size"];
+	    }
+	}
 	export class FileContent {
 	    content: string;
 	    size: number;
@@ -83,6 +99,24 @@ export namespace filetree {
 	        this.size = source["size"];
 	        this.truncated = source["truncated"];
 	        this.binary = source["binary"];
+	    }
+	}
+	export class FileMetaInfo {
+	    size: number;
+	    modTime: number;
+	    isDir: boolean;
+	    isBinary: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileMetaInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.size = source["size"];
+	        this.modTime = source["modTime"];
+	        this.isDir = source["isDir"];
+	        this.isBinary = source["isBinary"];
 	    }
 	}
 
@@ -128,20 +162,6 @@ export namespace main {
 	        this.commandId = source["commandId"];
 	        this.runId = source["runId"];
 	        this.error = source["error"];
-	    }
-	}
-	export class ProjectPaths {
-	    paths: string[];
-	    truncated: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new ProjectPaths(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.paths = source["paths"];
-	        this.truncated = source["truncated"];
 	    }
 	}
 	export class UpdateState {

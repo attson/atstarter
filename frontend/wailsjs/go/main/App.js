@@ -30,6 +30,10 @@ export function ComposeUp(arg1, arg2) {
   return window['go']['main']['App']['ComposeUp'](arg1, arg2);
 }
 
+export function CreateProjectFile(arg1, arg2) {
+  return window['go']['main']['App']['CreateProjectFile'](arg1, arg2);
+}
+
 export function DockerAvailable() {
   return window['go']['main']['App']['DockerAvailable']();
 }
@@ -74,12 +78,24 @@ export function ListMissingProjectIDs() {
   return window['go']['main']['App']['ListMissingProjectIDs']();
 }
 
+export function ListProjectDir(arg1, arg2) {
+  return window['go']['main']['App']['ListProjectDir'](arg1, arg2);
+}
+
 export function ListProjects() {
   return window['go']['main']['App']['ListProjects']();
 }
 
+export function MkdirProject(arg1, arg2) {
+  return window['go']['main']['App']['MkdirProject'](arg1, arg2);
+}
+
 export function PickDirectory() {
   return window['go']['main']['App']['PickDirectory']();
+}
+
+export function ProjectFileMeta(arg1, arg2) {
+  return window['go']['main']['App']['ProjectFileMeta'](arg1, arg2);
 }
 
 export function ReadProjectFile(arg1, arg2) {
@@ -96,6 +112,14 @@ export function RemoveGroup(arg1) {
 
 export function RemoveProject(arg1) {
   return window['go']['main']['App']['RemoveProject'](arg1);
+}
+
+export function RemoveProjectPath(arg1, arg2, arg3) {
+  return window['go']['main']['App']['RemoveProjectPath'](arg1, arg2, arg3);
+}
+
+export function RenameProject(arg1, arg2, arg3) {
+  return window['go']['main']['App']['RenameProject'](arg1, arg2, arg3);
 }
 
 export function ResetProjects() {
@@ -158,6 +182,14 @@ export function StopProjectCommand(arg1, arg2) {
   return window['go']['main']['App']['StopProjectCommand'](arg1, arg2);
 }
 
+export function TrashProjectPath(arg1, arg2) {
+  return window['go']['main']['App']['TrashProjectPath'](arg1, arg2);
+}
+
+export function UnwatchProjectDir(arg1) {
+  return window['go']['main']['App']['UnwatchProjectDir'](arg1);
+}
+
 export function UpdateCancel() {
   return window['go']['main']['App']['UpdateCancel']();
 }
@@ -190,8 +222,8 @@ export function UpdateStartDownload() {
   return window['go']['main']['App']['UpdateStartDownload']();
 }
 
-export function WalkProjectPaths(arg1) {
-  return window['go']['main']['App']['WalkProjectPaths'](arg1);
+export function WatchProjectDir(arg1, arg2) {
+  return window['go']['main']['App']['WatchProjectDir'](arg1, arg2);
 }
 
 export function WriteProjectFile(arg1, arg2, arg3) {

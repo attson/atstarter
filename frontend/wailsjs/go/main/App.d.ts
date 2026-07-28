@@ -20,6 +20,8 @@ export function ComposeStop(arg1:string,arg2:string):Promise<void>;
 
 export function ComposeUp(arg1:string,arg2:string):Promise<void>;
 
+export function CreateProjectFile(arg1:string,arg2:string):Promise<void>;
+
 export function DockerAvailable():Promise<docker.Info>;
 
 export function FollowComposeLogs(arg1:string,arg2:string):Promise<void>;
@@ -42,9 +44,15 @@ export function ListGroups():Promise<Array<store.LaunchGroup>>;
 
 export function ListMissingProjectIDs():Promise<Array<string>>;
 
+export function ListProjectDir(arg1:string,arg2:string):Promise<Array<filetree.Entry>>;
+
 export function ListProjects():Promise<Array<store.Project>>;
 
+export function MkdirProject(arg1:string,arg2:string):Promise<void>;
+
 export function PickDirectory():Promise<string>;
+
+export function ProjectFileMeta(arg1:string,arg2:string):Promise<filetree.FileMetaInfo>;
 
 export function ReadProjectFile(arg1:string,arg2:string):Promise<filetree.FileContent>;
 
@@ -53,6 +61,10 @@ export function RemoveContainer(arg1:string,arg2:boolean):Promise<void>;
 export function RemoveGroup(arg1:string):Promise<void>;
 
 export function RemoveProject(arg1:string):Promise<void>;
+
+export function RemoveProjectPath(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
+export function RenameProject(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function ResetProjects():Promise<void>;
 
@@ -84,6 +96,10 @@ export function StopProject(arg1:string):Promise<void>;
 
 export function StopProjectCommand(arg1:string,arg2:string):Promise<void>;
 
+export function TrashProjectPath(arg1:string,arg2:string):Promise<void>;
+
+export function UnwatchProjectDir(arg1:number):Promise<void>;
+
 export function UpdateCancel():Promise<main.UpdateState>;
 
 export function UpdateCheck():Promise<main.UpdateState>;
@@ -100,6 +116,6 @@ export function UpdateProjectCommands(arg1:string,arg2:string,arg3:Array<main.Co
 
 export function UpdateStartDownload():Promise<main.UpdateState>;
 
-export function WalkProjectPaths(arg1:string):Promise<main.ProjectPaths>;
+export function WatchProjectDir(arg1:string,arg2:string):Promise<number>;
 
 export function WriteProjectFile(arg1:string,arg2:string,arg3:string):Promise<void>;
