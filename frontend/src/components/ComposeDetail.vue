@@ -2,6 +2,7 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { Play, Square, RotateCcw, Trash2, ScrollText } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
+import FileBrowser from './FileBrowser.vue'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
 import AppIcon from './ui/AppIcon.vue'
@@ -14,6 +15,7 @@ import {
 
 const props = defineProps({ project: Object, dockerAvailable: Boolean })
 const emit = defineEmits(['confirm-down', 'switch-type'])
+const detailTab = ref('services') // 'services' | 'files'
 const services = ref([])
 const followRunId = ref('')
 const followServiceName = ref('')
@@ -91,7 +93,12 @@ onUnmounted(() => { clearInterval(timer); stopActiveFollow() })
       </div>
     </div>
 
-    <div class="services" v-if="dockerAvailable">
+    <div class="detail-tabs">
+      <button class="tab" :class="{ active: detailTab === 'services' }" @click="detailTab = 'services'">服务</button>
+      <button class="tab" :class="{ active: detailTab === 'files' }" @click="detailTab = 'files'">文件</button>
+    </div>
+
+    <div class="services" v-if="detailTab === 'services' && dockerAvailable">
       <div class="svc-head">SERVICES <span class="count">{{ services.length }}</span></div>
       <div v-for="s in services" :key="s.name" class="svc-row">
         <span class="dot" :class="s.state"></span>
@@ -115,9 +122,13 @@ onUnmounted(() => { clearInterval(timer); stopActiveFollow() })
         </span>
       </div>
     </div>
-    <div v-else class="docker-off">Docker 不可用,无法管理 compose 服务。</div>
+    <div v-else-if="detailTab === 'services'" class="docker-off">Docker 不可用,无法管理 compose 服务。</div>
 
-    <LogPanel v-if="followRunId" :projectId="followRunId" :status="{}" />
+    <div v-if="detailTab === 'files'" class="files-tab">
+      <FileBrowser :projectId="project.id" />
+    </div>
+
+    <LogPanel v-if="detailTab === 'services' && followRunId" :projectId="followRunId" :status="{}" />
   </section>
 </template>
 
@@ -142,4 +153,13 @@ h1 { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); letter
 .dot.running { background: var(--success); }
 .dot.partial { background: var(--warn, #d9a441); }
 .docker-off { padding: var(--space-8); color: var(--text-muted); }
+.detail-tabs { display: flex; gap: var(--space-2); padding: var(--space-4) var(--space-8) 0; }
+.detail-tabs .tab {
+  height: 28px; padding: 0 var(--space-5); border: 1px solid transparent;
+  border-radius: var(--radius-sm); background: transparent; color: var(--text-muted);
+  font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-medium); cursor: pointer;
+}
+.detail-tabs .tab.active { background: var(--elevated); color: var(--text); border-color: var(--border-strong); }
+.files-tab { flex: 1; min-height: 0; display: flex; }
+.files-tab > * { flex: 1; min-height: 0; }
 </style>

@@ -1,0 +1,31 @@
+/*
+ * 把 atterm fileExplorer 组件用的 --ed-* 变量映射到 atstarter 的语义令牌,
+ * 让文件浏览器颜色与 App 一致,并自动跟随 App 的明暗主题(令牌本身随
+ * html[data-theme] 切换,这里不用区分 dark/light)。
+ * 作用域:.fe-scope(FileBrowser 根),避免污染全局。
+ */
+.fe-scope {
+  --ed-shell-bg: var(--bg);
+  --ed-tree-bg: var(--bg);
+  --ed-tree-header-bg: var(--bg);
+  --ed-tree-header-fg: var(--text-muted);
+  --ed-row-fg: var(--text);
+  --ed-row-hover: var(--elevated);
+  --ed-row-selected: var(--accent-soft, var(--elevated));
+  --ed-folder: var(--accent);
+  --ed-chevron: var(--text-subtle);
+  --ed-indent-guide: var(--border);
+  --ed-tab-bg: var(--bg);
+  --ed-tab-fg: var(--text-muted);
+  --ed-tab-hover-fg: var(--text);
+  --ed-tab-active-bg: var(--bg);
+  --ed-tab-active-fg: var(--text);
+  --ed-tab-active-bar: var(--accent);
+  --ed-border: var(--border);
+  --ed-editor-bg: var(--bg);
+  --ed-editor-fg: var(--text);
+  --ed-gutter-bg: var(--bg);
+  --ed-gutter-fg: var(--text-subtle);
+  --ed-muted: var(--text-muted);
+  --ed-error: var(--danger);
+}

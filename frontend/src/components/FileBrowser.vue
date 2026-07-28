@@ -4,6 +4,7 @@ import { useTheme } from '../composables/useTheme'
 import FileTree from './fileExplorer/FileTree.vue'
 import FileEditor from './fileExplorer/FileEditor.vue'
 import { createProjectFSBridge } from './fileExplorer/fsBridge'
+import './fileExplorer/theme-bridge.css'
 
 const props = defineProps({ projectId: { type: String, required: true } })
 
@@ -69,7 +70,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="file-browser" :class="{ 'tree-collapsed': treeCollapsed }">
+  <div class="file-browser fe-scope" :class="{ 'tree-collapsed': treeCollapsed }">
     <!-- 收起态:窄条,点击展开树 -->
     <button v-if="treeCollapsed" class="tree-expand-strip" title="展开文件树" @click="toggleTree">›</button>
     <div v-show="!treeCollapsed" class="tree-col">
