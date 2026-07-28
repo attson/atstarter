@@ -89,7 +89,7 @@ function chooseCommand(command) {
           </AppPill>
           <AppPill v-if="missing" variant="error" title="项目路径已不存在">missing</AppPill>
         </div>
-        <div class="path">{{ project.path }}</div>
+        <div class="path" :title="project.path">{{ project.path }}</div>
         <div v-if="missing" class="missing-notice">
           <span>路径已不存在,项目配置(命令 / 分组归属)仍保留。可点右侧「移除项目」清理。</span>
           <AppButton variant="danger" size="sm" @click="emit('remove')">
@@ -116,16 +116,16 @@ function chooseCommand(command) {
             </div>
           </div>
           <code>{{ commandLine }}</code>
+          <AppButton class="command-edit" variant="secondary" size="sm" @click="emit('edit')">
+            <template #icon><AppIcon :icon="Pencil" :size="13" /></template>
+            Edit
+          </AppButton>
         </div>
       </div>
       <div class="btns">
         <AppButton variant="secondary" size="sm" @click="emit('add-to-group')">
           <template #icon><AppIcon :icon="FolderPlus" :size="13" /></template>
           Add Group
-        </AppButton>
-        <AppButton variant="secondary" size="sm" @click="emit('edit')">
-          <template #icon><AppIcon :icon="Pencil" :size="13" /></template>
-          Edit
         </AppButton>
         <div class="run-controls">
           <AppButton
@@ -211,8 +211,9 @@ function chooseCommand(command) {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) auto;
   align-items: start;
-  gap: var(--space-8);
-  padding: var(--space-7) var(--space-8);
+  column-gap: var(--space-8);
+  row-gap: var(--space-3);
+  padding: var(--space-6) var(--space-8);
   border-bottom: 1px solid var(--border);
   background: transparent;
 }
@@ -220,9 +221,7 @@ function chooseCommand(command) {
 .info {
   min-width: 0;
   max-width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  display: contents;
 }
 
 .branch-pill {
@@ -235,6 +234,8 @@ function chooseCommand(command) {
 }
 
 .title-line {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -256,16 +257,19 @@ h1 {
 }
 
 .path {
+  grid-column: 1 / -1;
   max-width: 100%;
   color: var(--text-muted);
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .missing-notice {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -279,13 +283,14 @@ h1 {
 .missing-notice > span { flex: 1; min-width: 0; }
 
 .command-box {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: var(--space-4);
   width: min(100%, 760px);
   box-sizing: border-box;
   min-width: 0;
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-5);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--elevated-gradient);
@@ -360,6 +365,7 @@ h1 {
 }
 
 .command-box code {
+  flex: 1;
   min-width: 0;
   color: var(--text);
   font-family: var(--font-mono);
@@ -369,7 +375,14 @@ h1 {
   white-space: nowrap;
 }
 
+.command-edit {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .btns {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -391,18 +404,28 @@ h1 {
 @media (max-width: 980px) {
   .project-header {
     grid-template-columns: 1fr;
-    gap: var(--space-6);
+    column-gap: var(--space-6);
+    row-gap: var(--space-3);
   }
 
   .btns {
+    grid-column: 1;
+    grid-row: auto;
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .title-line,
+  .path,
+  .missing-notice,
+  .command-box {
+    grid-column: 1;
   }
 }
 
 @media (max-width: 760px) {
   .project-header {
-    padding: var(--space-6) var(--space-7);
+    padding: var(--space-5) var(--space-7);
   }
 
   .command-box {
@@ -410,7 +433,7 @@ h1 {
   }
 
   .command-box code {
-    flex-basis: 100%;
+    flex-basis: calc(100% - 72px);
   }
 }
 
