@@ -1,25 +1,25 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, nextTick, shallowRef } from 'vue'
-import { FileTree, prepareFileTreeInput } from '@pierre/trees'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick, shallowRef, computed } from 'vue'
 import { VirtualizedFile, Virtualizer, DIFFS_TAG_NAME } from '@pierre/diffs'
 import { Editor } from '@pierre/diffs/edit'
-import { WalkProjectPaths, ReadProjectFile, WriteProjectFile } from '../../wailsjs/go/main/App'
+import { ReadProjectFile, WriteProjectFile } from '../../wailsjs/go/main/App'
 import { useTheme } from '../composables/useTheme'
+import FileTree from './fileExplorer/FileTree.vue'
+import { createProjectFSBridge } from './fileExplorer/fsBridge'
 
 const props = defineProps({ projectId: { type: String, required: true } })
 
 const { resolvedTheme } = useTheme()
 
-// DOM 挂载点:左树 / 右预览。
-const treeMount = ref(null)
+// 懒加载文件树:每个项目一个 fsBridge(相对项目根的 relPath)。
+const fs = computed(() => createProjectFSBridge(props.projectId))
+
+// DOM 挂载点:右预览。
 const previewMount = ref(null)
 
-const treeError = ref('')
-const truncated = ref(false)
-const selectedPath = ref('')
 const previewError = ref('')
+const selectedPath = ref('')
 const previewNote = ref('') // 二进制 / 大文件截断提示
-const loadingTree = ref(false)
 const loadingPreview = ref(false)
 
 // 编辑态。
@@ -41,22 +41,13 @@ function toggleTree() {
   localStorage.setItem('fileBrowser.treeCollapsed', treeCollapsed.value ? '1' : '0')
 }
 
-// pierre 实例(非响应式,用 shallowRef 存句柄)。
-const tree = shallowRef(null)
+// pierre 预览实例(非响应式,用 shallowRef 存句柄)。
 const diffFile = shallowRef(null)     // 当前 VirtualizedFile 实例
 const virtualizer = shallowRef(null)  // 虚拟化器(按可视区渲染,避免大文件全量 DOM 卡死)
 const editor = shallowRef(null)
 
 // @pierre/diffs 主题:light/dark 各挑一个 Shiki 内置主题。
 const DIFF_THEMES = { light: 'github-light', dark: 'github-dark' }
-
-function destroyTree() {
-  if (tree.value) {
-    try { tree.value.cleanUp() } catch {}
-    tree.value = null
-  }
-  if (treeMount.value) treeMount.value.innerHTML = ''
-}
 
 function destroyEditor() {
   if (editor.value) {
@@ -83,48 +74,9 @@ function destroyPreview() {
   canEdit.value = false
 }
 
-async function loadTree() {
-  destroyTree()
-  destroyPreview()
-  treeError.value = ''
-  truncated.value = false
-  selectedPath.value = ''
-  previewError.value = ''
-  previewNote.value = ''
-  if (!props.projectId || !treeMount.value) return
-
-  loadingTree.value = true
-  let result
-  try {
-    result = await WalkProjectPaths(props.projectId)
-  } catch (e) {
-    treeError.value = String(e)
-    return
-  } finally {
-    loadingTree.value = false
-  }
-  // 切项目竞态:响应回来时 projectId 已变则丢弃。
-  if (!treeMount.value) return
-
-  truncated.value = !!result.truncated
-  const paths = result.paths || []
-  // 后端 WalkDir 深度优先产出交错顺序,交给 pierre 默认排序(目录优先 + 自然排序)。
-  const preparedInput = prepareFileTreeInput(paths)
-
-  const instance = new FileTree({
-    preparedInput,
-    search: true,
-    initialExpansion: 'closed',
-    onSelectionChange: (selectedPaths) => onSelect(selectedPaths),
-  })
-  instance.render({ containerWrapper: treeMount.value })
-  tree.value = instance
-}
-
-async function onSelect(selectedPaths) {
-  const path = selectedPaths && selectedPaths.length ? selectedPaths[0] : ''
-  // 目录路径带尾 /,不预览。
-  if (!path || path.endsWith('/')) return
+// atterm FileTree 的 @file-clicked 传来相对项目根的 relPath。
+async function onSelect(path) {
+  if (!path) return
   selectedPath.value = path
   previewError.value = ''
   previewNote.value = ''
@@ -306,22 +258,19 @@ watch(resolvedTheme, (val) => {
   }
 })
 
-// 首次加载放到 onMounted:此时 treeMount 的 DOM 才存在(watch immediate 会早于挂载)。
-onMounted(async () => {
+// 树由 atterm FileTree 组件自管理加载(fs/root 变化时自重载)。
+onMounted(() => {
   window.addEventListener('keydown', onKeydown)
-  await nextTick()
-  loadTree()
 })
 
-// projectId 变化时重载(切换项目)。不用 immediate,首次由 onMounted 负责。
-watch(() => props.projectId, async () => {
-  await nextTick()
-  loadTree()
+// 切项目时清掉当前预览(树组件自己会随 fs 变化重载)。
+watch(() => props.projectId, () => {
+  selectedPath.value = ''
+  destroyPreview()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
-  destroyTree()
   destroyPreview()
 })
 </script>
@@ -335,10 +284,13 @@ onBeforeUnmount(() => {
         <span class="tree-title">文件</span>
         <button class="icon-btn" title="收起文件树" @click="toggleTree">‹</button>
       </div>
-      <div v-if="treeError" class="msg error">{{ treeError }}</div>
-      <div v-else-if="loadingTree" class="msg">加载文件树…</div>
-      <div v-if="truncated" class="msg warn">文件过多,仅显示前 50000 项。</div>
-      <div ref="treeMount" class="tree-mount"></div>
+      <FileTree
+        class="tree-mount"
+        :fs="fs"
+        root=""
+        :show-hidden="true"
+        @file-clicked="onSelect"
+      />
     </div>
     <div class="preview-col">
       <div v-if="loadingPreview" class="msg">加载中…</div>
