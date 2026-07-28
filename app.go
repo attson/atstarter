@@ -172,23 +172,22 @@ func (a *App) projectRoot(projectID string) (string, error) {
 	return "", errors.New("project not found: " + projectID)
 }
 
-// ProjectPaths 是 WalkProjectPaths 的结果:全量相对路径 + 是否命中上限被截断。
-type ProjectPaths struct {
-	Paths     []string `json:"paths"`     // 相对项目根的路径;目录带尾 "/",/ 分隔
-	Truncated bool     `json:"truncated"` // 命中 walk 上限被截断
-}
-
-// WalkProjectPaths 返回项目 projectID 下全部相对路径(供 @pierre/trees FileTree 渲染)。
-func (a *App) WalkProjectPaths(projectID string) (ProjectPaths, error) {
+// ListProjectDir 列出项目 projectID 下 relPath 目录的直接子项(懒加载用)。
+func (a *App) ListProjectDir(projectID, relPath string) ([]filetree.Entry, error) {
 	root, err := a.projectRoot(projectID)
 	if err != nil {
-		return ProjectPaths{}, err
+		return nil, err
 	}
-	paths, truncated, err := filetree.WalkPaths(root)
+	return filetree.ListDir(root, relPath)
+}
+
+// ProjectFileMeta 返回项目 projectID 下 relPath 的元信息。
+func (a *App) ProjectFileMeta(projectID, relPath string) (filetree.FileMetaInfo, error) {
+	root, err := a.projectRoot(projectID)
 	if err != nil {
-		return ProjectPaths{}, err
+		return filetree.FileMetaInfo{}, err
 	}
-	return ProjectPaths{Paths: paths, Truncated: truncated}, nil
+	return filetree.FileMeta(root, relPath)
 }
 
 // ReadProjectFile 读取项目 projectID 下 relPath 文件的预览内容。
