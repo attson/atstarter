@@ -30,6 +30,7 @@ type App struct {
 	docker             *docker.Client
 	dockerStop         chan struct{}
 	lastDockerSnapshot string // 上次快照的序列化,用于 diff
+	watcher            *filetree.Watcher
 }
 
 type CommandInput struct {
@@ -94,6 +95,12 @@ func (a *App) startup(ctx context.Context) {
 		updateTrayRunning(a.runner.RunningCount())
 	})
 	a.startDockerPoll()
+	if w, err := filetree.NewWatcher(); err == nil {
+		a.watcher = w
+		w.OnChange(func(relDir string) {
+			runtime.EventsEmit(a.ctx, "fs:dir-changed", relDir)
+		})
+	}
 	if traySupported() {
 		startTray(a)
 	}
@@ -103,6 +110,9 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) shutdown(ctx context.Context) {
 	if a.dockerStop != nil {
 		close(a.dockerStop)
+	}
+	if a.watcher != nil {
+		a.watcher.Close()
 	}
 	a.runner.StopAll()
 }
@@ -253,6 +263,27 @@ func (a *App) TrashProjectPath(projectID, relPath string) error {
 		return err
 	}
 	return filetree.Trash(root, relPath)
+}
+
+// WatchProjectDir 监听项目 projectID 下 relPath 目录变化,返回句柄。
+// 变化通过 "fs:dir-changed" 事件推送(payload 为变化目录的 relPath)。
+func (a *App) WatchProjectDir(projectID, relPath string) (int64, error) {
+	if a.watcher == nil {
+		return 0, errors.New("watcher unavailable")
+	}
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return 0, err
+	}
+	return a.watcher.Watch(root, relPath)
+}
+
+// UnwatchProjectDir 取消 WatchProjectDir 返回的句柄。
+func (a *App) UnwatchProjectDir(id int64) error {
+	if a.watcher == nil {
+		return nil
+	}
+	return a.watcher.Unwatch(id)
 }
 
 // expandHome 把开头的 ~ 或 ~/... 展开为用户家目录。
