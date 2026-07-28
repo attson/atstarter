@@ -354,6 +354,48 @@ func TestFileMetaTraversalRejected(t *testing.T) {
 	}
 }
 
+func TestCreateFile(t *testing.T) {
+	root := setupTree(t)
+	if err := CreateFile(root, "new.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "new.txt")); err != nil {
+		t.Errorf("file not created: %v", err)
+	}
+}
+
+func TestCreateFileAlreadyExists(t *testing.T) {
+	root := setupTree(t)
+	if err := CreateFile(root, "a.txt"); err == nil {
+		t.Error("want error creating existing file")
+	}
+}
+
+func TestCreateFileTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if err := CreateFile(root, "../x.txt"); err == nil {
+		t.Error("want error for traversal")
+	}
+}
+
+func TestMkdir(t *testing.T) {
+	root := setupTree(t)
+	if err := Mkdir(root, "newdir"); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(root, "newdir"))
+	if err != nil || !info.IsDir() {
+		t.Errorf("dir not created: %v", err)
+	}
+}
+
+func TestMkdirAlreadyExists(t *testing.T) {
+	root := setupTree(t)
+	if err := Mkdir(root, "sub"); err == nil {
+		t.Error("want error creating existing dir")
+	}
+}
+
 func containsBackslash(s string) bool {
 	for _, r := range s {
 		if r == '\\' {

@@ -233,3 +233,31 @@ func FileMeta(root, relPath string) (FileMetaInfo, error) {
 	}
 	return m, nil
 }
+
+// CreateFile 在 root/relPath 创建空文件。目标已存在则报错;父目录须已存在。
+func CreateFile(root, relPath string) error {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(full); err == nil {
+		return errors.New("already exists: " + relPath)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.WriteFile(full, nil, 0o644)
+}
+
+// Mkdir 在 root/relPath 创建单个目录。目标已存在则报错;父目录须已存在。
+func Mkdir(root, relPath string) error {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(full); err == nil {
+		return errors.New("already exists: " + relPath)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.Mkdir(full, 0o755)
+}
