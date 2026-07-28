@@ -308,6 +308,52 @@ func TestWriteFileNotExistRejected(t *testing.T) {
 	}
 }
 
+func TestFileMetaText(t *testing.T) {
+	root := setupTree(t)
+	m, err := FileMeta(root, "a.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Size != 5 || m.IsBinary || m.IsDir {
+		t.Errorf("unexpected meta: %+v", m)
+	}
+	if m.ModTime == 0 {
+		t.Error("want non-zero ModTime")
+	}
+}
+
+func TestFileMetaBinary(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "bin"), []byte{0x1, 0x0, 0x2}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, err := FileMeta(root, "bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.IsBinary {
+		t.Error("want IsBinary=true")
+	}
+}
+
+func TestFileMetaDir(t *testing.T) {
+	root := setupTree(t)
+	m, err := FileMeta(root, "sub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.IsDir {
+		t.Error("want IsDir=true for directory")
+	}
+}
+
+func TestFileMetaTraversalRejected(t *testing.T) {
+	root := setupTree(t)
+	if _, err := FileMeta(root, "../a.txt"); err == nil {
+		t.Error("want error for traversal")
+	}
+}
+
 func containsBackslash(s string) bool {
 	for _, r := range s {
 		if r == '\\' {

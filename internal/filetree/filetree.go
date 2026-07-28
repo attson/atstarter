@@ -195,3 +195,41 @@ func WriteFile(root, relPath, content string) error {
 	}
 	return os.WriteFile(full, []byte(content), info.Mode().Perm())
 }
+
+// FileMetaInfo 是文件/目录的元信息,供懒加载树与预览判断使用。
+type FileMetaInfo struct {
+	Size     int64 `json:"size"`     // 字节数;目录为 0
+	ModTime  int64 `json:"modTime"`  // 修改时间(Unix 毫秒)
+	IsDir    bool  `json:"isDir"`    // 是否目录
+	IsBinary bool  `json:"isBinary"` // 文件头部含 NUL 判为二进制;目录恒 false
+}
+
+// binaryProbeBytes 是二进制探测读取的头部字节数。
+const binaryProbeBytes = 4096
+
+// FileMeta 返回 root/relPath 的元信息。二进制探测只读头部 binaryProbeBytes。
+func FileMeta(root, relPath string) (FileMetaInfo, error) {
+	full, err := resolve(root, relPath)
+	if err != nil {
+		return FileMetaInfo{}, err
+	}
+	info, err := os.Stat(full)
+	if err != nil {
+		return FileMetaInfo{}, err
+	}
+	m := FileMetaInfo{
+		Size:    info.Size(),
+		ModTime: info.ModTime().UnixMilli(),
+		IsDir:   info.IsDir(),
+	}
+	if !info.IsDir() {
+		f, err := os.Open(full)
+		if err == nil {
+			probe := make([]byte, binaryProbeBytes)
+			n, _ := f.Read(probe)
+			f.Close()
+			m.IsBinary = bytes.IndexByte(probe[:n], 0x00) >= 0
+		}
+	}
+	return m, nil
+}
