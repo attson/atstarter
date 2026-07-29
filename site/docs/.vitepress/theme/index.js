@@ -69,19 +69,22 @@ function useRevealOnScroll(route) {
   })
 }
 
-function useFrontendThemeDataAttr() {
+function useFrontendThemeDataAttr(route) {
   if (typeof window === 'undefined') return
 
   let observer
   const sync = () => {
-    document.documentElement.dataset.theme =
-      document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+    const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+    if (document.documentElement.dataset.theme !== theme) {
+      document.documentElement.dataset.theme = theme
+    }
   }
 
   onMounted(() => {
     sync()
     observer = new MutationObserver(sync)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] })
+    watch(() => route.path, () => nextTick(sync))
   })
 
   onUnmounted(() => {
@@ -94,7 +97,7 @@ export default {
   setup() {
     // useRoute() 在 setup 同步调用,再传入各 composable。
     const route = useRoute()
-    useFrontendThemeDataAttr()
+    useFrontendThemeDataAttr(route)
     useRevealOnScroll(route)
     useHomeBodyClass(route)
   },
