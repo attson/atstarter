@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const source = fs.readFileSync(new URL('./HomeDemo.vue', import.meta.url), 'utf8')
 const themeSource = fs.readFileSync(new URL('../index.js', import.meta.url), 'utf8')
+const configSource = fs.readFileSync(new URL('../../config.mjs', import.meta.url), 'utf8')
 
 test('home demo does not render explanatory heading copy', () => {
   assert.equal(source.includes('LIVE MOCK WORKSPACE'), false)
@@ -21,4 +22,11 @@ test('home demo uses app workspace tokens and shared UI primitives', () => {
 
 test('site theme does not import app global html styles', () => {
   assert.equal(themeSource.includes('frontend/src/styles/tokens.css'), false)
+})
+
+test('vitepress resolves vue from site dependencies for imported app components', () => {
+  assert.match(configSource, /alias/)
+  assert.match(configSource, /find:\s*\/\^vue\$\/,/)
+  assert.match(configSource, /find:\s*\/\^vue\\\/server-renderer\$\/,/)
+  assert.match(configSource, /node_modules\/vue/)
 })
