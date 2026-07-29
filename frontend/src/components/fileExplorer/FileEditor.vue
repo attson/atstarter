@@ -1,13 +1,14 @@
 <script lang="ts" setup>
-import { onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { defineAsyncComponent, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { previewKind, type PreviewKind } from "./previewKind";
-import CodeEditor from "./CodeEditor.vue";
 import ImagePreview from "./ImagePreview.vue";
 import MediaPreview from "./MediaPreview.vue";
 import PdfPreview from "./PdfPreview.vue";
 import MarkdownPreview from "./MarkdownPreview.vue";
 import BinaryBanner from "./BinaryBanner.vue";
 import type { FileSystemBridge } from "./fsBridge";
+
+const CodeEditor = defineAsyncComponent(() => import("./CodeEditor.vue"));
 
 const props = defineProps<{
   fs: FileSystemBridge;

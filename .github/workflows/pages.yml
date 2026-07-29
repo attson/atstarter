@@ -39,6 +39,9 @@ jobs:
       - name: Build
         working-directory: site
         run: npm run docs:build
+      - name: Test built home demo bundle
+        working-directory: site
+        run: node --test docs/.vitepress/theme/components/homeDemoBundle.test.mjs
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
