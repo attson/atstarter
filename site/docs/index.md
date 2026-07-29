@@ -13,21 +13,21 @@ hero:
       link: /guide/
 features:
   - title: 批量扫描工作区
-    details: 指定工作区根目录(支持 ~),扫描直接子目录,识别项目类型并勾选批量加入。
+    details: 指定工作区根目录(支持 ~),扫描直接子目录与常见 worktree 目录,识别项目类型并批量加入。
   - title: 自动识别 + 手动兜底
     details: 内置规则识别 node / Go / Rust / Python / docker compose,建议启动命令,可随时手动修改。
   - title: 多套命令 / 启动分组
-    details: 每个项目保存多条命令(default / debug / …),把多个项目编成一组一键批量启停。
+    details: 每个项目保存多条 LaunchCommand(default / debug / 自定义),把多个项目命令编成一组一键批量启停。
   - title: 进程托管 + 实时日志
     details: App 内启动/停止子进程,实时展示 stdout/stderr,进程退出追加退出码标记。
   - title: Docker / compose 管理
-    details: compose 项目融入项目树,支持整体与单 service 启停;独立容器面板管理宿主机容器。
+    details: compose 项目融入项目树,支持整体与 service 级 Up/Stop/Restart/Down/logs;独立容器面板管理宿主机容器。
+  - title: 文件浏览 / 编辑 / 预览
+    details: 项目详情内置文件 Tab,支持代码高亮、Markdown/PDF/图片/媒体预览、文本编辑保存和文件操作。
   - title: 登录 shell 启动
     details: 子进程经登录交互式 shell 启动,拿到完整 PATH,修复 pnpm / nvm / go command not found。
   - title: 系统托盘 + 自更新
     details: 关闭窗口隐藏到托盘;轮询 GitHub Release,Ed25519 签名 + SHA256 校验后自安装,内置下载加速镜像。
-  - title: 明暗主题
-    details: 内置浅色 / 深色主题切换。
 ---
 
 <div class="tech-home">
@@ -53,7 +53,7 @@ features:
 <div class="shot reveal">
   <div class="shot-text">
     <h3>一处托管,实时日志</h3>
-    <p>左侧项目树集中管理所有项目,选中即看实时 stdout / stderr,顶部状态栏汇总运行 / 退出数。</p>
+    <p>左侧项目树集中管理所有项目和启动分组,选中即看实时 stdout / stderr,顶部状态栏汇总运行 / 退出数。</p>
   </div>
   <div class="win-frame">
     <div class="win-bar"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span></div>
@@ -64,7 +64,7 @@ features:
 <div class="shot reveal">
   <div class="shot-text">
     <h3>项目文件浏览</h3>
-    <p>内置文件树 + 只读代码预览,快速看一眼 main.go 或配置文件,不用切到编辑器。</p>
+    <p>内置懒加载文件树 + CodeMirror 代码编辑,支持语法高亮、保存、目录操作和多类型预览。</p>
   </div>
   <div class="win-frame">
     <div class="win-bar"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span></div>
@@ -86,7 +86,7 @@ features:
 <div class="shot reveal">
   <div class="shot-text">
     <h3>明暗主题</h3>
-    <p>内置深色主题,夜间盯日志也护眼。</p>
+    <p>内置深色主题,日志、项目树和文件编辑器都会跟随主题切换。</p>
   </div>
   <div class="win-frame">
     <div class="win-bar"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span></div>
@@ -106,7 +106,7 @@ features:
   <div class="step-card reveal">
     <div class="step-num">1</div>
     <h3>扫描工作区</h3>
-    <p>指定工作区根目录(支持 ~),扫描直接子目录,自动识别项目类型并勾选批量加入。</p>
+    <p>指定工作区根目录(支持 ~),扫描直接子目录与常见 worktree 目录,自动识别项目类型并批量加入。</p>
   </div>
   <div class="step-card reveal">
     <div class="step-num">2</div>
@@ -116,7 +116,7 @@ features:
   <div class="step-card reveal">
     <div class="step-num">3</div>
     <h3>查看日志 / 文件</h3>
-    <p>实时查看 stdout / stderr,或切到「文件」tab 浏览项目文件与代码预览。</p>
+    <p>实时查看 stdout / stderr,或切到「文件」tab 浏览、预览、编辑项目文件。</p>
   </div>
 </div>
 
@@ -156,15 +156,15 @@ features:
 <div class="downloads">
   <a class="download-card reveal" href="https://github.com/attson/atstarter/releases/latest" target="_blank" rel="noreferrer">
     <div class="os">macOS</div>
-    <div class="os-sub">.dmg · Intel / Apple Silicon</div>
+    <div class="os-sub">.dmg / .zip · Intel / Apple Silicon</div>
   </a>
   <a class="download-card reveal" href="https://github.com/attson/atstarter/releases/latest" target="_blank" rel="noreferrer">
     <div class="os">Linux</div>
-    <div class="os-sub">AppImage / 二进制</div>
+    <div class="os-sub">.deb / .tar.gz · amd64 / arm64</div>
   </a>
   <a class="download-card reveal" href="https://github.com/attson/atstarter/releases/latest" target="_blank" rel="noreferrer">
     <div class="os">Windows</div>
-    <div class="os-sub">.exe 安装包</div>
+    <div class="os-sub">NSIS .exe / .zip · amd64</div>
   </a>
 </div>
 
