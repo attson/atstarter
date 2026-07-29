@@ -106,9 +106,15 @@ func TestNewAppUsesUserConfigOutsideDev(t *testing.T) {
 	t.Cleanup(func() { Version = oldVersion })
 
 	dir := t.TempDir()
-	configHome := filepath.Join(t.TempDir(), "config")
+	home := t.TempDir()
+	configHome := filepath.Join(home, "config")
 	chdir(t, dir)
+	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", configHome)
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	app := NewApp()
 	if err := app.SetWorkspaces([]string{"/tmp/workspace"}); err != nil {
@@ -118,7 +124,7 @@ func TestNewAppUsesUserConfigOutsideDev(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, ".dev")); !os.IsNotExist(err) {
 		t.Fatalf("expected no .dev config outside dev, stat err = %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(configHome, "atstarter", "config.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(userConfigDir, "atstarter", "config.json")); err != nil {
 		t.Fatalf("expected user config outside dev: %v", err)
 	}
 }

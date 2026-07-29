@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // platformInstall 是 runInstall 在 darwin 上的实现(通过 var 注入,见
@@ -23,19 +24,18 @@ func platformInstall(asset, target, execPath string) error {
 // 赌孤儿进程能独立跑完"的脆弱模型。所有可能失败的步骤在 App 还活着的时候执行,
 // 出错能真正返回给前端。全流程:
 //
-//   1. hdiutil attach —— 挂 DMG,阻塞等待,拿到 mount point。任何失败(EULA / 损坏 /
-//      占用中)都在这里直接返回给用户。
-//   2. 找到 DMG 里的 *.app 源目录。
-//   3. 决定 destParent(优先原位置,否则 /Applications,否则 ~/Applications)。
-//   4. ditto 到 destParent/*.app.new —— staging 与目标同目录,保证后续 rename 原子。
-//      (ditto 而非 cp -R:保留 xattr / ACL / HFS 元数据,Apple 官方推荐用于 bundle)
-//   5. 剥离 quarantine 属性,免得新 bundle 被 Gatekeeper 拦。
-//   6. 原子 rename swap:老 → .old,.new → 目标。任一步失败尝试回滚。
-//   7. 清理 .old,unmount DMG。
-//   8. spawn `open <bundle>`(不带 -n:让 Launch Services 检测到老实例正在退,顺
-//      势启动新版;-n 会与老实例清理竞态)。
+//  1. hdiutil attach —— 挂 DMG,阻塞等待,拿到 mount point。任何失败(EULA / 损坏 /
+//     占用中)都在这里直接返回给用户。
+//  2. 找到 DMG 里的 *.app 源目录。
+//  3. 决定 destParent(优先原位置,否则 /Applications,否则 ~/Applications)。
+//  4. ditto 到 destParent/*.app.new —— staging 与目标同目录,保证后续 rename 原子。
+//     (ditto 而非 cp -R:保留 xattr / ACL / HFS 元数据,Apple 官方推荐用于 bundle)
+//  5. 剥离 quarantine 属性,免得新 bundle 被 Gatekeeper 拦。
+//  6. 原子 rename swap:老 → .old,.new → 目标。任一步失败尝试回滚。
+//  7. 清理 .old,unmount DMG。
+//  8. spawn 一个 relaunch helper:等待当前进程退出后 `open -n <bundle>`。
 //
-// 返回 nil 后由调用者置位 quitRequested 再 wailsruntime.Quit。open 已经在等,
+// 返回 nil 后由调用者置位 quitRequested 再 wailsruntime.Quit。helper 已经在等,
 // 老进程一退,Launch Services 就启动新版。
 func installDarwin(dmgPath, targetApp string) error {
 	if _, err := os.Stat(dmgPath); err != nil {
@@ -78,10 +78,10 @@ func installDarwin(dmgPath, targetApp string) error {
 	}
 	_ = os.RemoveAll(oldApp)
 
-	// spawn open 后立即返回;老进程随后 Quit,Launch Services 拉起新版。
-	// Start 而非 Run:不阻塞等 open 退出(open 会等 app 起来后才 exit)。
-	if err := exec.Command("open", destApp).Start(); err != nil {
-		return fmt.Errorf("open new bundle: %w", err)
+	// 不能在旧实例仍运行时直接 open:Launch Services 只会激活现有实例,
+	// 不会排队等它退出后重开。让 helper 等当前 PID 消失后再 open -n。
+	if err := startDarwinRelaunchAfterExit(destApp); err != nil {
+		return fmt.Errorf("schedule relaunch: %w", err)
 	}
 	return nil
 }
@@ -234,4 +234,24 @@ func runCommand(name string, args ...string) error {
 		return fmt.Errorf("%w: %s", err, msg)
 	}
 	return nil
+}
+
+func startDarwinRelaunchAfterExit(appPath string) error {
+	cmd := exec.Command("/bin/sh", "-c", darwinRelaunchAfterExitScript(os.Getpid(), appPath))
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	return cmd.Start()
+}
+
+func darwinRelaunchAfterExitScript(pid int, appPath string) string {
+	return fmt.Sprintf(`i=0
+while kill -0 %d 2>/dev/null && [ "$i" -lt 200 ]; do
+  i=$((i + 1))
+  sleep 0.1
+done
+/usr/bin/open -n %s
+`, pid, darwinShellQuote(appPath))
+}
+
+func darwinShellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
