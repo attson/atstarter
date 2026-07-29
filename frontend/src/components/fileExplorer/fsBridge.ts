@@ -9,6 +9,7 @@ import {
   ProjectAssetURL,
   OpenProjectPath,
   ProjectFileMeta,
+  SearchProjectFiles,
   CreateProjectFile,
   MkdirProject,
   RenameProject,
@@ -46,9 +47,21 @@ export interface FileBytes {
   truncatedAt?: number
 }
 
+export interface SearchMatch {
+  path: string
+  name: string
+  isDir: boolean
+}
+
+export interface SearchResults {
+  matches: SearchMatch[]
+  truncated: boolean
+}
+
 export interface FileSystemBridge {
   readonly identity: string
   listDir(path: string): Promise<DirEntry[]>
+  searchPaths(query: string, limit: number): Promise<SearchResults>
   readFile(path: string): Promise<FileContent>
   writeFile(path: string, content: string): Promise<void>
   // 字节接口(CodeMirror 编辑器用:带 modtime 冲突检测)。
@@ -77,6 +90,7 @@ export function createProjectFSBridge(projectId: string): FileSystemBridge {
       const entries = await ListProjectDir(projectId, path)
       return (entries || []).map((e) => ({ name: e.name, isDir: e.isDir, size: e.size }))
     },
+    searchPaths: (query, limit) => SearchProjectFiles(projectId, query, limit) as Promise<SearchResults>,
     readFile: (path) => ReadProjectFile(projectId, path) as Promise<FileContent>,
     writeFile: (path, content) => WriteProjectFile(projectId, path, content),
     readBytes: (path, maxBytes) => ReadProjectFileBytes(projectId, path, maxBytes) as Promise<FileBytes>,

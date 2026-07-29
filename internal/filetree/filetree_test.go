@@ -2,6 +2,7 @@ package filetree
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -230,6 +231,157 @@ func TestWalkPathsTruncates(t *testing.T) {
 	if len(paths) != 3 {
 		t.Errorf("want exactly 3 paths at the limit, got %d: %v", len(paths), paths)
 	}
+}
+
+func TestSearchPathsMatchesNamesAndRelativePaths(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "cmd", "server"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{
+		"cmd/server/main.go",
+		"cmd/server/config.yml",
+		"docs/server-guide.md",
+	} {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(path)), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	matches, truncated, err := SearchPaths(root, "server", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if truncated {
+		t.Fatal("small search should not be truncated")
+	}
+	got := make([]string, 0, len(matches))
+	for _, match := range matches {
+		got = append(got, match.Path)
+	}
+	for _, want := range []string{"cmd/server/", "cmd/server/main.go", "cmd/server/config.yml", "docs/server-guide.md"} {
+		if !containsString(got, want) {
+			t.Errorf("want %q in %v", want, got)
+		}
+	}
+}
+
+func TestSearchPathsSkipsHeavyDirectories(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".git", "objects"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "node_modules", "pkg"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "Vendor", "pkg"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{
+		".git/config",
+		"node_modules/pkg/config.js",
+		"Vendor/pkg/config.go",
+		"src/config.go",
+	} {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(path)), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	matches, _, err := SearchPaths(root, "config", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, 0, len(matches))
+	for _, match := range matches {
+		got = append(got, match.Path)
+	}
+	if !containsString(got, "src/config.go") {
+		t.Errorf("want src/config.go in %v", got)
+	}
+	for _, skipped := range []string{".git/config", "node_modules/pkg/config.js", "Vendor/pkg/config.go"} {
+		if containsString(got, skipped) {
+			t.Errorf("did not expect skipped path %q in %v", skipped, got)
+		}
+	}
+}
+
+func TestSearchPathsTruncatesResults(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < 5; i++ {
+		path := filepath.Join(root, "match-"+string(rune('a'+i))+".txt")
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	matches, truncated, err := SearchPaths(root, "match", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !truncated {
+		t.Fatal("want truncated=true")
+	}
+	if len(matches) != 3 {
+		t.Fatalf("want 3 matches, got %d: %v", len(matches), matches)
+	}
+}
+
+func TestSearchPathsClampsCallerLimit(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < defaultSearchLimit+5; i++ {
+		path := filepath.Join(root, fmt.Sprintf("match-%03d.txt", i))
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	matches, truncated, err := SearchPaths(root, "match", defaultSearchLimit+1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !truncated {
+		t.Fatal("want truncated=true when caller asks above backend cap")
+	}
+	if len(matches) != defaultSearchLimit {
+		t.Fatalf("want backend cap %d matches, got %d", defaultSearchLimit, len(matches))
+	}
+}
+
+func TestSearchPathsTruncatesWhenVisitedEntriesExceedLimit(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < 5; i++ {
+		path := filepath.Join(root, "file-"+string(rune('a'+i))+".txt")
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	matches, truncated, err := searchPaths(root, "no-match", 100, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !truncated {
+		t.Fatal("want truncated=true when visited entries exceed backend cap")
+	}
+	if len(matches) != 0 {
+		t.Fatalf("want no matches before visit cap, got %v", matches)
+	}
+}
+
+func containsString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestWriteFileText(t *testing.T) {

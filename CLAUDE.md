@@ -32,7 +32,7 @@ wails build -tags webkit2_41
 
 ```text
 main.go                 Wails entry, embedded frontend, Version/UpdateVerifyPublicKey ldflags
-app.go                  Wails binding layer, module assembly, event bridge, 63 App methods
+app.go                  Wails binding layer, module assembly, event bridge, 64 App methods
 tray.go                 system tray, close-to-tray, running count, quit flow
 updater.go              GitHub release self-update, mirrors, Ed25519 + SHA256 verification, 5 update methods
 internal/

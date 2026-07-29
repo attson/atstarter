@@ -81,7 +81,7 @@ node --test docs/.vitepress/theme/components/homeDemoSource.test.mjs docs/.vitep
 
 ```text
 main.go                 Wails 入口 + frontend embed + ldflags
-app.go                  Wails 绑定层,导出 63 个 App 方法
+app.go                  Wails 绑定层,导出 64 个 App 方法
 tray.go                 系统托盘
 updater.go              自更新,另导出 5 个更新方法
 internal/

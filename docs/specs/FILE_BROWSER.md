@@ -9,6 +9,7 @@ bounded reads/writes, predictable previews, and clean watcher lifecycle.
 
 ```go
 ListProjectDir(projectID, relPath string) ([]filetree.Entry, error)
+SearchProjectFiles(projectID, query string, limit int) (filetree.SearchResults, error)
 ProjectFileMeta(projectID, relPath string) (filetree.FileMetaInfo, error)
 ReadProjectFileBytes(projectID, relPath string, maxBytes int64) (filetree.FileBytes, error)
 WriteProjectFileBytes(projectID, relPath string, data []byte, expectedModTime int64, createIfMissing bool) (int64, error)
@@ -44,6 +45,7 @@ TrashProjectPath(projectID, relPath string) error
 | Empty `relPath` | project root | Root directory listing/watch |
 | Directory listing | `filetree.ListDir` | Direct children only, directories first, name ascending |
 | Full walk | `filetree.WalkPaths` | Slash-separated paths for tree inputs, capped at 50,000 entries |
+| Filename search | `filetree.Search` / `SearchPaths` | Case-insensitive file/dir name and relative-path search, capped by request |
 | Preview bytes | `ReadFileBytes` | Capped by request or 16 MB hard limit |
 | Text preview | `ReadFile` | Capped at 4 MB and rejects binary content |
 | Write bytes | temp file + fsync + rename | Uses optional mod-time conflict check |
@@ -53,6 +55,7 @@ TrashProjectPath(projectID, relPath string) error
 ### Dispatch Constraints
 
 - Directories and files are handled separately; writing a directory is an error.
+- Project-level search is filename/path search only. It must not read file contents.
 - Rename resolves both source and destination under the same root.
 - Remove with `recursive=false` must fail for non-empty directories.
 - Watch handles must be unwatched when a component unmounts or switches root.
@@ -85,7 +88,20 @@ Applicable to `FileBrowser` and `fileExplorer/*` preview components.
 Reference components: `BinaryBanner.vue`, `CodeEditor.vue`, `ImagePreview.vue`,
 `MarkdownPreview.vue`, `MediaPreview.vue`, `PdfPreview.vue`.
 
-### 3.3 Edit Pattern
+### 3.3 Search Pattern
+
+Applicable to `FileBrowser.vue` and `CodeEditor.vue`.
+
+1. Left-side project search calls `SearchProjectFiles` through `fsBridge.searchPaths`.
+2. Backend search matches file and directory basename or project-relative path, case-insensitively.
+3. Backend search skips heavy/generated directories such as `.git`, `node_modules`, `vendor`, `dist`,
+   `build`, `target`, `.next`, `.nuxt`, `.vite`, `.scannerwork`, `.review-tmp`, and `.review-reports`.
+4. Backend search enforces both a result cap and a visited-entry cap. It returns a `truncated` flag when
+   either cap is reached; frontend must show truncation state instead of continuing unbounded work.
+5. Current-file content search is handled inside CodeMirror with `@codemirror/search`. It searches only
+   the open editor document and must not call backend APIs or scan the whole project.
+
+### 3.4 Edit Pattern
 
 Applicable to text/code save flows.
 
@@ -95,7 +111,7 @@ Applicable to text/code save flows.
 4. If backend returns `stale_modtime`, surface a conflict instead of silently overwriting.
 5. New files may use `createIfMissing=true`; existing writes must remain bounded by the 16 MB hard limit.
 
-### 3.4 Watch Pattern
+### 3.5 Watch Pattern
 
 Applicable to live tree refresh.
 
@@ -128,6 +144,7 @@ Applicable to live tree refresh.
 
 - [ ] Resolve all paths through the filetree root guard.
 - [ ] Keep bytes reads/writes bounded.
+- [ ] Keep project-level search to filename/path matching; content search stays editor-local.
 - [ ] Preserve atomic write behavior for bytes saves.
 - [ ] Preserve conflict detection for editor saves.
 - [ ] Cover backend file behavior with Go tests.
@@ -135,6 +152,7 @@ Applicable to live tree refresh.
 ### Conditional
 
 - [ ] If adding preview kinds, verify binary/truncated states.
+- [ ] If changing project search, test skip directories, result caps, and directory trailing slash behavior.
 - [ ] If changing watcher behavior, test duplicate handles and unwatch semantics.
 - [ ] If changing frontend file operations, verify unmount cleanup.
 

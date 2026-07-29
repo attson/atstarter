@@ -25,7 +25,7 @@ Wails desktop process
 
   backend: Go
     main.go       Wails entry, embedded frontend, ldflags
-    app.go        module assembly, Wails bindings, event bridge, 63 App methods
+    app.go        module assembly, Wails bindings, event bridge, 64 App methods
     updater.go    GitHub release update flow, 5 update methods
     tray.go       system tray and close-to-tray behavior
     internal/     pure and stateful subsystem packages

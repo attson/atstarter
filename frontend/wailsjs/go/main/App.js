@@ -150,6 +150,10 @@ export function ScanWorkspaces(arg1) {
   return window['go']['main']['App']['ScanWorkspaces'](arg1);
 }
 
+export function SearchProjectFiles(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SearchProjectFiles'](arg1, arg2, arg3);
+}
+
 export function SetWorkspaces(arg1) {
   return window['go']['main']['App']['SetWorkspaces'](arg1);
 }

@@ -192,6 +192,15 @@ func (a *App) ListProjectDir(projectID, relPath string) ([]filetree.Entry, error
 	return filetree.ListDir(root, relPath)
 }
 
+// SearchProjectFiles 在项目 projectID 下按文件名/相对路径搜索文件与目录。
+func (a *App) SearchProjectFiles(projectID, query string, limit int) (filetree.SearchResults, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return filetree.SearchResults{}, err
+	}
+	return filetree.Search(root, query, limit)
+}
+
 // ProjectFileMeta 返回项目 projectID 下 relPath 的元信息。
 func (a *App) ProjectFileMeta(projectID, relPath string) (filetree.FileMetaInfo, error) {
 	root, err := a.projectRoot(projectID)
