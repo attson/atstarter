@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const source = fs.readFileSync(new URL('./HomeDemo.vue', import.meta.url), 'utf8')
 const configSource = fs.readFileSync(new URL('../../config.mjs', import.meta.url), 'utf8')
+const themeSource = fs.readFileSync(new URL('../index.js', import.meta.url), 'utf8')
 const customCss = fs.readFileSync(new URL('../custom.css', import.meta.url), 'utf8')
 const fileEditorSource = fs.readFileSync(new URL('../../../../../frontend/src/components/fileExplorer/FileEditor.vue', import.meta.url), 'utf8')
 const pagesWorkflowSource = fs.readFileSync(new URL('../../../../../.github/workflows/pages.yml', import.meta.url), 'utf8')
@@ -63,6 +64,12 @@ test('embedded file editor loads CodeMirror through an async component chunk', (
   assert.match(fileEditorSource, /defineAsyncComponent/)
   assert.match(fileEditorSource, /import\(["']\.\/CodeEditor\.vue["']\)/)
   assert.doesNotMatch(fileEditorSource, /import\s+CodeEditor\s+from\s+["']\.\/CodeEditor\.vue["']/)
+})
+
+test('vitepress theme bridge resyncs frontend data-theme after route changes', () => {
+  assert.match(themeSource, /function useFrontendThemeDataAttr\(route\)/)
+  assert.match(themeSource, /watch\(\s*\(\)\s*=>\s*route\.path[\s\S]*?nextTick\(sync\)/)
+  assert.match(themeSource, /attributeFilter:\s*\[\s*['"]class['"],\s*['"]data-theme['"]\s*\]/)
 })
 
 test('pages build installs frontend dependencies used by the real app demo', () => {
