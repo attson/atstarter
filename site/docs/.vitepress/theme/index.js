@@ -3,19 +3,18 @@ import { useRoute } from 'vitepress'
 import { watch, nextTick, onMounted, onUnmounted } from 'vue'
 import './custom.css'
 
-// 首页整页深色化:仅在「首页」给 <body> 挂 `home-dark` class,用于给 .VPHome
-// 之外的导航栏(.VPNav)上色;离开首页(进 /guide/)时立即移除,文档页导航栏
-// 恢复默认。hero / features / 自定义 section 本身在 .VPHome 后代,由 CSS 直接
-// 覆盖,不依赖这个 class。
+// 首页标记:仅在「首页」给 <body> 挂 `home-page` class,用于给 .VPHome
+// 之外的导航栏(.VPNav)做首页专属适配;离开首页(进 /guide/)时立即移除,
+// 文档页导航栏恢复默认。明暗色由 VitePress 的主题状态和 CSS 变量决定。
 // 判定首页用 DOM 探测 .VPHome 是否存在(VitePress 仅在 home layout 渲染它),
 // 避免 route.path 因 base 前缀(/atstarter/)导致的字符串比较不稳。DOM 操作
 // 延后到 onMounted(浏览器)执行,保持 SSR 安全;route 仅用于触发路由切换重扫。
-function useHomeDarkBodyClass(route) {
+function useHomeBodyClass(route) {
   if (typeof window === 'undefined') return
 
   const sync = () => {
     const isHome = !!document.querySelector('.VPHome')
-    document.body.classList.toggle('home-dark', isHome)
+    document.body.classList.toggle('home-page', isHome)
   }
 
   onMounted(() => {
@@ -24,7 +23,7 @@ function useHomeDarkBodyClass(route) {
   })
 
   onUnmounted(() => {
-    if (typeof document !== 'undefined') document.body.classList.remove('home-dark')
+    if (typeof document !== 'undefined') document.body.classList.remove('home-page')
   })
 }
 
@@ -74,6 +73,6 @@ export default {
     // useRoute() 在 setup 同步调用,再传入各 composable。
     const route = useRoute()
     useRevealOnScroll(route)
-    useHomeDarkBodyClass(route)
+    useHomeBodyClass(route)
   },
 }
