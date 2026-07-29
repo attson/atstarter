@@ -17,6 +17,7 @@ atstarter 是一个本地项目快速启动器:扫描工作区、识别项目类
 - **系统托盘**:关闭窗口隐藏到托盘,托盘显示运行数,支持显示/隐藏、停全部、退出。
 - **自更新**:检查 GitHub Release,下载产物后用 Ed25519 签名 + SHA256 校验再安装;内置国内下载镜像并回退原始 GitHub URL。
 - **明暗主题**:自写设计令牌与浅色/深色主题。
+- **官网演示**:VitePress 首页直接嵌入真实前端 App,通过合成 mock 数据展示可交互的项目启动器。
 
 ## 使用
 
@@ -64,6 +65,18 @@ make build-windows
 
 Ubuntu 24.04 只有 `libwebkit2gtk-4.1-dev`,Wails 命令必须带 `-tags webkit2_41`;Makefile 已默认带该 tag。Linux 托盘还需要 `libayatana-appindicator3-dev`。
 
+官网 / 文档站:
+
+```bash
+cd site
+npm run docs:dev
+npm run docs:build
+npm run docs:preview
+node --test docs/.vitepress/theme/components/homeDemoSource.test.mjs docs/.vitepress/theme/components/mockWails.test.mjs docs/.vitepress/theme/components/homeDemoBundle.test.mjs
+```
+
+站点发布到 GitHub Pages 的 `/atstarter/` 路径。首页 demo 复用 `frontend/src/App.vue`,Wails 绑定通过站点 mock 模块替换,fixture 必须使用合成数据。
+
 ## 架构
 
 ```text
@@ -89,6 +102,7 @@ frontend/src/           Vue3 业务组件、UI 基础组件、主题系统
 - [docs/specs/RUNTIME_CONTRACTS.md](docs/specs/RUNTIME_CONTRACTS.md)
 - [docs/specs/FRONTEND_STYLE.md](docs/specs/FRONTEND_STYLE.md)
 - [docs/specs/FILE_BROWSER.md](docs/specs/FILE_BROWSER.md)
+- [docs/specs/SITE.md](docs/specs/SITE.md)
 
 AI/贡献者硬约束见 [CLAUDE.md](CLAUDE.md)。`AGENTS.md` 仅作为跨工具入口。
 

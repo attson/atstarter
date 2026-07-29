@@ -4,7 +4,7 @@
 
 This file is the high-level architecture map for atstarter. Keep detailed domain rules in
 `DOMAIN_MODEL.md`, runtime contracts in `RUNTIME_CONTRACTS.md`, frontend interaction/style rules in
-`FRONTEND_STYLE.md`, and file browser rules in `FILE_BROWSER.md`.
+`FRONTEND_STYLE.md`, file browser rules in `FILE_BROWSER.md`, and public site rules in `SITE.md`.
 
 Process drafts under `docs/superpowers/` are not formal specs. Long-lived project rules belong in
 `CLAUDE.md` and `docs/specs/`.
@@ -29,6 +29,12 @@ Wails desktop process
     updater.go    GitHub release update flow, 5 update methods
     tray.go       system tray and close-to-tray behavior
     internal/     pure and stateful subsystem packages
+
+public site: VitePress
+  site/docs
+    home page embeds frontend/src/App.vue with mock Wails bindings
+    guide pages document user workflows and troubleshooting
+    Pages build publishes under /atstarter/
 ```
 
 The app is intentionally local-first. Configuration is a JSON file under the platform config
@@ -115,6 +121,7 @@ compatible with the multi-command model.
 - Local Go commands must use `/home/attson/sdk/go1.24.13/bin/go`; the system `go` is too old.
 - Wails dev/build on Ubuntu 24.04 must use `-tags webkit2_41`; Makefile targets already include it.
 - Linux tray builds require `libayatana-appindicator3-dev`.
+- Public site changes that touch the embedded home demo must follow `docs/specs/SITE.md`.
 - Do not push directly to `main`. Use feature branch, GitHub PR, green CI, merge, then tag release from
   `main`.
 - Commit messages must not include `Co-Authored-By`.

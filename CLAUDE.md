@@ -55,6 +55,7 @@ frontend/src/           Vue3 app, custom UI components, theme tokens, file explo
 | `docs/specs/RUNTIME_CONTRACTS.md` | detector/store/runner/docker/updater/filetree contracts |
 | `docs/specs/FRONTEND_STYLE.md` | UI structure, design tokens, interaction rules |
 | `docs/specs/FILE_BROWSER.md` | file explorer security, editing, preview, watch behavior |
+| `docs/specs/SITE.md` | VitePress site, embedded app demo, mock data, screenshots, theme bridge |
 
 ## Coding Norms
 
