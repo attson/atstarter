@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useTheme } from '../composables/useTheme'
 import FileTree from './fileExplorer/FileTree.vue'
 import FileEditor from './fileExplorer/FileEditor.vue'
@@ -9,12 +9,14 @@ import './fileExplorer/theme-bridge.css'
 const props = defineProps({ projectId: { type: String, required: true } })
 
 const { resolvedTheme } = useTheme()
+const activeTheme = ref(resolvedTheme.value)
+let themeObserver = null
 
 // 懒加载文件树:每个项目一个 fsBridge(相对项目根的 relPath)。
 const fs = computed(() => createProjectFSBridge(props.projectId))
 
 // FileEditor 主题:App 的 dark → CodeMirror 的 dimmed。
-const editorTheme = computed(() => (resolvedTheme.value === 'dark' ? 'dimmed' : 'light'))
+const editorTheme = computed(() => (activeTheme.value === 'dark' ? 'dimmed' : 'light'))
 
 const selectedPath = ref('')       // 当前预览/编辑的文件 relPath
 const dirty = ref(false)           // 编辑器是否有未保存改动
@@ -61,10 +63,26 @@ function toggleLineNumbers() {
   menu.value.open = false
 }
 
+function documentTheme() {
+  if (typeof document === 'undefined') return resolvedTheme.value
+  const value = document.documentElement.getAttribute('data-theme')
+  return value === 'dark' || value === 'light' ? value : resolvedTheme.value
+}
+
+function syncActiveTheme() {
+  activeTheme.value = documentTheme()
+}
+
+watch(resolvedTheme, syncActiveTheme)
+
 onMounted(() => {
+  syncActiveTheme()
+  themeObserver = new MutationObserver(syncActiveTheme)
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
   window.addEventListener('keydown', onKeydown)
 })
 onBeforeUnmount(() => {
+  if (themeObserver) themeObserver.disconnect()
   window.removeEventListener('keydown', onKeydown)
 })
 </script>

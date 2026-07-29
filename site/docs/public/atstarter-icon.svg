@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101519"/>
+      <stop offset="1" stop-color="#06080b"/>
+    </linearGradient>
+    <linearGradient id="live" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4ade80"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#34d399" stop-opacity=".75"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Rounded-square background (macOS ~22% corner) -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <rect x="8" y="8" width="1008" height="1008" rx="220" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="8"/>
+
+  <!-- 3×3 grid of dots. Coordinates x8 from the 128px preview.
+       Position triplets: 272, 512, 752. Dot radius: 64. -->
+  <g fill="#3a4050">
+    <circle cx="272" cy="272" r="64"/>
+    <circle cx="512" cy="272" r="64"/>
+    <circle cx="272" cy="512" r="64"/>
+    <circle cx="752" cy="512" r="64"/>
+    <circle cx="272" cy="752" r="64"/>
+    <circle cx="512" cy="752" r="64"/>
+    <circle cx="752" cy="752" r="64"/>
+  </g>
+  <!-- Slightly brighter center dot (secondary state) -->
+  <circle cx="512" cy="512" r="64" fill="#4a5063"/>
+
+  <!-- Live dot (top-right) with radial halo. -->
+  <circle cx="752" cy="272" r="176" fill="url(#glow)"/>
+  <circle cx="752" cy="272" r="64" fill="url(#live)"/>
+  <circle cx="752" cy="272" r="64" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="4"/>
+</svg>

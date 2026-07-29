@@ -121,6 +121,40 @@ let groups = [
 const statuses = new Map()
 const logs = new Map()
 const branches = new Map(projects.map((project) => [project.path, project.id === 'atstarter-site' ? 'main' : 'master']))
+const FILES = new Map([
+  ['cmd/main.go', `package main
+
+import (
+	"fmt"
+	"net/http"
+)
+
+func main() {
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "ok")
+	})
+	fmt.Println("atlas-api listening on http://localhost:8080")
+	_ = http.ListenAndServe(":8080", nil)
+}
+`],
+  ['README.md', `# Atlas API
+
+Synthetic project used by the AT Starter site demo.
+
+- API: http://localhost:8080
+- Health: /health
+`],
+  ['go.mod', `module example.test/atlas-api
+
+go 1.24
+`],
+  ['internal/router.go', `package internal
+
+func Routes() []string {
+	return []string{"/health", "/v1/projects"}
+}
+`],
+])
 
 const containers = [
   {
@@ -191,6 +225,32 @@ function ensureRun(runId) {
 for (const project of projects) {
   for (const command of commandsFor(project)) ensureRun(`${project.id}:${command.id || 'default'}`)
 }
+
+function seedRun(runId, status, lines) {
+  statuses.set(runId, status)
+  logs.set(runId, [...lines])
+}
+
+seedRun('atlas-api:go', { State: 'running', PID: 4201, ExitCode: 0 }, [
+  '[runner] atlas-api -> go run main.go',
+  '[runner] cwd /Users/demo/workspaces/atlas-api',
+  '[go] compiling ./cmd/server',
+  '[api] atlas-api listening on http://localhost:8080',
+  '[api] GET /health 200 1ms',
+])
+seedRun('atlas-worker:go', { State: 'running', PID: 4202, ExitCode: 0 }, [
+  '[runner] atlas-worker -> go run ./cmd/worker',
+  '[worker] queue connected: local-jobs',
+  '[worker] processed job sync-catalog in 42ms',
+])
+seedRun('atstarter-site:docs', { State: 'running', PID: 4210, ExitCode: 0 }, [
+  '[runner] atstarter -> npm run docs:dev',
+  '[vitepress] dev server running at http://localhost:5174/atstarter/',
+])
+seedRun('northwind-reports:go', { State: 'exited', PID: 0, ExitCode: 0 }, [
+  '[runner] northwind-reports -> go test ./...',
+  'ok example.test/northwind-reports 0.318s',
+])
 
 function setRunStatus(runId, status) {
   statuses.set(runId, status)
@@ -404,17 +464,28 @@ export async function ListProjectDir(projectId, relPath = '') {
     { name: 'README.md', isDir: false, size: 860 },
   ]
 }
+
+function fileContent(path) {
+  return FILES.get(path) || `# ${path || 'project'}
+
+Synthetic file content for the AT Starter site demo.
+`
+}
+
 export async function ReadProjectFile(projectId, path) {
-  return { content: `# ${path || projectId}\n\nMock file content for the site demo.\n`, size: 64, truncated: false, binary: false }
+  const content = fileContent(path || projectId)
+  return { content, size: new TextEncoder().encode(content).length, truncated: false, binary: false }
 }
 export async function WriteProjectFile() {}
 export async function ReadProjectFileBytes(projectId, path) {
-  return { data: Array.from(new TextEncoder().encode(`# ${path || projectId}\n`)), modTime: Date.now(), isBinary: false }
+  return { data: Array.from(new TextEncoder().encode(fileContent(path || projectId))), modTime: Date.now(), isBinary: false }
 }
 export async function WriteProjectFileBytes() { return Date.now() }
 export async function ProjectAssetURL() { return '' }
 export async function OpenProjectPath() {}
-export async function ProjectFileMeta() { return { size: 64, modTime: Date.now(), isDir: false, isBinary: false } }
+export async function ProjectFileMeta(projectId, path) {
+  return { size: new TextEncoder().encode(fileContent(path || projectId)).length, modTime: Date.now(), isDir: false, isBinary: false }
+}
 export async function CreateProjectFile() {}
 export async function MkdirProject() {}
 export async function RenameProject() {}
