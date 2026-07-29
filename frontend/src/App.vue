@@ -50,6 +50,9 @@ const containerSummary = ref({ total: 0, running: 0, exited: 0 })
 const confirm = ref({ show: false, kind: '', payload: null, title: '', message: '', confirmText: '', danger: true })
 const containerPanelRef = ref(null)
 const updateBannerRef = ref(null)
+const props = defineProps({
+  embedded: { type: Boolean, default: false },
+})
 
 const isComposeSelected = computed(() => selected.value && selected.value.detectedType === 'compose')
 
@@ -351,7 +354,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell-embedded': props.embedded }">
     <UpdateBanner ref="updateBannerRef" />
     <header class="topbar">
       <div class="brand">atstarter</div>
@@ -446,6 +449,12 @@ html, body, #app { height: 100%; margin: 0; }
   font-family: var(--font-sans);
   background: var(--bg-gradient);
   color: var(--text);
+}
+
+.app-shell.app-shell-embedded {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /*
