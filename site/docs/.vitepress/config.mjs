@@ -19,6 +19,12 @@ export default defineConfig({
       }, {
         find: /^vue\/server-renderer$/,
         replacement: fileURLToPath(new URL('../../node_modules/vue/server-renderer/index.mjs', import.meta.url)),
+      }, {
+        find: /^.*wailsjs\/go\/main\/App$/,
+        replacement: fileURLToPath(new URL('./theme/components/mockWailsApp.mjs', import.meta.url)),
+      }, {
+        find: /^.*wailsjs\/runtime\/runtime$/,
+        replacement: fileURLToPath(new URL('./theme/components/mockWailsRuntime.mjs', import.meta.url)),
       }],
     },
   },

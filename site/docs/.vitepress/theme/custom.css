@@ -68,6 +68,7 @@ body.home-page .VPContent.is-home {
 
 body.home-page {
   background: var(--home-bg);
+  overflow-x: hidden;
 }
 
 /* ---------------- Hero 区主题适配 ---------------- */
@@ -215,7 +216,7 @@ body.home-page .VPNavBar .divider-line {
   color: var(--tech-text);
   margin-top: 8px;
   padding-bottom: 96px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* ---- 径向光晕 / 辉光 ---- */
