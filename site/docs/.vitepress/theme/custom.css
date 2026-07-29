@@ -94,6 +94,7 @@ body.home-page {
 /* hero 背景径向光晕,与下半部分呼应 */
 .VPHome .VPHero {
   position: relative;
+  padding-bottom: 24px;
 }
 .VPHome .VPHero::before {
   content: "";
