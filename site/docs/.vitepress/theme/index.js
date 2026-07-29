@@ -1,6 +1,8 @@
 import DefaultTheme from 'vitepress/theme'
 import { useRoute } from 'vitepress'
 import { watch, nextTick, onMounted, onUnmounted } from 'vue'
+import '../../../../frontend/src/styles/theme.light.css'
+import '../../../../frontend/src/styles/theme.dark.css'
 import './custom.css'
 
 // 首页标记:仅在「首页」给 <body> 挂 `home-page` class,用于给 .VPHome
@@ -67,11 +69,32 @@ function useRevealOnScroll(route) {
   })
 }
 
+function useFrontendThemeDataAttr() {
+  if (typeof window === 'undefined') return
+
+  let observer
+  const sync = () => {
+    document.documentElement.dataset.theme =
+      document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  }
+
+  onMounted(() => {
+    sync()
+    observer = new MutationObserver(sync)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+  })
+
+  onUnmounted(() => {
+    if (observer) observer.disconnect()
+  })
+}
+
 export default {
   extends: DefaultTheme,
   setup() {
     // useRoute() 在 setup 同步调用,再传入各 composable。
     const route = useRoute()
+    useFrontendThemeDataAttr()
     useRevealOnScroll(route)
     useHomeBodyClass(route)
   },

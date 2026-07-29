@@ -1,5 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
+import AppButton from '../../../../../frontend/src/components/ui/AppButton.vue'
+import AppPill from '../../../../../frontend/src/components/ui/AppPill.vue'
 import {
   activeHomeDemoCommand,
   activeHomeDemoProject,
@@ -19,6 +21,15 @@ const activeCommand = computed(() => activeHomeDemoCommand(state.value))
 const runningCount = computed(() => (
   state.value.projects.filter((project) => project.status === 'running').length
 ))
+const exitedCount = computed(() => (
+  state.value.projects.filter((project) => project.status !== 'running').length
+))
+const selectedStatus = computed(() => ({ State: activeProject.value.status }))
+const activeCommandLine = computed(() => activeCommand.value.command)
+
+function statusVariant(status) {
+  return status === 'running' ? 'running' : 'stopped'
+}
 
 function selectProject(projectId) {
   state.value = selectHomeDemoProject(state.value, projectId)
@@ -46,107 +57,144 @@ function editCommand() {
 </script>
 
 <template>
-  <section class="home-demo reveal" aria-label="AT Starter interactive demo">
-    <div class="demo-heading">
-      <div>
-        <p class="demo-kicker">Live mock workspace</p>
-        <h2>首页直接体验项目启动器</h2>
-      </div>
-      <div class="demo-version">
-        <span class="pulse"></span>
-        <span>{{ runningCount }} running</span>
-      </div>
-    </div>
-
-    <div class="launcher">
-      <aside class="project-pane">
-        <div class="pane-top">
-          <div>
-            <strong>Projects</strong>
-            <span>~/code/acme</span>
-          </div>
-          <button type="button" title="Scan workspace" @click="scanWorkspace">Scan</button>
+  <section class="home-demo reveal" aria-label="AT Starter mock workspace">
+    <div class="app-shell app-shell-demo">
+      <header class="topbar">
+        <div class="brand">atstarter</div>
+        <div class="summary">
+          <span class="summary-count">{{ state.projects.length }} projects</span>
+          <AppPill variant="running" dot>{{ runningCount }} running</AppPill>
+          <AppPill variant="exited">{{ exitedCount }} exited</AppPill>
         </div>
-
-        <button
-          v-for="project in state.projects"
-          :key="project.id"
-          type="button"
-          class="project-row"
-          :class="{ active: project.id === state.activeProjectId }"
-          :aria-label="`${project.name}, ${project.kind}, ${project.status}`"
-          @click="selectProject(project.id)"
-        >
-          <span class="project-main">
-            <span class="project-name">{{ project.name }}</span>
-            <span class="project-meta">{{ project.kind }} · {{ project.branch }}</span>
-          </span>
-          <span class="status-dot" :class="project.status"></span>
-        </button>
-
-        <div class="group-card">
-          <div>
-            <strong>{{ state.groupName }}</strong>
-            <span>web-admin + api-server</span>
-          </div>
-          <button type="button" @click="toggleGroup">
-            Toggle
-          </button>
+        <div class="tabs">
+          <button class="tab active" type="button">Projects</button>
+          <button class="tab" type="button">Containers</button>
         </div>
-      </aside>
+        <div class="top-actions">
+          <AppButton variant="secondary" size="sm">New Group</AppButton>
+          <AppButton variant="secondary" size="sm" @click="scanWorkspace">Scan</AppButton>
+          <AppButton variant="primary" size="sm">Add</AppButton>
+        </div>
+      </header>
 
-      <main class="detail-pane">
-        <div class="detail-header">
-          <div class="title-block">
-            <div class="title-line">
-              <h3>{{ activeProject.name }}</h3>
-              <span class="type-pill">{{ activeProject.kind }}</span>
-              <span class="status-pill" :class="activeProject.status">{{ activeProject.status }}</span>
+      <main class="workspace">
+        <aside class="project-list">
+          <div class="search-wrap">
+            <div class="search-field">
+              <input class="search" value="" placeholder="Search projects, path, command..." readonly />
             </div>
-            <p :title="activeProject.path">{{ activeProject.path }}</p>
           </div>
-          <button type="button" class="run-button" @click="toggleRun">
-            {{ activeProject.status === 'running' ? 'Stop' : 'Start' }}
-          </button>
-        </div>
 
-        <div class="command-row">
-          <select :value="state.activeCommandId" @change="selectCommand">
-            <option
-              v-for="command in activeProject.commands"
-              :key="command.id"
-              :value="command.id"
+          <div class="tree-scroll">
+            <div class="group-section">
+              <div class="section-title">Groups</div>
+              <button
+                type="button"
+                class="group-row"
+                @click="toggleGroup"
+              >
+                <span class="project-main">
+                  <span class="status-dot running"></span>
+                  <span class="project-name">{{ state.groupName }}</span>
+                  <span class="type-pill">2</span>
+                </span>
+              </button>
+            </div>
+
+            <button
+              v-for="project in state.projects"
+              :key="project.id"
+              type="button"
+              :class="['tree-row', 'project-row', { active: project.id === state.activeProjectId }]"
+              :aria-label="`${project.name}, ${project.kind}, ${project.status}`"
+              @click="selectProject(project.id)"
             >
-              {{ command.label }}
-            </option>
-          </select>
-          <code>{{ activeCommand.command }}</code>
-          <button type="button" title="Edit command" @click="editCommand">Edit</button>
-        </div>
+              <span class="project-spacer"></span>
+              <span class="project-main">
+                <span :class="['status-dot', statusVariant(project.status)]"></span>
+                <span class="project-name">{{ project.name }}</span>
+                <span class="type-pill">{{ project.kind }}</span>
+              </span>
+            </button>
+          </div>
+        </aside>
 
-        <div class="workspace-grid">
-          <section class="console-panel">
-            <div class="panel-title">
-              <span>Logs</span>
-              <span>stdout / stderr</span>
+        <section class="detail">
+          <div class="project-header">
+            <div class="info">
+              <div class="title-line">
+                <h1>{{ activeProject.name }}</h1>
+                <AppPill :variant="statusVariant(activeProject.status)" :dot="activeProject.status === 'running'">
+                  {{ activeProject.status }}
+                </AppPill>
+                <AppPill variant="neutral">{{ activeProject.kind }}</AppPill>
+                <AppPill variant="neutral" class="branch-pill">{{ activeProject.branch }}</AppPill>
+              </div>
+              <div class="path" :title="activeProject.path">{{ activeProject.path }}</div>
+              <div class="command-box">
+                <span class="cmd-label">CMD</span>
+                <div class="command-picker">
+                  <select class="command-trigger" :value="state.activeCommandId" @change="selectCommand">
+                    <option
+                      v-for="command in activeProject.commands"
+                      :key="command.id"
+                      :value="command.id"
+                    >
+                      {{ command.label }}
+                    </option>
+                  </select>
+                </div>
+                <code>{{ activeCommandLine }}</code>
+                <AppButton class="command-edit" variant="secondary" size="sm" @click="editCommand">Edit</AppButton>
+              </div>
             </div>
-            <pre><span v-for="line, index in state.logLines" :key="`${index}-${line}`">{{ line }}
+            <div class="btns">
+              <AppButton variant="secondary" size="sm">Add Group</AppButton>
+              <div class="run-controls">
+                <AppButton
+                  variant="danger"
+                  size="sm"
+                  :disabled="activeProject.status !== 'running'"
+                  @click="toggleRun"
+                >
+                  Stop
+                </AppButton>
+                <AppButton
+                  variant="secondary"
+                  size="sm"
+                  :disabled="activeProject.status !== 'running'"
+                  @click="toggleRun"
+                >
+                  Restart
+                </AppButton>
+                <AppButton
+                  variant="success"
+                  size="sm"
+                  :disabled="activeProject.status === 'running'"
+                  @click="toggleRun"
+                >
+                  Start
+                </AppButton>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-tabs">
+            <button class="tab active" type="button">日志</button>
+            <button class="tab" type="button">文件</button>
+          </div>
+          <div class="detail-tab-body">
+            <div class="log-wrap">
+              <div :class="['banner', statusVariant(selectedStatus.State)]">
+                {{ selectedStatus.State === 'running' ? '● 运行中' : '○ 未运行' }}
+              </div>
+              <div class="term-area">
+                <pre class="term-host"><span v-for="line, index in state.logLines" :key="`${index}-${line}`">{{ line }}
 </span></pre>
-          </section>
-
-          <section class="files-panel">
-            <div class="panel-title">
-              <span>Files</span>
-              <span>{{ activeProject.files.length }} items</span>
+              </div>
             </div>
-            <ul>
-              <li v-for="file in activeProject.files" :key="file">
-                <span class="file-icon"></span>
-                <span>{{ file }}</span>
-              </li>
-            </ul>
-          </section>
-        </div>
+          </div>
+        </section>
       </main>
     </div>
   </section>
@@ -156,487 +204,575 @@ function editCommand() {
 .home-demo {
   position: relative;
   z-index: 1;
+  width: min(1180px, calc(100vw - 48px));
+  margin: 20px auto 0;
+
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-7: 16px;
+  --space-8: 20px;
+  --space-9: 24px;
+  --space-10: 32px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .04);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, .10);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, .22);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 260ms;
+  --ease: cubic-bezier(.2, 0, 0, 1);
+  --ease-spring: cubic-bezier(.34, 1.35, .64, 1);
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  --font-mono:
+    "SFMono-Regular", ui-monospace, Consolas, "Liberation Mono", monospace;
+  --fs-lg: 22px;
+  --fs-md: 16px;
+  --fs-base: 13px;
+  --fs-sm: 12px;
+  --fs-xs: 11px;
+  --fs-mono: 12px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+}
+
+.home-demo,
+.home-demo * {
   box-sizing: border-box;
-  width: 100%;
-  max-width: 1180px;
-  margin: 30px auto 0;
-  padding: 0 24px;
 }
 
-.home-demo *,
-.home-demo *::before,
-.home-demo *::after {
-  box-sizing: border-box;
+.app-shell-demo {
+  grid-template-rows: 48px minmax(0, 1fr);
+  height: 620px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-gradient);
+  box-shadow: var(--shadow-lg);
 }
 
-.demo-heading {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 18px;
-}
+.app-shell-demo > .topbar { grid-row: 1; }
+.app-shell-demo > .workspace { grid-row: 2; }
 
-.demo-kicker {
-  margin: 0 0 6px;
-  color: var(--home-text-muted);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.demo-heading h2 {
-  margin: 0;
-  border: 0;
-  padding: 0;
-  color: var(--home-text-strong);
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: 0;
-  line-height: 1.2;
-}
-
-.demo-version {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 0 12px;
-  border: 1px solid var(--home-border);
-  border-radius: 999px;
-  background: var(--home-surface);
-  color: var(--home-text);
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.pulse {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 0 5px color-mix(in srgb, #22c55e 18%, transparent);
-}
-
-.launcher {
+.app-shell {
   display: grid;
-  grid-template-columns: minmax(240px, 290px) minmax(0, 1fr);
-  width: 100%;
-  max-width: 100%;
-  min-height: 560px;
-  overflow: hidden;
-  border: 1px solid var(--home-border);
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--home-bg-2) 86%, #020617);
-  box-shadow:
-    0 24px 70px var(--home-frame-shadow),
-    0 0 0 1px color-mix(in srgb, var(--home-indigo) 10%, transparent);
+  font-family: var(--font-sans);
+  color: var(--text);
 }
 
-.project-pane {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  max-width: 100%;
-  padding: 14px;
-  border-right: 1px solid var(--home-border);
-  background: color-mix(in srgb, var(--home-surface-2) 72%, var(--home-bg));
-}
-
-.pane-top,
-.group-card,
-.detail-header,
-.command-row,
-.panel-title {
+.topbar {
   display: flex;
   align-items: center;
-}
-
-.pane-top {
-  justify-content: space-between;
-  gap: 12px;
-  padding: 2px 2px 10px;
-}
-
-.pane-top div,
-.group-card div,
-.title-block {
   min-width: 0;
+  gap: var(--space-7);
+  padding: 0 var(--space-7);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .02), transparent);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--surface-highlight);
 }
 
-.pane-top strong,
-.group-card strong {
-  display: block;
-  color: var(--home-text-strong);
-  font-size: 14px;
+.brand {
+  font-size: 17px;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: var(--text);
 }
 
-.pane-top span,
-.group-card span {
-  display: block;
-  overflow: hidden;
-  color: var(--home-text-muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
+.summary {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.summary-count {
+  color: var(--text-secondary);
+  font-weight: var(--fw-medium);
   white-space: nowrap;
 }
 
-button,
-select {
-  border: 1px solid var(--home-border);
-  border-radius: 8px;
-  background: var(--home-surface-2);
-  color: var(--home-text);
-  font: inherit;
+.tabs {
+  display: flex;
+  gap: var(--space-2);
 }
 
-button {
-  min-height: 32px;
-  padding: 0 12px;
+.tab {
+  height: 28px;
+  padding: 0 var(--space-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
   cursor: pointer;
 }
 
-button:hover,
-select:hover {
-  border-color: color-mix(in srgb, var(--home-indigo) 48%, transparent);
+.tab.active {
+  background: var(--elevated);
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 
-.project-row {
+.top-actions {
+  margin-left: auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-shrink: 0;
+  gap: var(--space-4);
+}
+
+.workspace {
+  min-height: 0;
+  display: flex;
+}
+
+.project-list {
+  width: 300px;
+  min-width: 280px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .015), transparent), var(--surface);
+  box-shadow: var(--surface-highlight);
+  min-height: 0;
+}
+
+.search-wrap {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.search-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+
+.search {
   width: 100%;
-  min-height: 58px;
-  padding: 10px 12px;
+  height: 30px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--elevated-gradient);
+  color: var(--text);
+  padding: 0 var(--space-4);
+  font: inherit;
+  font-size: var(--fs-sm);
+  outline: none;
+  box-shadow: var(--surface-highlight);
+}
+
+.tree-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.group-section {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.section-title {
+  color: var(--text-subtle);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin: var(--space-2) var(--space-2) var(--space-3);
+}
+
+.tree-row,
+.group-row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   text-align: left;
+  cursor: pointer;
+}
+
+.project-row,
+.group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  margin: 1px 0;
+  padding: 2px var(--space-4) 2px 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.project-row:hover,
+.group-row:hover {
+  background: var(--elevated-gradient);
 }
 
 .project-row.active {
-  border-color: color-mix(in srgb, var(--home-indigo) 70%, transparent);
-  background: color-mix(in srgb, var(--home-indigo) 14%, var(--home-surface-2));
+  background: var(--elevated-gradient);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong), var(--surface-highlight);
+}
+
+.project-spacer {
+  width: 12px;
+  flex: 0 0 auto;
 }
 
 .project-main {
   min-width: 0;
-}
-
-.project-name,
-.project-meta {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: inherit;
+  font: inherit;
 }
 
 .project-name {
-  color: var(--home-text-strong);
-  font-size: 14px;
-  font-weight: 750;
-}
-
-.project-meta {
-  margin-top: 3px;
-  color: var(--home-text-muted);
-  font-size: 12px;
-}
-
-.status-dot {
-  width: 9px;
-  height: 9px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: #94a3b8;
-}
-
-.status-dot.running {
-  background: #22c55e;
-  box-shadow: 0 0 0 4px color-mix(in srgb, #22c55e 16%, transparent);
-}
-
-.status-dot.stopped {
-  background: #f59e0b;
-}
-
-.group-card {
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: auto;
-  padding: 12px;
-  border: 1px solid var(--home-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--home-cyan) 9%, var(--home-surface));
-}
-
-.detail-pane {
-  min-width: 0;
-  max-width: 100%;
-  padding: 18px;
-}
-
-.detail-header {
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.title-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.title-line h3 {
   overflow: hidden;
-  margin: 0;
-  color: var(--home-text-strong);
-  font-size: 22px;
-  font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.title-block p {
+.branch-pill {
+  max-width: 180px;
   overflow: hidden;
-  margin: 6px 0 0;
-  color: var(--home-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.type-pill,
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 750;
-  white-space: nowrap;
 }
 
 .type-pill {
-  border: 1px solid var(--home-border);
-  color: var(--home-text);
+  flex: 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  background: transparent;
+  padding: 1px 7px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }
 
-.status-pill.running {
-  background: color-mix(in srgb, #22c55e 16%, transparent);
-  color: #047857;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
 }
 
-.status-pill.stopped {
-  background: color-mix(in srgb, #f59e0b 16%, transparent);
-  color: #92400e;
+.status-dot.running {
+  background: var(--accent-strong);
+  animation: pulse-ring 2s ease-in-out infinite;
 }
 
-:global(.dark) .status-pill.running {
-  color: #86efac;
+.status-dot.stopped {
+  background: var(--text-subtle);
 }
 
-:global(.dark) .status-pill.stopped {
-  color: #fbbf24;
-}
-
-.run-button {
-  min-width: 86px;
-  border: 0;
-  background: linear-gradient(120deg, var(--home-indigo), var(--home-violet));
-  color: #fff;
-  font-weight: 800;
-}
-
-.command-row {
-  gap: 10px;
-  margin-top: 18px;
-  padding: 10px;
-  border: 1px solid var(--home-border);
-  border-radius: 10px;
-  background: var(--home-surface);
-}
-
-.command-row select {
-  min-width: 96px;
-  height: 34px;
-  padding: 0 9px;
-}
-
-.command-row code {
-  display: block;
-  min-width: 0;
+.detail {
   flex: 1;
-  overflow: hidden;
-  border-radius: 7px;
-  background: color-mix(in srgb, #020617 88%, var(--home-bg));
-  color: #c4f1ff;
-  font-size: 12px;
-  line-height: 34px;
-  padding: 0 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.workspace-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.65fr);
-  gap: 14px;
-  margin-top: 14px;
-}
-
-.console-panel,
-.files-panel {
   min-width: 0;
-  border: 1px solid var(--home-border);
-  border-radius: 10px;
-  background: var(--home-surface);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
 }
 
-.panel-title {
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 42px;
-  padding: 0 14px;
-  border-bottom: 1px solid var(--home-border);
-  color: var(--home-text-strong);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.panel-title span:last-child {
-  color: var(--home-text-muted);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-pre {
-  min-height: 300px;
-  margin: 0;
-  padding: 16px;
-  overflow: auto;
-  background: color-mix(in srgb, #020617 92%, var(--home-bg));
-  color: #d1fae5;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.9;
-}
-
-ul {
+.project-header {
   display: grid;
-  gap: 6px;
-  margin: 0;
-  padding: 12px;
-  list-style: none;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  align-items: start;
+  column-gap: var(--space-8);
+  row-gap: var(--space-3);
+  padding: var(--space-6) var(--space-8);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
 }
 
-li {
+.info {
+  min-width: 0;
+  max-width: 100%;
+  display: contents;
+}
+
+.title-line {
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: var(--space-4);
   min-width: 0;
-  min-height: 34px;
-  padding: 0 8px;
-  border-radius: 8px;
-  color: var(--home-text);
-  font-size: 12px;
 }
 
-li:hover {
-  background: color-mix(in srgb, var(--home-indigo) 10%, transparent);
-}
-
-li span:last-child {
+h1 {
+  max-width: min(560px, 100%);
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+  line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.file-icon {
-  width: 13px;
-  height: 16px;
-  flex: 0 0 auto;
-  border: 1px solid color-mix(in srgb, var(--home-cyan) 64%, transparent);
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--home-cyan) 14%, transparent);
+.path {
+  grid-column: 1 / -1;
+  max-width: 100%;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-@media (max-width: 900px) {
-  .launcher {
-    grid-template-columns: 1fr;
-  }
+.command-box {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: min(100%, 760px);
+  min-width: 0;
+  padding: var(--space-3) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--elevated-gradient);
+  box-shadow: var(--surface-highlight);
+}
 
-  .project-pane {
-    border-right: 0;
-    border-bottom: 1px solid var(--home-border);
-  }
+.cmd-label {
+  color: var(--text-subtle);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
+}
 
-  .workspace-grid {
-    grid-template-columns: 1fr;
+.command-picker {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.command-trigger {
+  height: 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--elevated-gradient);
+  color: var(--text);
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+
+.command-box code {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-edit {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.btns {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
+}
+
+.run-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: var(--space-3);
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--border);
+}
+
+.detail-tabs {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-8) 0;
+}
+
+.detail-tab-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.log-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--log-bg);
+  position: relative;
+}
+
+.log-wrap::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--log-hairline);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.banner {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-6);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--log-border);
+  box-shadow: var(--log-highlight);
+}
+
+.banner.running {
+  color: var(--log-banner-running);
+  background: var(--log-banner-running-bg);
+}
+
+.banner.stopped {
+  color: var(--log-banner-stopped);
+  background: var(--log-banner-stopped-bg);
+}
+
+.term-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.term-host {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: var(--space-7);
+  overflow: auto;
+  background: transparent;
+  color: var(--log-text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+@keyframes pulse-ring {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2.5px var(--success-soft),
+      0 0 6px var(--success-glow-a);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px var(--success-soft),
+      0 0 10px var(--success-glow-b);
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 980px) {
   .home-demo {
-    left: auto;
     width: calc(100vw - 48px);
-    max-width: calc(100vw - 48px);
-    margin-top: 24px;
+  }
+
+  .app-shell-demo {
+    grid-template-rows: auto minmax(0, 1fr);
+    height: auto;
+    min-height: 760px;
+  }
+
+  .topbar {
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+
+  .top-actions {
+    width: 100%;
     margin-left: 0;
-    margin-right: 0;
-    padding: 0;
+    overflow: auto;
   }
 
-  .demo-heading,
-  .detail-header,
-  .command-row {
-    align-items: stretch;
+  .workspace {
     flex-direction: column;
   }
 
-  .demo-heading h2 {
-    font-size: 24px;
-  }
-
-  .launcher {
+  .project-list {
     width: 100%;
-    min-height: 0;
-    border-radius: 12px;
+    min-width: 0;
+    max-height: 260px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 
-  .project-pane {
-    padding: 14px;
-  }
-
-  .group-card {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .group-card button {
-    width: 100%;
-  }
-
-  .detail-pane {
-    padding: 14px;
+  .project-header {
+    grid-template-columns: 1fr;
+    padding: var(--space-5);
   }
 
   .title-line {
+    align-items: flex-start;
+  }
+
+  .branch-pill {
+    max-width: 130px;
+  }
+
+  .btns {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+  }
+
+  .command-box {
     flex-wrap: wrap;
   }
 
-  .command-row code {
-    width: 100%;
-    flex: none;
-  }
-
-  pre {
-    min-height: 240px;
+  .command-box code {
+    flex-basis: 100%;
   }
 }
 </style>
