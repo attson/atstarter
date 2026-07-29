@@ -1,0 +1,100 @@
+{
+  "baseline_commit": "657139e1bcc5cd88ec789de9a4c1b884baeda897",
+  "last_verified": "2026-07-29",
+  "specs": {
+    "docs/specs/ARCHITECTURE.md": {
+      "watches": [
+        "app.go",
+        "updater.go",
+        "tray.go",
+        "main.go",
+        "internal/",
+        "frontend/src/"
+      ],
+      "keywords": [
+        "func (a *App)",
+        "EventsEmit",
+        "Config",
+        "wails",
+        "docker",
+        "filetree"
+      ]
+    },
+    "docs/specs/DOMAIN_MODEL.md": {
+      "watches": [
+        "internal/store/model.go",
+        "internal/runner/runner.go",
+        "internal/docker/docker.go",
+        "internal/filetree/filetree.go",
+        "app.go"
+      ],
+      "keywords": [
+        "Project",
+        "LaunchCommand",
+        "LaunchGroup",
+        "DefaultCommandID",
+        "IDForPath",
+        "Status",
+        "ContainerState",
+        "ComposeService"
+      ]
+    },
+    "docs/specs/RUNTIME_CONTRACTS.md": {
+      "watches": [
+        "internal/cmdparse/",
+        "internal/detector/",
+        "internal/scanner/",
+        "internal/store/",
+        "internal/runner/",
+        "internal/docker/",
+        "updater.go",
+        "app.go"
+      ],
+      "keywords": [
+        "Start",
+        "Stop",
+        "NormalizeProjectCommands",
+        "buildCmd",
+        "killTree",
+        "Compose",
+        "Update",
+        "EventsEmit"
+      ]
+    },
+    "docs/specs/FRONTEND_STYLE.md": {
+      "watches": [
+        "frontend/src/App.vue",
+        "frontend/src/components/",
+        "frontend/src/styles/",
+        "frontend/src/commandForms.js",
+        "frontend/src/envVars.js"
+      ],
+      "keywords": [
+        "ProjectDetail",
+        "EditProjectDialog",
+        "commandFormsForProject",
+        "envTextToMap",
+        "AppButton",
+        "theme",
+        "path"
+      ]
+    },
+    "docs/specs/FILE_BROWSER.md": {
+      "watches": [
+        "internal/filetree/",
+        "frontend/src/components/FileBrowser.vue",
+        "frontend/src/components/fileExplorer/",
+        "app.go"
+      ],
+      "keywords": [
+        "ResolveWithin",
+        "ReadFileBytes",
+        "WriteFileBytes",
+        "WatchProjectDir",
+        "TrashProjectPath",
+        "ProjectAssetURL",
+        "preview"
+      ]
+    }
+  }
+}
