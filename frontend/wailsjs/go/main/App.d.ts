@@ -80,6 +80,8 @@ export function SaveGroup(arg1:store.LaunchGroup):Promise<store.LaunchGroup>;
 
 export function ScanWorkspaces(arg1:Array<string>):Promise<Array<store.Project>>;
 
+export function SearchProjectFiles(arg1:string,arg2:string,arg3:number):Promise<filetree.SearchResults>;
+
 export function SetWorkspaces(arg1:Array<string>):Promise<void>;
 
 export function StartContainer(arg1:string):Promise<void>;

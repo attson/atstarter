@@ -305,6 +305,30 @@ export async function GetLogs(runId) {
   return clone(logs.get(runId))
 }
 
+export async function SearchProjectFiles(_projectId, query, limit = 100) {
+  const needle = String(query || '').trim().toLowerCase()
+  if (!needle) return { matches: [], truncated: false }
+  const paths = [
+    'cmd/',
+    'cmd/main.go',
+    'README.md',
+    'go.mod',
+    'internal/',
+    'internal/router.go',
+  ]
+  const matched = paths
+    .filter((path) => path.toLowerCase().includes(needle) || path.split('/').filter(Boolean).pop()?.toLowerCase().includes(needle))
+    .map((path) => ({
+      path,
+      name: path.split('/').filter(Boolean).pop() || path,
+      isDir: path.endsWith('/'),
+    }))
+  return {
+    matches: clone(matched.slice(0, limit)),
+    truncated: matched.length > limit,
+  }
+}
+
 export async function ClearLogs(runId) {
   logs.set(runId, [])
 }

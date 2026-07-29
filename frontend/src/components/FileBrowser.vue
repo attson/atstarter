@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { File, Folder, Search, X } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import FileTree from './fileExplorer/FileTree.vue'
 import FileEditor from './fileExplorer/FileEditor.vue'
@@ -21,6 +22,16 @@ const editorTheme = computed(() => (activeTheme.value === 'dark' ? 'dimmed' : 'l
 const selectedPath = ref('')       // 当前预览/编辑的文件 relPath
 const dirty = ref(false)           // 编辑器是否有未保存改动
 const fileEditorRef = ref(null)
+const searchQuery = ref('')
+const searchResults = ref([])
+const searchLoading = ref(false)
+const searchError = ref('')
+const searchTruncated = ref(false)
+let searchTimer = null
+let searchGeneration = 0
+
+const trimmedSearchQuery = computed(() => searchQuery.value.trim())
+const searching = computed(() => trimmedSearchQuery.value.length > 0)
 
 // 行号显隐:默认隐藏,右键预览区可开关;偏好持久化。
 const showLineNumbers = ref(localStorage.getItem('fileBrowser.lineNumbers') === '1')
@@ -37,6 +48,64 @@ function toggleTree() {
 function onSelect(path) {
   if (!path) return
   selectedPath.value = path
+}
+
+function clearSearch() {
+  searchQuery.value = ''
+  searchResults.value = []
+  searchError.value = ''
+  searchTruncated.value = false
+  searchLoading.value = false
+}
+
+function onSearchResultClick(result) {
+  if (!result || result.isDir) return
+  selectedPath.value = result.path
+}
+
+function resetSearchResults() {
+  searchResults.value = []
+  searchError.value = ''
+  searchTruncated.value = false
+  searchLoading.value = false
+}
+
+function scheduleSearch() {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+    searchTimer = null
+  }
+  const query = trimmedSearchQuery.value
+  const bridge = fs.value
+  const request = ++searchGeneration
+  if (!query) {
+    resetSearchResults()
+    return
+  }
+  searchLoading.value = true
+  searchError.value = ''
+  searchTimer = setTimeout(() => {
+    void runSearch(bridge, query, request)
+  }, 160)
+}
+
+async function runSearch(bridge, query, request) {
+  try {
+    const result = await bridge.searchPaths(query, 100)
+    if (request !== searchGeneration || fs.value !== bridge || trimmedSearchQuery.value !== query) return
+    searchResults.value = result.matches || []
+    searchTruncated.value = !!result.truncated
+    searchError.value = ''
+  } catch (err) {
+    if (request !== searchGeneration || fs.value !== bridge || trimmedSearchQuery.value !== query) return
+    searchResults.value = []
+    searchTruncated.value = false
+    searchError.value = err?.message || '搜索失败'
+  } finally {
+    if (request === searchGeneration && fs.value === bridge && trimmedSearchQuery.value === query) {
+      searchLoading.value = false
+    }
+  }
 }
 
 function onDirtyChange(v) { dirty.value = v }
@@ -74,6 +143,7 @@ function syncActiveTheme() {
 }
 
 watch(resolvedTheme, syncActiveTheme)
+watch(() => [trimmedSearchQuery.value, fs.value], scheduleSearch)
 
 onMounted(() => {
   syncActiveTheme()
@@ -82,6 +152,8 @@ onMounted(() => {
   window.addEventListener('keydown', onKeydown)
 })
 onBeforeUnmount(() => {
+  searchGeneration++
+  if (searchTimer) clearTimeout(searchTimer)
   if (themeObserver) themeObserver.disconnect()
   window.removeEventListener('keydown', onKeydown)
 })
@@ -93,10 +165,51 @@ onBeforeUnmount(() => {
     <button v-if="treeCollapsed" class="tree-expand-strip" title="展开文件树" @click="toggleTree">›</button>
     <div v-show="!treeCollapsed" class="tree-col">
       <div class="tree-head">
-        <span class="tree-title">文件</span>
-        <button class="icon-btn" title="收起文件树" @click="toggleTree">‹</button>
+        <div class="tree-title-row">
+          <span class="tree-title">文件</span>
+          <button class="icon-btn" title="收起文件树" @click="toggleTree">‹</button>
+        </div>
+        <label class="search-box">
+          <Search :size="13" :stroke-width="1.8" />
+          <input
+            v-model="searchQuery"
+            data-test="file-search-input"
+            type="search"
+            placeholder="搜索文件名"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button v-if="searchQuery" class="search-clear" title="清空搜索" type="button" @click="clearSearch">
+            <X :size="13" :stroke-width="1.8" />
+          </button>
+        </label>
+      </div>
+      <div v-if="searching" class="search-results" data-test="file-search-results">
+        <div v-if="searchLoading" class="search-state">搜索中...</div>
+        <div v-else-if="searchError" class="search-state search-error">{{ searchError }}</div>
+        <div v-else-if="!searchResults.length" class="search-state">
+          {{ searchTruncated ? '搜索达到上限,请缩小关键词。' : '没有匹配文件。' }}
+        </div>
+        <template v-else>
+          <button
+            v-for="result in searchResults"
+            :key="result.path"
+            class="search-result"
+            :class="{ selected: selectedPath === result.path, disabled: result.isDir }"
+            type="button"
+            :title="result.path"
+            @click="onSearchResultClick(result)"
+          >
+            <Folder v-if="result.isDir" :size="14" :stroke-width="1.6" />
+            <File v-else :size="14" :stroke-width="1.6" />
+            <span class="result-name">{{ result.name }}</span>
+            <span class="result-path">{{ result.path }}</span>
+          </button>
+          <div v-if="searchTruncated" class="search-state">结果较多,已显示前 100 项。</div>
+        </template>
       </div>
       <FileTree
+        v-else
         class="tree-mount"
         :fs="fs"
         root=""
@@ -138,10 +251,27 @@ onBeforeUnmount(() => {
 .file-browser.tree-collapsed { grid-template-columns: 24px 1fr; }
 .tree-col { overflow: hidden; border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .tree-mount { flex: 1; min-height: 0; overflow: auto; }
-.tree-head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); }
+.tree-head { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-2); border-bottom: 1px solid var(--border); }
+.tree-title-row { display: flex; align-items: center; justify-content: space-between; min-height: 22px; }
 .tree-title { font-size: var(--fs-sm); color: var(--text-muted); }
 .icon-btn { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 3px; }
 .icon-btn:hover { background: var(--surface-hover, rgba(127,127,127,.15)); color: var(--text); }
+.search-box { display: flex; align-items: center; gap: var(--space-2); min-height: 26px; padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--elevated); color: var(--text-muted); }
+.search-box input { flex: 1; min-width: 0; border: 0; outline: 0; padding: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-sm); }
+.search-box input::placeholder { color: var(--text-subtle); }
+.search-clear { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 3px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.search-clear:hover { background: var(--surface-hover, rgba(127,127,127,.15)); color: var(--text); }
+.search-results { flex: 1; min-height: 0; overflow: auto; padding: var(--space-1); }
+.search-state { padding: var(--space-2); color: var(--text-muted); font-size: var(--fs-sm); }
+.search-error { color: var(--danger); }
+.search-result { display: grid; grid-template-columns: 18px minmax(0, 1fr); grid-template-areas: "icon name" "icon path"; align-items: center; column-gap: var(--space-2); width: 100%; min-height: 34px; padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); cursor: pointer; text-align: left; }
+.search-result svg { grid-area: icon; color: var(--text-muted); }
+.search-result:hover { background: var(--surface-hover, rgba(127,127,127,.15)); }
+.search-result.selected { background: var(--success-soft); }
+.search-result.disabled { cursor: default; }
+.search-result.disabled:hover { background: transparent; }
+.result-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+.result-path { grid-area: path; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--fs-xs); }
 .tree-expand-strip { border: none; border-right: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 16px; writing-mode: vertical-rl; padding: var(--space-2) 0; }
 .tree-expand-strip:hover { background: var(--surface-hover, rgba(127,127,127,.15)); color: var(--text); }
 .preview-col { display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }

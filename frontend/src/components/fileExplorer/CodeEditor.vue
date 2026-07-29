@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { history, defaultKeymap, historyKeymap } from "@codemirror/commands";
+import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { languageForPath } from "./languageMap";
 import { highlightExtensionFor } from "./highlight";
 import type { FileSystemBridge } from "./fsBridge";
@@ -164,8 +165,10 @@ async function load() {
     const exts: Extension[] = [
       makeThemeExt(theme),
       highlightExtensionFor(theme),
+      search(),
+      highlightSelectionMatches(),
       history(),
-      keymap.of([...defaultKeymap, ...historyKeymap]),
+      keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       saveKey,
       dirtyListener,
     ];

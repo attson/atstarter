@@ -22,6 +22,19 @@ type Entry struct {
 	Size  int64  `json:"size"` // 文件字节数;目录为 0
 }
 
+// SearchMatch 是项目文件名搜索的一条结果。
+type SearchMatch struct {
+	Path  string `json:"path"`
+	Name  string `json:"name"`
+	IsDir bool   `json:"isDir"`
+}
+
+// SearchResults 是项目文件名搜索结果集。
+type SearchResults struct {
+	Matches   []SearchMatch `json:"matches"`
+	Truncated bool          `json:"truncated"`
+}
+
 // resolve 把 relPath 安全解析到 root 之内的绝对路径。
 // 越出 root 返回错误。
 // 注意:guard 是纯词法的,不解析符号链接;指向 root 外的软链不会被拦截(对本地项目浏览器可接受)。
@@ -119,6 +132,97 @@ func walkPaths(root string, limit int) (paths []string, truncated bool, err erro
 		return nil, false, walkErr
 	}
 	return paths, truncated, nil
+}
+
+const defaultSearchLimit = 100
+const maxSearchVisitedEntries = 50000
+
+var searchSkipDirs = map[string]bool{
+	".git":            true,
+	"node_modules":    true,
+	"vendor":          true,
+	"dist":            true,
+	"build":           true,
+	"target":          true,
+	".next":           true,
+	".nuxt":           true,
+	".vite":           true,
+	".scannerwork":    true,
+	".review-tmp":     true,
+	".review-reports": true,
+}
+
+// SearchPaths searches project-relative file and directory names under root.
+// It matches case-insensitively against both basename and slash-separated
+// relative path. Directory results carry a trailing "/" to match WalkPaths.
+func SearchPaths(root, query string, limit int) (matches []SearchMatch, truncated bool, err error) {
+	return searchPaths(root, query, limit, maxSearchVisitedEntries)
+}
+
+func searchPaths(root, query string, limit int, visitLimit int) (matches []SearchMatch, truncated bool, err error) {
+	query = strings.TrimSpace(strings.ToLower(query))
+	if query == "" {
+		return nil, false, nil
+	}
+	if limit <= 0 || limit > defaultSearchLimit {
+		limit = defaultSearchLimit
+	}
+	if visitLimit <= 0 {
+		visitLimit = maxSearchVisitedEntries
+	}
+
+	rootClean := filepath.Clean(root)
+	visited := 0
+	walkErr := filepath.WalkDir(rootClean, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if p == rootClean {
+			return nil
+		}
+		name := d.Name()
+		if d.IsDir() && searchSkipDirs[strings.ToLower(name)] {
+			return filepath.SkipDir
+		}
+		if visited >= visitLimit {
+			truncated = true
+			return filepath.SkipAll
+		}
+		visited++
+		rel, err := filepath.Rel(rootClean, p)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		isDir := d.IsDir()
+		if isDir {
+			rel += "/"
+		}
+		lowerName := strings.ToLower(name)
+		lowerPath := strings.ToLower(rel)
+		if !strings.Contains(lowerName, query) && !strings.Contains(lowerPath, query) {
+			return nil
+		}
+		if len(matches) >= limit {
+			truncated = true
+			return filepath.SkipAll
+		}
+		matches = append(matches, SearchMatch{Path: rel, Name: name, IsDir: isDir})
+		return nil
+	})
+	if walkErr != nil {
+		return nil, false, walkErr
+	}
+	return matches, truncated, nil
+}
+
+// Search returns file-name search results in a Wails-friendly envelope.
+func Search(root, query string, limit int) (SearchResults, error) {
+	matches, truncated, err := SearchPaths(root, query, limit)
+	if err != nil {
+		return SearchResults{}, err
+	}
+	return SearchResults{Matches: matches, Truncated: truncated}, nil
 }
 
 // maxReadBytes 是预览读取上限。超过则截断。
