@@ -50,7 +50,7 @@ envMapToText(env)
 
 ### 3.1 Theme Token Pattern
 
-Applicable to all styled components.
+Applicable to all styled components and to the embedded site demo.
 
 1. Define shared values in `frontend/src/styles/tokens.css`.
 2. Override semantic theme variables in `theme.light.css` and `theme.dark.css`.
@@ -58,6 +58,9 @@ Applicable to all styled components.
 4. Use `lucide-vue-next` icons inside controls when an icon exists.
 
 Reference implementation: `frontend/src/styles/*`, `components/ui/*`.
+
+The VitePress home demo imports the same tokens and theme files. Its page-level `html[data-theme]`
+bridge is specified in `SITE.md`; frontend components should not special-case VitePress.
 
 ### 3.2 Project Detail Header Pattern
 
@@ -128,6 +131,7 @@ Reference implementation: `frontend/src/commandForms.js`, `frontend/src/envVars.
 - [ ] If adding a Wails method, regenerate bindings and update imports.
 - [ ] If adding a new route/view, ensure Projects/Containers shell behavior stays predictable.
 - [ ] If adding file preview/edit UI, follow `FILE_BROWSER.md`.
+- [ ] If the change affects the public home demo, follow `SITE.md`.
 
 ### Verification
 
