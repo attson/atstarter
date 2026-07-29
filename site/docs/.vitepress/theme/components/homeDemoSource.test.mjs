@@ -4,6 +4,7 @@ import test from 'node:test'
 
 const source = fs.readFileSync(new URL('./HomeDemo.vue', import.meta.url), 'utf8')
 const configSource = fs.readFileSync(new URL('../../config.mjs', import.meta.url), 'utf8')
+const customCss = fs.readFileSync(new URL('../custom.css', import.meta.url), 'utf8')
 const pagesWorkflowSource = fs.readFileSync(new URL('../../../../../.github/workflows/pages.yml', import.meta.url), 'utf8')
 
 test('home demo does not render explanatory heading copy', () => {
@@ -37,6 +38,24 @@ test('vitepress aliases Wails bindings to site mock modules for the real app dem
   assert.match(configSource, /wailsjs\\\/runtime\\\/runtime/)
   assert.match(configSource, /mockWailsApp\.mjs/)
   assert.match(configSource, /mockWailsRuntime\.mjs/)
+})
+
+test('vitepress uses the product icon for the published site tab', () => {
+  assert.match(configSource, /head:\s*\[/)
+  assert.match(configSource, /rel:\s*['"]icon/)
+  assert.match(configSource, /href:\s*['"]\/atstarter\/atstarter-icon\.svg/)
+})
+
+test('hero action button text remains visible over the custom brand gradient', () => {
+  assert.match(customCss, /\.VPHome\s+\.VPHero\s+\.actions\s+\.VPButton\.brand\s+\.text/)
+  assert.match(customCss, /-webkit-text-fill-color:\s*#fff/)
+  assert.match(customCss, /\.VPHome\s+\.VPHero\s+\.actions\s+\.VPButton\.brand\s*\{[\s\S]*?-webkit-text-fill-color:\s*#fff/)
+})
+
+test('vitepress dedupes CodeMirror packages used by the embedded frontend file editor', () => {
+  assert.match(configSource, /dedupe:\s*\[[\s\S]*?@codemirror\/state/)
+  assert.match(configSource, /find:\s*\/\^@codemirror\\\//)
+  assert.match(configSource, /frontend\/node_modules\/@codemirror/)
 })
 
 test('pages build installs frontend dependencies used by the real app demo', () => {

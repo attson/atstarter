@@ -8,8 +8,18 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'AT Starter',
   description: '本地项目快速启动器(Wails v2 + Vue3 桌面 App)',
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/atstarter/atstarter-icon.svg' }],
+  ],
   vite: {
     resolve: {
+      dedupe: [
+        '@codemirror/state',
+        '@codemirror/view',
+        '@codemirror/language',
+        '@codemirror/commands',
+        '@codemirror/search',
+      ],
       alias: [{
         // HomeDemo imports Vue SFCs from ../frontend. In Pages CI only site/
         // dependencies are installed, so bare `vue` imports from those SFCs
@@ -19,6 +29,9 @@ export default defineConfig({
       }, {
         find: /^vue\/server-renderer$/,
         replacement: fileURLToPath(new URL('../../node_modules/vue/server-renderer/index.mjs', import.meta.url)),
+      }, {
+        find: /^@codemirror\/(.+)$/,
+        replacement: fileURLToPath(new URL('../../../frontend/node_modules/@codemirror/$1', import.meta.url)),
       }, {
         find: /^.*wailsjs\/go\/main\/App$/,
         replacement: fileURLToPath(new URL('./theme/components/mockWailsApp.mjs', import.meta.url)),

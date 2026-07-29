@@ -15,6 +15,7 @@ const { resolvedTheme } = useTheme()
 
 const termHost = ref(null)
 const empty = ref(true)
+const activeTheme = ref(resolvedTheme.value)
 
 const banner = computed(() => {
   const st = props.status || {}
@@ -34,14 +35,25 @@ const banner = computed(() => {
 let term = null
 let fitAddon = null
 let resizeObserver = null
+let themeObserver = null
 let currentEvent = ''
 let loadToken = 0
+
+function documentTheme() {
+  if (typeof document === 'undefined') return resolvedTheme.value
+  const value = document.documentElement.getAttribute('data-theme')
+  return value === 'dark' || value === 'light' ? value : resolvedTheme.value
+}
+
+function syncActiveTheme() {
+  activeTheme.value = documentTheme()
+}
 
 // xterm 主题只吃纯色。从当前 data-theme 对应的 CSS 变量取色,主题切换时重设。
 function readThemeColors() {
   const cs = getComputedStyle(document.documentElement)
   const pick = (name, fallback) => (cs.getPropertyValue(name).trim() || fallback)
-  const dark = resolvedTheme.value === 'dark'
+  const dark = activeTheme.value === 'dark'
   return {
     background: dark ? '#05060a' : '#f7f7f6',
     foreground: pick('--log-text', dark ? '#d1d5db' : '#27272a'),
@@ -152,10 +164,18 @@ watch(() => props.projectId, async (id) => {
 })
 
 watch(resolvedTheme, () => {
+  syncActiveTheme()
+})
+
+watch(activeTheme, () => {
   if (term) term.options.theme = readThemeColors()
 })
 
 onMounted(() => {
+  syncActiveTheme()
+  themeObserver = new MutationObserver(syncActiveTheme)
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+
   term = new Terminal({
     scrollback: SCROLLBACK,
     convertEol: true,
@@ -186,6 +206,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (currentEvent) EventsOff(currentEvent)
   if (resizeObserver) resizeObserver.disconnect()
+  if (themeObserver) themeObserver.disconnect()
   window.removeEventListener('pointerdown', onGlobalPointer, true)
   window.removeEventListener('keydown', onKeydown)
   if (toastTimer) clearTimeout(toastTimer)
