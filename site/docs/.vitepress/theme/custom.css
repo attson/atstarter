@@ -71,6 +71,19 @@ body.home-page {
   overflow-x: hidden;
 }
 
+/* 文档页需要显式使用 VitePress 背景。站点同时导入了桌面 App 的主题 CSS,
+   滚动到底部时如果 VPDoc 内容高度不足,会露出 app 的 body 背景色。 */
+body:not(.home-page),
+body:not(.home-page) .Layout,
+body:not(.home-page) .VPContent,
+body:not(.home-page) .VPDoc {
+  background: var(--vp-c-bg);
+}
+
+body:not(.home-page) .VPDoc {
+  min-height: calc(100vh - var(--vp-nav-height));
+}
+
 /* ---------------- Hero 区主题适配 ---------------- */
 /* 大标题:靛蓝 → 紫 → 青 渐变文字,高字重、负字距 */
 .VPHome .VPHero .name {

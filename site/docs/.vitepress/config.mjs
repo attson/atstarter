@@ -45,6 +45,7 @@ export default defineConfig({
     nav: [
       { text: '首页', link: '/' },
       { text: '使用文档', link: '/guide/' },
+      { text: 'AI/CLI', link: '/guide/ai-cli' },
       { text: 'FAQ', link: '/guide/faq' },
       { text: '下载', link: 'https://github.com/attson/atstarter/releases/latest' },
     ],
@@ -54,6 +55,7 @@ export default defineConfig({
           text: '使用文档',
           items: [
             { text: '介绍与使用', link: '/guide/' },
+            { text: 'AI / CLI 控制', link: '/guide/ai-cli' },
             { text: 'FAQ / 故障排查', link: '/guide/faq' },
           ],
         },

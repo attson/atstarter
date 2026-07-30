@@ -14,6 +14,26 @@ AT Starter 的子进程经用户登录交互式 shell(`$SHELL -l -i -c`)启动,�
 
 需本机安装 Docker 且 daemon 正在运行。不可用时面板会给出原因并支持重试。
 
+## CLI 提示 `app_not_running`
+
+CLI/MCP 调用的是桌面 App 内的本地控制服务。先启动桌面 App,或直接执行:
+
+```bash
+atstarter cli app start --wait
+```
+
+如果使用的是开发配置或自定义配置,同时传入 `ATSTARTER_CONFIG` 或 `--config`。
+
+## MCP 工具没有出现
+
+确认 `atstarter` 二进制在 PATH 中,并重新安装本地插件:
+
+```bash
+codex plugin add atstarter-control@personal
+```
+
+重新安装后开新线程。Codex 需要新会话才能加载更新后的 skill 和 MCP 工具。
+
 ## 自更新下载卡在 0%
 
 内置下载加速镜像(ghfast.top / gh-proxy.com / ghproxy.net),会逐个尝试并自动回退到

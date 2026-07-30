@@ -2,6 +2,7 @@
 
 AT Starter 是本地项目快速启动器(Wails v2 + Vue3 桌面 App)。读取本地目录代码,
 自动识别项目类型并建议启动命令,一处托管启动/停止多个项目并查看实时日志。
+脚本或 AI agent 也可以通过 `atstarter cli` / `atstarter mcp` 调用同一套桌面运行态。
 
 支持自定义每个项目的多套启动命令,包括命令行、工作目录和环境变量。例如:
 `~/sdk/go1.24.13/bin/go run main.go serve`。
@@ -27,3 +28,6 @@ Python(Django / poetry / main.py)。compose 项目可切回普通命令模式,�
 6. **Docker**:含 compose 文件的目录会识别为 compose 项目,在详情里整体 Up/Down 或
    单独启停某个 service。切到顶部「Containers」标签管理宿主机上的独立容器
    (需本机装 Docker 且 daemon 运行;不可用时面板会提示原因)。
+7. **AI / CLI**:需要给 AI 或脚本使用时,先执行 `atstarter cli app start --wait`,
+   再用 `atstarter cli scan ~/GolandProjects --add`、`atstarter cli project start ...`
+   或 `atstarter mcp`。完整说明见 [AI / CLI 控制](./ai-cli.md)。
