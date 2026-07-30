@@ -98,10 +98,7 @@ func (r *Runner) Start(spec Spec) error {
 	if spec.Dir != "" {
 		cmd.Dir = spec.Dir
 	}
-	cmd.Env = os.Environ()
-	for k, v := range spec.Env {
-		cmd.Env = append(cmd.Env, k+"="+v)
-	}
+	cmd.Env = buildEnv(spec.Env)
 	setupProcAttr(cmd)
 
 	stdout, err := cmd.StdoutPipe()
@@ -134,6 +131,22 @@ func (r *Runner) Start(spec Spec) error {
 	go r.pump(spec.ID, m, stderr, "stderr")
 	go r.wait(spec.ID, m)
 	return nil
+}
+
+func buildEnv(overrides map[string]string) []string {
+	env := os.Environ()
+	for k, v := range expandedEnvOverrides(overrides) {
+		env = append(env, k+"="+v)
+	}
+	return env
+}
+
+func expandedEnvOverrides(overrides map[string]string) map[string]string {
+	expanded := make(map[string]string, len(overrides))
+	for k, v := range overrides {
+		expanded[k] = os.Expand(v, os.Getenv)
+	}
+	return expanded
 }
 
 // pump 逐行读取一个流,写入环形缓冲并 emit。

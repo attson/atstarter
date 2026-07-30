@@ -5,6 +5,7 @@ package runner
 import (
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -92,6 +93,49 @@ func shellJoin(command string, args []string) string {
 	return strings.Join(parts, " ")
 }
 
+func shellLine(spec Spec) string {
+	line := shellJoin(spec.Command, spec.Args)
+	exports := shellExports(expandedEnvOverrides(spec.Env))
+	if exports == "" {
+		return line
+	}
+	return exports + "; " + line
+}
+
+func shellExports(env map[string]string) string {
+	if len(env) == 0 {
+		return ""
+	}
+	assignments := make([]string, 0, len(env))
+	for k, v := range env {
+		if !isShellEnvName(k) {
+			continue
+		}
+		assignments = append(assignments, shellQuote(k+"="+v))
+	}
+	if len(assignments) == 0 {
+		return ""
+	}
+	sort.Strings(assignments)
+	return "export " + strings.Join(assignments, " ")
+}
+
+func isShellEnvName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		if r == '_' || r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' {
+			continue
+		}
+		if i > 0 && r >= '0' && r <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 // userShell 返回用户登录 shell($SHELL),为空则回退 /bin/sh。
 func userShell() string {
 	if sh := os.Getenv("SHELL"); sh != "" {
@@ -104,7 +148,7 @@ func userShell() string {
 // (pnpm / nvm / go 等)。-l 加载 login rc,-i 加载交互 rc(PATH 通常在这),
 // -c 执行拼好的命令行。
 func buildCmd(spec Spec) *exec.Cmd {
-	line := shellJoin(spec.Command, spec.Args)
+	line := shellLine(spec)
 	return exec.Command(userShell(), "-l", "-i", "-c", line)
 }
 

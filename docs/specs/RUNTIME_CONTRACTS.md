@@ -70,9 +70,14 @@ Applicable to all project commands and log follow commands.
 
 1. Build `runner.Spec` with stable run ID.
 2. On Unix, wrap command with `$SHELL -l -i -c` and shell-quote each token after `~` expansion.
-3. Set process attributes so Stop can clean process descendants.
-4. Start stdout/stderr pumps before wait.
-5. Emit status/log callbacks outside the runner lock.
+3. Build process env from `os.Environ()` plus command env overrides; expand override values with
+   process env first so values like `PATH=/custom/bin:$PATH` work without executing shell syntax.
+4. On Unix, re-apply valid shell variable env overrides inside the `-c` line after shell startup,
+   so login/interactive rc files and version managers cannot prepend older tools ahead of a
+   command-specific `PATH`.
+5. Set process attributes so Stop can clean process descendants.
+6. Start stdout/stderr pumps before wait.
+7. Emit status/log callbacks outside the runner lock.
 
 Reference implementation: `internal/runner/runner.go`, `internal/runner/process_unix.go`.
 
