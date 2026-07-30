@@ -29,9 +29,11 @@ type App struct {
 	runner             *runner.Runner
 	updater            *updater
 	docker             *docker.Client
+	configPath         string
 	dockerStop         chan struct{}
 	lastDockerSnapshot string // 上次快照的序列化,用于 diff
 	watcher            *filetree.Watcher
+	control            *controlServer
 }
 
 type CommandInput struct {
@@ -58,15 +60,19 @@ func NewApp() *App {
 // NewAppWithConfig 用指定配置路径构造(测试用)。
 func NewAppWithConfig(cfgPath string) *App {
 	return &App{
-		store:   store.New(cfgPath),
-		runner:  runner.New(5000),
-		updater: newUpdater(),
-		docker:  docker.New(),
+		store:      store.New(cfgPath),
+		runner:     runner.New(5000),
+		updater:    newUpdater(),
+		docker:     docker.New(),
+		configPath: cfgPath,
 	}
 }
 
 // defaultConfigPath 返回配置文件路径。dev 构建使用项目目录下的 .dev 隔离本地数据。
 func defaultConfigPath() string {
+	if override := os.Getenv("ATSTARTER_CONFIG"); override != "" {
+		return override
+	}
 	if Version == "dev" {
 		dir, err := os.Getwd()
 		if err != nil {
@@ -96,6 +102,9 @@ func (a *App) startup(ctx context.Context) {
 		updateTrayRunning(a.runner.RunningCount())
 	})
 	a.startDockerPoll()
+	if srv, err := startControlServer(a, controlStatePath(a.configPath)); err == nil {
+		a.control = srv
+	}
 	if w, err := filetree.NewWatcher(); err == nil {
 		a.watcher = w
 		w.OnChange(func(relDir string) {
@@ -109,6 +118,9 @@ func (a *App) startup(ctx context.Context) {
 
 // shutdown 由 Wails 在退出时调用,停掉所有进程。
 func (a *App) shutdown(ctx context.Context) {
+	if a.control != nil {
+		a.control.Close()
+	}
 	if a.dockerStop != nil {
 		close(a.dockerStop)
 	}
@@ -499,6 +511,60 @@ func (a *App) UpdateProjectCommands(id, name string, inputs []CommandInput) (sto
 			}
 			return p, nil
 		}
+	}
+	return store.Project{}, errors.New("project not found: " + id)
+}
+
+func (a *App) switchProjectDetectionType(id, detectedType string) (store.Project, error) {
+	if strings.TrimSpace(detectedType) == "" {
+		return store.Project{}, errors.New("detected type is required")
+	}
+	cfg, err := a.store.Load()
+	if err != nil {
+		return store.Project{}, err
+	}
+	for _, p := range cfg.Projects {
+		if p.ID != id {
+			continue
+		}
+		p = scanner.AddDetectionOptions(p)
+		var option store.DetectionOption
+		found := false
+		for _, opt := range p.DetectionOptions {
+			if opt.Type == detectedType {
+				option = opt
+				found = true
+				break
+			}
+		}
+		if !found && p.DetectedType == detectedType {
+			return p, nil
+		}
+		if !found {
+			return store.Project{}, errors.New("detection type not available: " + detectedType)
+		}
+		p.DetectedType = option.Type
+		p.Command = option.Command
+		p.Args = option.Args
+		p.AutoDetected = false
+		if option.Type == "compose" || option.Command == "" {
+			p.Commands = nil
+		} else {
+			p.Commands = []store.LaunchCommand{{
+				ID:        store.DefaultCommandID,
+				Name:      "Default",
+				Command:   option.Command,
+				Args:      option.Args,
+				Cwd:       p.Cwd,
+				Env:       p.Env,
+				IsDefault: true,
+			}}
+		}
+		p = store.NormalizeProjectCommands(p)
+		if err := a.store.Update(p); err != nil {
+			return store.Project{}, err
+		}
+		return p, nil
 	}
 	return store.Project{}, errors.New("project not found: " + id)
 }

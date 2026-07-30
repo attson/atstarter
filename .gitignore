@@ -8,6 +8,7 @@ frontend/package.json.md5
 .playwright-mcp/
 *-verify.png
 .dev
+.dev.control.json
 
 # === AI workflow temporary artifacts ===
 .workflow-plan/

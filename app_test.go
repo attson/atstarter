@@ -100,6 +100,15 @@ func TestNewAppUsesDevConfigInWorkingDirectory(t *testing.T) {
 	}
 }
 
+func TestDefaultConfigPathHonorsEnvOverride(t *testing.T) {
+	want := filepath.Join(t.TempDir(), "custom.json")
+	t.Setenv("ATSTARTER_CONFIG", want)
+
+	if got := defaultConfigPath(); got != want {
+		t.Fatalf("defaultConfigPath = %q, want %q", got, want)
+	}
+}
+
 func TestNewAppUsesUserConfigOutsideDev(t *testing.T) {
 	oldVersion := Version
 	Version = "v1.2.3"

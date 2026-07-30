@@ -15,6 +15,7 @@ atstarter 是一个本地项目快速启动器:扫描工作区、识别项目类
 - **Docker 管理**:compose 项目融入项目树,支持整体与 service 级 Up/Stop/Restart/Down/logs;顶部 `Containers` 面板管理宿主机独立容器。
 - **文件浏览器**:项目详情内置「文件」Tab,支持目录树、代码高亮、Markdown/PDF/图片/媒体预览、文本编辑保存、创建/重命名/删除/移入废纸篓。
 - **系统托盘**:关闭窗口隐藏到托盘,托盘显示运行数,支持显示/隐藏、停全部、退出。
+- **AI/CLI 控制**:桌面 App 启动本地控制服务,`atstarter cli` 和 `atstarter mcp` 可直接管理项目、分组、Docker/compose 与日志。
 - **自更新**:检查 GitHub Release,下载产物后用 Ed25519 签名 + SHA256 校验再安装;内置国内下载镜像并回退原始 GitHub URL。
 - **明暗主题**:自写设计令牌与浅色/深色主题。
 - **官网演示**:VitePress 首页直接嵌入真实前端 App,通过合成 mock 数据展示可交互的项目启动器。
@@ -26,6 +27,21 @@ atstarter 是一个本地项目快速启动器:扫描工作区、识别项目类
 3. 在命令条点 `Edit` 修改项目名、命令名、命令行、工作目录和环境变量。工作目录默认填入项目路径,可直接编辑。
 4. 需要联动启动时,用 `Add Group` 把当前项目命令加入分组。
 5. 切到 `Files` 查看或编辑项目文件;切到顶部 `Containers` 管理独立 Docker 容器。
+
+AI 或脚本可使用 CLI:
+
+```bash
+atstarter cli app start --wait
+atstarter cli scan ~/GolandProjects --add
+atstarter cli project list
+atstarter cli project switch-type <project> --type go
+atstarter cli group create dev --item api:default
+atstarter cli project start <project> --command default
+atstarter cli project logs <project> --command default --tail 200
+atstarter mcp
+```
+
+CLI 输出固定为 JSON。详细命令和 MCP 工具见 [docs/ai/atstarter-cli.md](docs/ai/atstarter-cli.md)。
 
 ## 支持识别的项目类型
 
@@ -82,6 +98,9 @@ node --test docs/.vitepress/theme/components/homeDemoSource.test.mjs docs/.vitep
 ```text
 main.go                 Wails 入口 + frontend embed + ldflags
 app.go                  Wails 绑定层,导出 64 个 App 方法
+cli.go                  JSON CLI,通过桌面 App 本地控制服务操作运行态
+control_server.go       桌面 App 内的 localhost 控制服务
+mcp.go                  stdio MCP server,复用 CLI/控制协议
 tray.go                 系统托盘
 updater.go              自更新,另导出 5 个更新方法
 internal/
@@ -92,6 +111,7 @@ internal/
   runner/               子进程托管、日志、进程树清理
   docker/               docker/compose CLI 封装
   filetree/             项目文件浏览、预览、写入、监听
+  control/              控制服务状态文件与 RPC 客户端协议
 frontend/src/           Vue3 业务组件、UI 基础组件、主题系统
 ```
 
@@ -115,6 +135,8 @@ AI/贡献者硬约束见 [CLAUDE.md](CLAUDE.md)。`AGENTS.md` 仅作为跨工具
 - Windows: `%AppData%\atstarter\config.json`
 
 顶层结构:`{version, workspaces[], projects[], groups[]}`。写入采用临时文件 + rename 保证原子性。
+
+桌面 App 运行时还会写入相邻的 `<config>.control.json`,供 CLI/MCP 发现 localhost 控制服务。该文件只保存运行时 URL/token/PID/version,退出时删除,不会进入持久配置。
 
 ## 发布
 

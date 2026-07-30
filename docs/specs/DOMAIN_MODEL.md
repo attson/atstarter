@@ -23,6 +23,7 @@ targets and runtime processes while keeping Docker, files, logs, groups, and upd
 | Compose Service | `docker.ComposeService` | Runtime aggregate view of one docker compose service | `internal/docker/docker.go` |
 | Container State | `docker.ContainerState` | Runtime snapshot from `docker ps -a` | `internal/docker/docker.go` |
 | File Entry | `filetree.Entry` | Direct child item in a project directory | `internal/filetree/filetree.go` |
+| Control State | `control.State` | Runtime-only localhost control discovery for CLI/MCP | `internal/control/protocol.go` |
 
 ### Terminology Constraints
 
@@ -48,6 +49,7 @@ The core domain is project launch management: `Project`, `LaunchCommand`, `Launc
 | File Browser | Reads and mutates files under a project root | Does not alter launch semantics |
 | Updater | Manages application binary update state | Does not touch project config |
 | Tray | Displays runtime count and exit controls | Delegates process state to runner/app |
+| Local Control | Lets CLI/MCP call desktop runtime operations | Does not own business state |
 
 ### 3.3 Generic Domains
 
@@ -194,6 +196,7 @@ running -> error
 | `config.json.groups[]` | LaunchGroup | Batch start/stop definitions |
 | runner maps | Runtime Process | In-memory only |
 | docker CLI snapshots | ContainerState, ComposeService | Runtime only |
+| `<config>.control.json` | Control State | Runtime-only discovery, removed on shutdown |
 
 ## 7. Extension Registry
 

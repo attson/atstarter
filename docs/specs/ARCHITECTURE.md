@@ -28,6 +28,9 @@ Wails desktop process
     app.go        module assembly, Wails bindings, event bridge, 64 App methods
     updater.go    GitHub release update flow, 5 update methods
     tray.go       system tray and close-to-tray behavior
+    control_server.go  localhost-only control server for CLI/MCP
+    cli.go        JSON CLI client for the desktop control server
+    mcp.go        stdio MCP server wrapping the same control server
     internal/     pure and stateful subsystem packages
 
 public site: VitePress
@@ -51,7 +54,11 @@ directory. There is no server-side state.
 | `internal/runner` | Start/stop processes, capture logs, maintain status, clean process trees | Concurrent runtime |
 | `internal/docker` | Wrap docker/compose CLI, parse snapshots, aggregate service state | CLI facade, injectable exec |
 | `internal/filetree` | Project-scoped file listing, preview, edit, trash, watch | Filesystem state within root |
+| `internal/control` | Control state file and RPC client protocol for CLI/MCP | Runtime discovery, no business logic |
 | `app.go` | Compose modules and expose Wails methods/events | Binding layer only |
+| `control_server.go` | Expose selected App operations on localhost for CLI/MCP | Desktop process remains source of truth |
+| `cli.go` | Parse AI/script-friendly commands and print JSON envelopes | Client of control server |
+| `mcp.go` | Expose `atstarter_*` MCP tools over stdio | Wrapper around control client |
 | `updater.go` | Check/download/verify/install releases | Network and installer state |
 | `tray.go` | Tray menu, close-to-tray, running count, exit gate | Desktop integration |
 
@@ -86,6 +93,25 @@ $($GO env GOPATH)/bin/wails generate module
 Frontend imports generated bindings from `frontend/wailsjs/go/main/App` and runtime event helpers from
 `frontend/wailsjs/runtime/runtime`.
 
+## 4.1 Local Control Surface
+
+The desktop process starts a localhost-only control server during Wails startup and writes
+`<config path>.control.json` with URL, bearer token, PID, and version. `atstarter cli` and
+`atstarter mcp` read that file and call the desktop process. They must not create an independent
+runner, Docker poller, or store writer.
+
+The control surface exposes the same behavioral surface as the UI for workspace scanning, project
+addition, detection switching, launch commands, group management, Docker containers, compose
+services, and logs. CLI output is a JSON envelope:
+
+```json
+{"ok":true,"data":{}}
+{"ok":false,"error":{"code":"app_not_running","message":"atstarter desktop app is not running","hint":"run: atstarter cli app start --wait"}}
+```
+
+`atstarter cli app start --wait` may launch the desktop binary when no control server is reachable.
+All other commands require the desktop process to be running.
+
 ## 5. Runtime Events
 
 | Event | Payload | Producer | Consumer |
@@ -115,6 +141,10 @@ The config file shape is:
 
 All writes use temporary file plus rename. `store.NormalizeProjectCommands` keeps old config files
 compatible with the multi-command model.
+
+The adjacent `<config>.control.json` file is runtime-only discovery state. It is written with `0600`
+permissions by the desktop process and removed on shutdown. It must not be treated as persisted
+configuration.
 
 ## 7. Engineering Constraints
 

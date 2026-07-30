@@ -25,6 +25,12 @@ docker:state      []docker.ContainerState
 fs:dir-changed    string // changed relative directory
 ```
 
+```go
+// Local control discovery for CLI/MCP
+control.WriteState(<config>.control.json, {url, token, pid, version})
+control.Client.Call(method, params, out)
+```
+
 ### Interface Constraints
 
 - Detector suggestions are defaults, not hidden rules. Users can override command, args, cwd, env, and
@@ -32,6 +38,8 @@ fs:dir-changed    string // changed relative directory
 - Store normalization must keep legacy single-command configs readable and writable.
 - Wails bindings are the only frontend/backend API. Do not make frontend code depend on local files
   outside Wails methods.
+- CLI and MCP must call the desktop control server. They must not instantiate their own long-lived
+  runner, Docker poller, or store mutation path.
 
 ## 2. Dispatch Rules
 
@@ -44,6 +52,7 @@ fs:dir-changed    string // changed relative directory
 | Run ID container logs | `container:<containerID>` | Runner-managed `docker logs -f` |
 | Run ID compose logs | `compose:<projectID>[:<service>]` | Runner-managed `docker compose logs -f` |
 | Compose lifecycle | docker CLI detached commands | Not persisted as runner processes |
+| Control state path | `<config path>.control.json` | Runtime-only CLI/MCP discovery file |
 
 ### Dispatch Constraints
 
@@ -51,6 +60,10 @@ fs:dir-changed    string // changed relative directory
 - `StartProjectCommand` and `StopProjectCommand` target explicit command IDs.
 - `StartGroup` and `StopGroup` operate on stored `GroupItem{projectId,commandId}` references.
 - Compose services are resolved from docker at runtime and must not be serialized into groups.
+- Control RPC project, command, and group targets may accept IDs or names, but ambiguous name matches
+  must fail and ask for an ID.
+- Control RPC scan/add/switch/group-management methods must delegate to `App`/`store` helpers that
+  already normalize projects, commands, detection options, and group item command IDs.
 
 ## 3. Implementation Patterns
 
@@ -116,6 +129,25 @@ Applicable to release checks and installs.
 
 Reference implementation: `updater.go`, `scripts/install-*`.
 
+### 3.6 Local Control Pattern
+
+Applicable to `control_server.go`, `cli.go`, `mcp.go`, and `internal/control`.
+
+1. Desktop startup opens a localhost listener on `127.0.0.1:0`.
+2. The desktop process writes `<config>.control.json` with URL, token, PID, and version using `0600`
+   permissions.
+3. Every RPC request must include `Authorization: Bearer <token>`.
+4. RPC methods delegate to existing `App` methods and preserve existing Run ID rules.
+5. Project detection switching uses the same data transformation as the UI: switching to `compose`
+   clears `LaunchCommand` entries; switching to an ordinary detection option creates a default
+   `LaunchCommand`.
+6. CLI output uses `{ok,data,error}` JSON envelopes. `--follow` log commands emit one envelope per
+   update as JSON Lines.
+7. MCP tools wrap the same control client and return the same envelope as text content.
+8. Shutdown removes the control state file.
+
+Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/control/protocol.go`.
+
 ## 4. Allowed And Forbidden
 
 ### Allowed Changes
@@ -134,6 +166,8 @@ Reference implementation: `updater.go`, `scripts/install-*`.
 - Do not remove Unix login shell wrapping without solving GUI PATH and `~` expansion.
 - Do not trust frontend-provided file paths outside the project root.
 - Do not push release tags from a non-main commit.
+- Do not let CLI/MCP bypass the desktop process for runner, Docker, project, group, or log state.
+- Do not persist control URL/token/PID/version into `config.json`.
 
 ## 5. New Implementation Checklist
 

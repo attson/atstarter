@@ -3,7 +3,7 @@ layout: home
 hero:
   name: AT Starter
   text: 本地项目快速启动器
-  tagline: 一处托管启动/停止多个项目,查看实时日志。读取本地目录代码,自动识别项目类型并建议启动命令。
+  tagline: 一处托管启动/停止多个项目,查看实时日志。读取本地目录代码,自动识别项目类型,也可通过 CLI/MCP 交给 AI 操作。
   actions:
     - theme: brand
       text: 下载最新版
@@ -11,6 +11,9 @@ hero:
     - theme: alt
       text: 使用文档
       link: /guide/
+    - theme: alt
+      text: AI / CLI
+      link: /guide/ai-cli
 ---
 
 <script setup>
@@ -26,6 +29,7 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
     <div class="badge"><span class="badge-k">6+</span><span class="badge-v">项目类型识别</span></div>
     <div class="badge"><span class="badge-k">3</span><span class="badge-v">平台 · macOS / Linux / Windows</span></div>
     <div class="badge"><span class="badge-k">Ed25519</span><span class="badge-v">签名自更新</span></div>
+    <div class="badge"><span class="badge-k">MCP</span><span class="badge-v">AI / CLI 本地控制</span></div>
     <div class="badge"><span class="badge-k">login shell</span><span class="badge-v">完整 PATH 启动</span></div>
     <div class="badge"><span class="badge-k">MIT</span><span class="badge-v">开源免费</span></div>
   </div>
@@ -133,6 +137,29 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
     <p class="solve">内置 Docker / compose 面板,项目树里整体或单 service 启停。</p>
   </div>
 </div>
+
+</section>
+
+<section class="home-section">
+
+## AI / CLI 控制
+
+<div class="scenarios">
+  <div class="scenario-card reveal">
+    <p class="pain">想让 AI 扫描项目、建分组、启动服务并读日志</p>
+    <p class="solve">通过 <code>atstarter mcp</code> 暴露本地工具,AI 调用的仍是桌面 App 的运行态。</p>
+  </div>
+  <div class="scenario-card reveal">
+    <p class="pain">需要在脚本或终端里复用页面上的启动能力</p>
+    <p class="solve"><code>atstarter cli</code> 输出固定 JSON,支持 scan、project、group、Docker、compose 和 logs。</p>
+  </div>
+  <div class="scenario-card reveal">
+    <p class="pain">桌面 App 还没启动,AI 无法操作</p>
+    <p class="solve"><code>atstarter cli app start --wait</code> 可启动桌面进程并等待控制服务就绪。</p>
+  </div>
+</div>
+
+<p class="download-note">完整命令见 <a href="/guide/ai-cli">AI / CLI 控制文档</a>。</p>
 
 </section>
 
