@@ -23,10 +23,6 @@ function commandsFor(project) {
   }]
 }
 
-function lineFor(command) {
-  return [command.command, ...(command.args || [])].filter(Boolean).join(' ')
-}
-
 const projectById = computed(() => {
   const out = {}
   for (const project of props.projects || []) out[project.id] = project
@@ -83,7 +79,6 @@ const members = computed(() => {
         <span :class="['member-dot', stateClass((member.status || {}).State)]" />
         <span class="member-project">{{ member.project.name }}</span>
         <span class="member-command">{{ member.command.name }}</span>
-        <code>{{ lineFor(member.command) }}</code>
       </button>
     </div>
   </div>
@@ -208,7 +203,7 @@ const members = computed(() => {
   width: 100%;
   min-height: 26px;
   display: grid;
-  grid-template-columns: 9px minmax(92px, 1fr) minmax(72px, 96px) minmax(0, 1fr);
+  grid-template-columns: 9px minmax(92px, 1fr) minmax(0, auto);
   align-items: center;
   gap: var(--space-3);
   padding: 3px var(--space-4) 3px 38px;
@@ -244,7 +239,7 @@ const members = computed(() => {
 
 .member-dot.stopped { background: var(--text-subtle); }
 
-.member-project, .member-command, .member-row code {
+.member-project, .member-command {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -260,11 +255,5 @@ const members = computed(() => {
   color: var(--text-muted);
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
-}
-
-.member-row code {
-  color: var(--text-muted);
-  font-size: var(--fs-xs);
-  font-family: var(--font-mono);
 }
 </style>
