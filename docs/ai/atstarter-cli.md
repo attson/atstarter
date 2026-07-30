@@ -135,3 +135,61 @@ The MCP server exposes tools with the `atstarter_` prefix, including:
 - `atstarter_compose_logs`
 
 MCP tool results are text content containing the same JSON envelope as the CLI.
+
+## AI plugins
+
+atstarter ships a local plugin package under `plugins/atstarter-control`. The
+same package is exposed through two marketplace manifests:
+
+- `.agents/plugins/marketplace.json` for Codex.
+- `.claude-plugin/marketplace.json` for Claude Code.
+
+The plugin registers `atstarter mcp` and includes a `use-atstarter` skill that
+teaches the agent to start the desktop app when needed, scan workspaces, manage
+projects, groups, Docker, compose services, and logs.
+
+### Codex
+
+Install from the GitHub marketplace source:
+
+```bash
+codex plugin marketplace add attson/atstarter --ref main --sparse .agents --sparse plugins
+codex plugin add atstarter-control@atstarter
+```
+
+Update later with:
+
+```bash
+codex plugin marketplace upgrade atstarter
+codex plugin add atstarter-control@atstarter
+```
+
+Start a new Codex thread after installing or updating so the new skill and MCP
+tools are loaded.
+
+### Claude Code
+
+Install from the GitHub marketplace source:
+
+```bash
+claude plugin marketplace add attson/atstarter --sparse .claude-plugin plugins
+claude plugin install atstarter-control@atstarter
+```
+
+If the plugin is already installed, update later with:
+
+```bash
+claude plugin marketplace update atstarter
+claude plugin update atstarter-control
+```
+
+Run `/reload-plugins` or start a new Claude Code session after installing or
+updating.
+
+### MCP fallback
+
+If a client does not support plugins, register the MCP server directly:
+
+```bash
+claude mcp add atstarter -- bash -lc 'if command -v atstarter >/dev/null 2>&1; then exec atstarter mcp; fi; echo "atstarter binary not found in PATH; install atstarter or add it to PATH, then retry" >&2; exit 1'
+```

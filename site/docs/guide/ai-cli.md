@@ -99,19 +99,57 @@ atstarter mcp
 
 MCP tool result 是文本内容,里面包含和 CLI 相同的 JSON envelope。
 
-## Codex 插件
+## AI 插件
 
-本地 Codex 插件目录:
+仓库内置 `atstarter-control` 插件包,同时支持 Codex 和 Claude Code:
 
 ```text
-~/plugins/atstarter-control
+plugins/atstarter-control
 ```
 
-插件会注册 `atstarter mcp`,并附带一条使用说明 skill。更新插件后重新安装:
+插件会注册 `atstarter mcp`,并附带使用说明 skill。AI 会优先通过 MCP
+调用桌面 App 的本地控制服务;如果桌面 App 未启动,可先调用启动工具。
+
+### Codex
+
+安装:
 
 ```bash
-codex plugin add atstarter-control@personal
+codex plugin marketplace add attson/atstarter --ref main --sparse .agents --sparse plugins
+codex plugin add atstarter-control@atstarter
 ```
 
-重新安装后开新线程,让 Codex 重新加载新的 skill 和 MCP 工具。
+更新:
 
+```bash
+codex plugin marketplace upgrade atstarter
+codex plugin add atstarter-control@atstarter
+```
+
+安装或更新后开新线程,让 Codex 重新加载新的 skill 和 MCP 工具。
+
+### Claude Code
+
+安装:
+
+```bash
+claude plugin marketplace add attson/atstarter --sparse .claude-plugin plugins
+claude plugin install atstarter-control@atstarter
+```
+
+更新:
+
+```bash
+claude plugin marketplace update atstarter
+claude plugin update atstarter-control
+```
+
+安装或更新后执行 `/reload-plugins`,或开启新的 Claude Code 会话。
+
+### MCP 兜底
+
+不支持插件的客户端可以直接注册 MCP:
+
+```bash
+claude mcp add atstarter -- bash -lc 'if command -v atstarter >/dev/null 2>&1; then exec atstarter mcp; fi; echo "atstarter binary not found in PATH; install atstarter or add it to PATH, then retry" >&2; exit 1'
+```

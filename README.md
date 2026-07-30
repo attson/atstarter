@@ -41,7 +41,18 @@ atstarter cli project logs <project> --command default --tail 200
 atstarter mcp
 ```
 
-CLI 输出固定为 JSON。详细命令和 MCP 工具见 [docs/ai/atstarter-cli.md](docs/ai/atstarter-cli.md)。
+Codex 和 Claude Code 也可以直接安装 AI 插件。插件会注册 `atstarter mcp`,
+并附带使用说明,让 agent 优先通过桌面 App 的本地控制服务操作项目:
+
+```bash
+codex plugin marketplace add attson/atstarter --ref main --sparse .agents --sparse plugins
+codex plugin add atstarter-control@atstarter
+
+claude plugin marketplace add attson/atstarter --sparse .claude-plugin plugins
+claude plugin install atstarter-control@atstarter
+```
+
+CLI 输出固定为 JSON。详细命令、MCP 工具和 AI 插件安装见 [docs/ai/atstarter-cli.md](docs/ai/atstarter-cli.md)。
 
 ## 支持识别的项目类型
 

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "atstarter-control",
+  "version": "0.1.0",
+  "description": "Control the local atstarter desktop app through MCP and JSON CLI commands.",
+  "author": {
+    "name": "atstarter"
+  },
+  "homepage": "https://github.com/attson/atstarter",
+  "repository": "https://github.com/attson/atstarter",
+  "license": "MIT",
+  "keywords": [
+    "atstarter",
+    "mcp",
+    "desktop",
+    "launcher",
+    "docker",
+    "compose"
+  ],
+  "skills": [
+    "./skills/use-atstarter"
+  ],
+  "mcpServers": {
+    "atstarter": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "if command -v atstarter >/dev/null 2>&1; then exec atstarter mcp; fi; echo 'atstarter binary not found in PATH; install atstarter or add it to PATH, then retry' >&2; exit 1"
+      ]
+    }
+  }
+}

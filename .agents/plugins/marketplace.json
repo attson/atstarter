@@ -1,0 +1,20 @@
+{
+  "name": "atstarter",
+  "interface": {
+    "displayName": "atstarter"
+  },
+  "plugins": [
+    {
+      "name": "atstarter-control",
+      "source": {
+        "source": "local",
+        "path": "./plugins/atstarter-control"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
