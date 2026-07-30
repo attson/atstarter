@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "atstarter",
+  "description": "AI integrations for controlling the local atstarter desktop app.",
+  "owner": {
+    "name": "atstarter"
+  },
+  "plugins": [
+    {
+      "name": "atstarter-control",
+      "description": "Control projects, launch groups, Docker, compose, and logs through the local atstarter desktop app.",
+      "author": {
+        "name": "atstarter"
+      },
+      "category": "development",
+      "source": "./plugins/atstarter-control",
+      "homepage": "https://github.com/attson/atstarter"
+    }
+  ]
+}

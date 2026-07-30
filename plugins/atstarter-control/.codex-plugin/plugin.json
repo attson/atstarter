@@ -1,0 +1,28 @@
+{
+  "name": "atstarter-control",
+  "version": "0.1.0",
+  "description": "Control the local atstarter desktop app through MCP and JSON CLI commands.",
+  "author": {
+    "name": "atstarter"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "atstarter Control",
+    "shortDescription": "Start projects, groups, Docker, compose, and logs through atstarter.",
+    "longDescription": "Provides a local MCP server and usage guidance for controlling the atstarter desktop project launcher. The desktop app remains the runtime source of truth; the plugin calls the app through its localhost control service.",
+    "developerName": "atstarter",
+    "category": "Developer Tools",
+    "capabilities": [
+      "MCP",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Scan my workspace and add detected atstarter projects.",
+      "Create an atstarter launch group for my local stack.",
+      "Switch this project between compose and command mode."
+    ],
+    "brandColor": "#2563EB"
+  },
+  "mcpServers": "./.mcp.json"
+}

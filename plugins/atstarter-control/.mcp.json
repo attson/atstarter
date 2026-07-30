@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "atstarter": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "if command -v atstarter >/dev/null 2>&1; then exec atstarter mcp; fi; echo 'atstarter binary not found in PATH; install atstarter or add it to PATH, then retry' >&2; exit 1"
+      ]
+    }
+  }
+}
