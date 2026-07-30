@@ -251,6 +251,58 @@ func TestShellJoinExpandsTilde(t *testing.T) {
 	}
 }
 
+func TestStartReappliesEnvOverridesAfterLoginShellMutatesPath(t *testing.T) {
+	root := t.TempDir()
+	wantBin := root + "/want/bin"
+	oldBin := root + "/old/bin"
+	if err := os.MkdirAll(wantBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(oldBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(wantBin+"/tool", []byte("#!/bin/sh\necho want\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(oldBin+"/tool", []byte("#!/bin/sh\necho old\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	fakeShell := root + "/fake-shell"
+	script := "#!/bin/sh\nPATH='" + oldBin + "':$PATH\nexport PATH\nexec /bin/sh -c \"$4\"\n"
+	if err := os.WriteFile(fakeShell, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SHELL", fakeShell)
+	t.Setenv("ATSTARTER_TEST_BASE_PATH", "/usr/bin:/bin")
+
+	r := New(1000)
+	lines := make(chan LogLine, 10)
+	r.SetEmitter(func(l LogLine) { lines <- l })
+
+	spec := Spec{
+		ID:      "path-override",
+		Command: "tool",
+		Dir:     root,
+		Env: map[string]string{
+			"PATH": wantBin + ":$ATSTARTER_TEST_BASE_PATH",
+		},
+	}
+	if err := r.Start(spec); err != nil {
+		t.Fatal(err)
+	}
+	waitStatus(t, r, "path-override", StatusExited, 5*time.Second)
+
+	select {
+	case line := <-lines:
+		if line.Text != "want" {
+			t.Fatalf("first output = %q, want command env PATH to win after shell startup", line.Text)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for output")
+	}
+}
+
 func TestUserShell(t *testing.T) {
 	t.Setenv("SHELL", "/usr/bin/zsh")
 	if got := userShell(); got != "/usr/bin/zsh" {

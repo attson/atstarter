@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -111,6 +112,38 @@ func TestStartMissingBinaryYieldsError(t *testing.T) {
 	waitStatus(t, r, "bad", StatusExited, 5*time.Second)
 	if st := r.Status("bad"); st.ExitCode == 0 {
 		t.Errorf("missing binary should exit non-zero, got exit code 0 (state=%v)", st.State)
+	}
+}
+
+func TestBuildEnvExpandsConfiguredValuesFromProcessEnvironment(t *testing.T) {
+	t.Setenv("ATSTARTER_TEST_PATH", "/usr/bin:/bin")
+	t.Setenv("ATSTARTER_TEST_HOME", "/home/tester")
+
+	env := buildEnv(map[string]string{
+		"PATH":    "/opt/go/bin:$ATSTARTER_TEST_PATH",
+		"GOCACHE": "${ATSTARTER_TEST_HOME}/.cache/go-build",
+		"LITERAL": "plain",
+	})
+
+	got := map[string]string{}
+	for _, entry := range env {
+		k, v, ok := strings.Cut(entry, "=")
+		if ok {
+			got[k] = v
+		}
+	}
+
+	if got["PATH"] != "/opt/go/bin:/usr/bin:/bin" {
+		t.Errorf("PATH = %q, want expanded process PATH", got["PATH"])
+	}
+	if got["GOCACHE"] != "/home/tester/.cache/go-build" {
+		t.Errorf("GOCACHE = %q, want expanded HOME", got["GOCACHE"])
+	}
+	if got["LITERAL"] != "plain" {
+		t.Errorf("LITERAL = %q, want plain", got["LITERAL"])
+	}
+	if got["HOME"] != os.Getenv("HOME") {
+		t.Errorf("HOME = %q, want inherited process HOME", got["HOME"])
 	}
 }
 
