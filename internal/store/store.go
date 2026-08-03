@@ -195,3 +195,50 @@ func (s *Store) RemoveGroup(id string) error {
 	cfg.Groups = out
 	return s.save(cfg)
 }
+
+// SetProjectPinned 置顶/取消置顶项目。置顶时序号取当前最大值+1(追加到末尾),已置顶则不变。
+func (s *Store) SetProjectPinned(id string, pinned bool) error {
+	cfg, err := s.Load()
+	if err != nil {
+		return err
+	}
+	idx := -1
+	max := 0
+	for i := range cfg.Projects {
+		if cfg.Projects[i].PinnedOrder > max {
+			max = cfg.Projects[i].PinnedOrder
+		}
+		if cfg.Projects[i].ID == id {
+			idx = i
+		}
+	}
+	if idx == -1 {
+		return errors.New("store: project not found: " + id)
+	}
+	if pinned {
+		if cfg.Projects[idx].PinnedOrder == 0 {
+			cfg.Projects[idx].PinnedOrder = max + 1
+		}
+	} else {
+		cfg.Projects[idx].PinnedOrder = 0
+	}
+	return s.save(cfg)
+}
+
+// ReorderPinned 按传入 ID 顺序重排置顶项目的序号为 1..N。不在列表内的项目不动。
+func (s *Store) ReorderPinned(orderedIDs []string) error {
+	cfg, err := s.Load()
+	if err != nil {
+		return err
+	}
+	rank := make(map[string]int, len(orderedIDs))
+	for i, id := range orderedIDs {
+		rank[id] = i + 1
+	}
+	for i := range cfg.Projects {
+		if r, ok := rank[cfg.Projects[i].ID]; ok {
+			cfg.Projects[i].PinnedOrder = r
+		}
+	}
+	return s.save(cfg)
+}
