@@ -303,6 +303,64 @@ func TestStartReappliesEnvOverridesAfterLoginShellMutatesPath(t *testing.T) {
 	}
 }
 
+// TestStartPreservesLoginShellPathWhenEnvAppendsPATH 复刻真实场景:
+// 用户在命令 env 里填 PATH=wantBin:$PATH 想“在现有 PATH 前追加 wantBin”。
+// login shell(此处 fake nvm)在 rc 阶段把 nodeBin 注入 PATH,用户期望 $PATH
+// 展开时带上 nodeBin。工具 tool 只放在 nodeBin,因此 node 路径保留时才找得到。
+// 旧实现由 Go 用 GUI 进程的贫瘠 PATH 预展开 $PATH,再 rc 后覆盖,导致 nodeBin
+// 丢失、tool 找不到。
+func TestStartPreservesLoginShellPathWhenEnvAppendsPATH(t *testing.T) {
+	root := t.TempDir()
+	wantBin := root + "/want/bin"
+	nodeBin := root + "/node/bin"
+	if err := os.MkdirAll(wantBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(nodeBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// tool 只存在于 nodeBin(模拟 nvm 提供的 npm);wantBin 里没有。
+	if err := os.WriteFile(nodeBin+"/tool", []byte("#!/bin/sh\necho node\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// fake shell 模拟 nvm:rc 阶段把 nodeBin 注入 PATH 最前。
+	fakeShell := root + "/fake-shell"
+	script := "#!/bin/sh\nPATH='" + nodeBin + "':$PATH\nexport PATH\nexec /bin/sh -c \"$4\"\n"
+	if err := os.WriteFile(fakeShell, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SHELL", fakeShell)
+	// 进程级 PATH 故意“贫瘠”:不含 nodeBin,复刻 GUI 启动继承的冻结 PATH。
+	t.Setenv("PATH", "/usr/bin:/bin")
+
+	r := New(1000)
+	lines := make(chan LogLine, 10)
+	r.SetEmitter(func(l LogLine) { lines <- l })
+
+	spec := Spec{
+		ID:      "path-append",
+		Command: "tool",
+		Dir:     root,
+		Env: map[string]string{
+			"PATH": wantBin + ":$PATH",
+		},
+	}
+	if err := r.Start(spec); err != nil {
+		t.Fatal(err)
+	}
+	waitStatus(t, r, "path-append", StatusExited, 5*time.Second)
+
+	select {
+	case line := <-lines:
+		if line.Text != "node" {
+			t.Fatalf("output = %q, want %q: $PATH in env override must expand to the login-shell PATH (with nodeBin), not the process's frozen PATH", line.Text, "node")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for output; tool likely NOT FOUND because nodeBin was dropped from PATH")
+	}
+}
+
 func TestUserShell(t *testing.T) {
 	t.Setenv("SHELL", "/usr/bin/zsh")
 	if got := userShell(); got != "/usr/bin/zsh" {
