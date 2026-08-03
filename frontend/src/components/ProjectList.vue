@@ -1,13 +1,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { RefreshCw, Search, Trash2 } from 'lucide-vue-next'
-import { buildProjectTree } from '../projectTree'
+import { buildProjectTree, buildPinnedList } from '../projectTree'
 import ProjectTreeNode from './ProjectTreeNode.vue'
 import GroupTreeItem from './GroupTreeItem.vue'
 import AppIcon from './ui/AppIcon.vue'
 import AppButton from './ui/AppButton.vue'
 
-const emit = defineEmits(['select', 'select-group', 'select-command', 'add', 'scan', 'rescan', 'reset'])
+const emit = defineEmits(['select', 'select-group', 'select-command', 'add', 'scan', 'rescan', 'reset', 'context-menu', 'reorder-pinned'])
 
 const props = defineProps({
   projects: Array,
@@ -36,7 +36,21 @@ const filteredProjects = computed(() => {
 })
 
 const tree = computed(() => buildProjectTree(filteredProjects.value, props.statuses || {}, query.value))
+const pinned = computed(() => buildPinnedList(filteredProjects.value, props.statuses || {}, query.value))
 const forceExpanded = computed(() => query.value.trim().length > 0 || !!props.statusFilter)
+
+const dragIndex = ref(-1)
+
+function onDragStart(i) { dragIndex.value = i }
+function onDrop(i) {
+  const from = dragIndex.value
+  dragIndex.value = -1
+  if (from === -1 || from === i) return
+  const ids = pinned.value.map((n) => n.project.id)
+  const [moved] = ids.splice(from, 1)
+  ids.splice(i, 0, moved)
+  emit('reorder-pinned', ids)
+}
 
 function toggleDir(id) {
   expandedDirs.value = {
@@ -89,6 +103,30 @@ watch(() => props.projects, () => {
       </div>
     </div>
     <div class="tree-scroll">
+      <div v-if="pinned.length" class="pinned-section">
+        <div class="section-title">Pinned</div>
+        <div
+          v-for="(node, i) in pinned"
+          :key="node.id"
+          class="pinned-item"
+          draggable="true"
+          @dragstart="onDragStart(i)"
+          @dragover.prevent
+          @drop="onDrop(i)"
+        >
+          <ProjectTreeNode
+            :node="node"
+            :selectedId="selectedId"
+            :level="0"
+            :expandedDirs="expandedDirs"
+            :forceExpanded="false"
+            :missingIds="missingIds"
+            @select="emit('select', $event)"
+            @toggle="toggleDir"
+            @context-menu="emit('context-menu', $event)"
+          />
+        </div>
+      </div>
       <div v-if="(groups || []).length" class="group-section">
         <div class="section-title">Groups</div>
         <GroupTreeItem
@@ -115,6 +153,7 @@ watch(() => props.projects, () => {
         :missingIds="missingIds"
         @select="emit('select', $event)"
         @toggle="toggleDir"
+        @context-menu="emit('context-menu', $event)"
       />
       <div v-if="tree.length === 0" class="empty">
         <span v-if="query">没有匹配的项目</span>
@@ -201,6 +240,14 @@ watch(() => props.projects, () => {
   overflow: auto;
   padding: var(--space-3) var(--space-4);
 }
+
+.pinned-section {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.pinned-item[draggable="true"] { cursor: grab; }
+.pinned-item:active { cursor: grabbing; }
 
 .group-section {
   margin-bottom: var(--space-4);

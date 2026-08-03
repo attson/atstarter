@@ -120,6 +120,15 @@ function sortTree(nodes) {
   }
 }
 
+export function buildPinnedList(projects = [], statuses = {}, query = '') {
+  const normalizedQuery = query.trim().toLowerCase()
+  return projects
+    .filter((p) => (p.pinnedOrder || 0) > 0)
+    .filter((p) => !normalizedQuery || projectSearchText(p).includes(normalizedQuery))
+    .sort((a, b) => (a.pinnedOrder || 0) - (b.pinnedOrder || 0))
+    .map((p) => makeProjectNode(p, statuses[p.id]))
+}
+
 export function buildProjectTree(projects = [], statuses = {}, query = '') {
   const normalizedQuery = query.trim().toLowerCase()
   const rootMap = new Map()

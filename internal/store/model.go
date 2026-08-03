@@ -41,6 +41,7 @@ type Project struct {
 	Commands         []LaunchCommand   `json:"commands,omitempty"`
 	ComposeFile      string            `json:"composeFile,omitempty"` // compose 文件相对路径;空则用 docker 默认发现
 	DetectionOptions []DetectionOption `json:"detectionOptions,omitempty"`
+	PinnedOrder      int               `json:"pinnedOrder,omitempty"` // 0=未置顶;>0=置顶且为排序键(升序)
 }
 
 // GroupItem 指向一个项目的一条明确启动命令。
