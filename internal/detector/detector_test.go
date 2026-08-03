@@ -51,6 +51,21 @@ func TestDetect(t *testing.T) {
 			"go", "go run ./cmd/server"},
 		{"rust", map[string]string{"Cargo.toml": "[package]\nname=\"x\"\n"},
 			"rust", "cargo run"},
+		{"maven spring-boot with wrapper", map[string]string{
+			"pom.xml": "<project><parent><artifactId>spring-boot-starter-parent</artifactId></parent></project>",
+			"mvnw":    "#!/bin/sh\n"},
+			"java-maven", "./mvnw spring-boot:run"},
+		{"maven spring-boot no wrapper", map[string]string{
+			"pom.xml": "<project><dependency><artifactId>spring-boot-starter-web</artifactId></dependency></project>"},
+			"java-maven", "mvn spring-boot:run"},
+		{"maven plain", map[string]string{"pom.xml": "<project><modelVersion>4.0.0</modelVersion></project>"},
+			"java-maven", "mvn package"},
+		{"gradle spring-boot with wrapper", map[string]string{
+			"build.gradle": "plugins { id 'org.springframework.boot' }",
+			"gradlew":      "#!/bin/sh\n"},
+			"java-gradle", "./gradlew bootRun"},
+		{"gradle plain kts", map[string]string{"build.gradle.kts": "plugins { java }"},
+			"java-gradle", "gradle run"},
 		{"django", map[string]string{"manage.py": "", "requirements.txt": ""},
 			"python-django", "python manage.py runserver"},
 		{"python main", map[string]string{"main.py": "", "requirements.txt": ""},
