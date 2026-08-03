@@ -154,7 +154,17 @@ function onGlobalPointer(e) {
   if (e.target && e.target.closest && e.target.closest('.ctx-menu')) return
   closeMenu()
 }
-function onKeydown(e) { if (e.key === 'Escape' && menu.value.show) closeMenu() }
+// Ctrl+C(macOS Cmd+C)在有选区时复制日志。xterm disableStdin 不提供复制,
+// 且此处日志只读,拦截不会打断进程输入。无选区时放行浏览器默认行为。
+function onKeydown(e) {
+  if (e.key === 'Escape' && menu.value.show) { closeMenu(); return }
+  const copyChord = (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')
+  if (!copyChord) return
+  const sel = term ? term.getSelection() : ''
+  if (!sel) return
+  e.preventDefault()
+  writeClipboard(sel).then((ok) => flashToast(ok ? '已复制' : '复制失败', ok))
+}
 
 watch(() => props.projectId, async (id) => {
   await load(id)
