@@ -24,3 +24,16 @@ export function commandFormsForProject(project) {
     isDefault: !!command.isDefault || index === 0,
   }))
 }
+
+// 新增命令表单:cwd 直接落入 project.path 作为真实可编辑值(与既有命令的空 cwd
+// 回填行为一致),而非仅作 placeholder,否则保存时 cwd 会是空串。
+export function blankCommandForm(project, count) {
+  return {
+    id: '',
+    name: `Command ${count + 1}`,
+    line: '',
+    cwd: (project && project.path) || '',
+    envText: '',
+    isDefault: count === 0,
+  }
+}
