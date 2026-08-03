@@ -95,13 +95,17 @@ func shellJoin(command string, args []string) string {
 
 func shellLine(spec Spec) string {
 	line := shellJoin(spec.Command, spec.Args)
-	exports := shellExports(expandedEnvOverrides(spec.Env))
+	exports := shellExports(spec.Env)
 	if exports == "" {
 		return line
 	}
 	return exports + "; " + line
 }
 
+// shellExports 把 env 覆盖拼成在 login shell rc 执行“之后”生效的 export 前缀。
+// 传入的是原始未展开的值:其中对 $PATH / ${PATH} 的引用有意保留,交给 shell 在
+// rc 之后展开(那时 nvm/pnpm 等已把各自的 bin 注入 PATH),使 PATH=x:$PATH 表现为
+// “在当前 PATH 前追加 x”而非用进程贫瘠 PATH 覆盖;其余 $VAR 仍由 Go 用进程环境展开。
 func shellExports(env map[string]string) string {
 	if len(env) == 0 {
 		return ""
@@ -111,13 +115,70 @@ func shellExports(env map[string]string) string {
 		if !isShellEnvName(k) {
 			continue
 		}
-		assignments = append(assignments, shellQuote(k+"="+v))
+		assignments = append(assignments, shellQuote(k)+"="+shellExportValue(v))
 	}
 	if len(assignments) == 0 {
 		return ""
 	}
 	sort.Strings(assignments)
 	return "export " + strings.Join(assignments, " ")
+}
+
+// shellExportValue 把一个 env 值编码为 export 右侧的 shell 片段。对 $PATH / ${PATH}
+// 的引用输出为未被单引号包裹的 "$PATH",让 shell 在 rc 之后展开(见 shellExports);
+// 其余内容(含其他 $VAR)先由 Go 用进程环境展开,再单引号包裹避免二次展开与断词。
+func shellExportValue(v string) string {
+	var b strings.Builder
+	rest := v
+	for {
+		idx := indexPathRef(rest)
+		if idx < 0 {
+			if rest != "" {
+				b.WriteString(shellQuote(os.Expand(rest, os.Getenv)))
+			}
+			if b.Len() == 0 {
+				return "''" // 整个值为空,保留一个空引号占位
+			}
+			return b.String()
+		}
+		if idx > 0 {
+			b.WriteString(shellQuote(os.Expand(rest[:idx], os.Getenv)))
+		}
+		b.WriteString(`"$PATH"`)
+		rest = rest[idx+pathRefLen(rest[idx:]):]
+	}
+}
+
+// indexPathRef 返回 s 中第一个 $PATH 或 ${PATH} 引用的起始下标,没有则返回 -1。
+// 只匹配恰好是 PATH 的引用:$PATH 后不能紧跟标识符字符(避免误吞 $PATHEXTRA)。
+func indexPathRef(s string) int {
+	for i := 0; i+1 < len(s); i++ {
+		if s[i] != '$' {
+			continue
+		}
+		if strings.HasPrefix(s[i+1:], "{PATH}") {
+			return i
+		}
+		if strings.HasPrefix(s[i+1:], "PATH") {
+			after := i + 5 // len("$PATH")
+			if after >= len(s) || !isIdentByte(s[after]) {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// pathRefLen 返回位于 ref 开头的 PATH 引用长度($PATH=5,${PATH}=7)。
+func pathRefLen(ref string) int {
+	if strings.HasPrefix(ref, "${PATH}") {
+		return 7
+	}
+	return 5 // $PATH
+}
+
+func isIdentByte(b byte) bool {
+	return b == '_' || b >= 'A' && b <= 'Z' || b >= 'a' && b <= 'z' || b >= '0' && b <= '9'
 }
 
 func isShellEnvName(name string) bool {
