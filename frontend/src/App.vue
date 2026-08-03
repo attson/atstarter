@@ -404,7 +404,7 @@ onUnmounted(() => {
           @select="selectProject" @select-group="selectGroup"
           @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true"
           @rescan="onRescanProjects" @reset="onConfirmResetProjects" />
-        <GroupDetail v-if="selectedGroup" :group="selectedGroup" :projects="projects"
+        <GroupDetail v-if="selectedGroup" :group="selectedGroup" :projects="projects" :statuses="statuses"
           @start="onStartGroup" @stop="onStopGroup" @edit="onEditGroup" @remove="onRemoveGroup"
           @select-command="selectCommand" />
         <ComposeDetail v-else-if="isComposeSelected" :project="selected" :dockerAvailable="dockerAvailable"

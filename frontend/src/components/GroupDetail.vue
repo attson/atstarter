@@ -4,8 +4,9 @@ import { Play, Square, Pencil, Trash2 } from 'lucide-vue-next'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
 import AppIcon from './ui/AppIcon.vue'
+import { stateClass, memberStatusState } from '../groupMemberStatus.js'
 
-const props = defineProps({ group: Object, projects: Array })
+const props = defineProps({ group: Object, projects: Array, statuses: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['start', 'stop', 'edit', 'remove', 'select-command'])
 
 function commandsFor(project) {
@@ -40,6 +41,7 @@ const members = computed(() => {
       key: `${props.group.id}:${project.id}:${command.id || 'default'}`,
       project,
       command,
+      stateClass: stateClass(memberStatusState(props.statuses, project.id, command.id)),
     })
   }
   return out
@@ -84,7 +86,7 @@ const members = computed(() => {
         class="member-row"
         @click="emit('select-command', { projectId: member.project.id, commandId: member.command.id || 'default' })"
       >
-        <span class="dot" />
+        <span :class="['dot', member.stateClass]" />
         <span class="project-name">{{ member.project.name }}</span>
         <span class="command-name">{{ member.command.name }}</span>
         <code>{{ lineFor(member.command) }}</code>
@@ -186,6 +188,18 @@ p {
   border-radius: 50%;
   background: var(--text-subtle);
 }
+
+.dot.running {
+  background: var(--accent-strong);
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+.dot.bad {
+  background: var(--danger);
+  box-shadow: 0 0 0 2.5px var(--danger-soft), 0 0 6px rgba(239, 68, 68, .4);
+}
+
+.dot.stopped { background: var(--text-subtle); }
 
 .project-name, .command-name, .member-row code {
   overflow: hidden;
