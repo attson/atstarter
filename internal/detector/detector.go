@@ -53,6 +53,11 @@ func detect(dir string, ignoreCompose bool) Result {
 		}
 		return Result{"go", "go run ."}
 
+	case exists(dir, "pom.xml"):
+		return Result{"java-maven", mavenCommand(dir)}
+	case firstExisting(dir, "build.gradle", "build.gradle.kts") != "":
+		return Result{"java-gradle", gradleCommand(dir)}
+
 	case exists(dir, "Cargo.toml"):
 		return Result{"rust", "cargo run"}
 
