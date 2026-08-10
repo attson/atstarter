@@ -27,18 +27,19 @@ build-darwin-amd64:
 build-windows:
 	wails build -platform windows/amd64 -nsis -s -ldflags "$(LDFLAGS)"
 
+# frontend 测试用 find 展开而不是逐个列名:手工列表漏登记过 fileBrowserSearch /
+# groupMemberStatus / typeLabel 三个文件,新增的测试从此自动纳入。
+# 用 find 而非 `node --test <dir>`,因为 CI 的 Node 20 不支持目录参数。
+FRONTEND_TESTS = $(shell find frontend/src -name '*.test.mjs' | sort)
+
+# 演示站的测试单独点名:同目录下的 homeDemoBundle 需要先构建站点,不适合放进
+# 这个目标。
+DEMO_TESTS = site/docs/.vitepress/theme/components/mockWailsCoverage.test.mjs
+
 test:
 	go test ./...
-	node --test frontend/src/projectTree.test.mjs
-	node --test frontend/src/commandForms.test.mjs
-	node --test frontend/src/composables/useTheme.test.mjs
-	node --test frontend/src/dockerState.test.mjs
-	node --test frontend/src/envVars.test.mjs
-	node --test frontend/src/projectDetection.test.mjs
-	node --test frontend/src/scriptComplete.test.mjs
-	node --test frontend/src/updateSchedule.test.mjs
-	node --test frontend/src/workspaceRoots.test.mjs
-	node --test site/docs/.vitepress/theme/components/mockWailsCoverage.test.mjs
+	node --test $(FRONTEND_TESTS)
+	node --test $(DEMO_TESTS)
 
 test-race:
 	go test -race ./internal/runner/

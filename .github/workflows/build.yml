@@ -54,11 +54,11 @@ jobs:
       - name: go test (runner race)
         run: go test -race ./internal/runner/
 
+      # Expanded with find rather than a hand-maintained list: the previous list
+      # had silently drifted and was missing three test files. Node 20 does not
+      # accept a directory argument for --test, hence find.
       - name: frontend tests
-        run: |
-          node --test frontend/src/projectTree.test.mjs
-          node --test frontend/src/composables/useTheme.test.mjs
-          node --test frontend/src/scriptComplete.test.mjs
+        run: node --test $(find frontend/src -name '*.test.mjs' | sort)
 
       # The site build only runs after merge (pages.yml is push-to-main), so a
       # frontend import the demo mocks don't export used to break the docs site
