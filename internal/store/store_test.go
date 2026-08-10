@@ -191,3 +191,85 @@ func TestSaveUpdateRemoveGroup(t *testing.T) {
 		t.Fatalf("expected group removed, got %+v", cfg.Groups)
 	}
 }
+
+func TestSetProjectPinned(t *testing.T) {
+	s := newTestStore(t)
+	if err := s.Add(Project{Name: "A", Path: "/tmp/a", Command: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Add(Project{Name: "B", Path: "/tmp/b", Command: "go"}); err != nil {
+		t.Fatal(err)
+	}
+	idA, idB := IDForPath("/tmp/a"), IDForPath("/tmp/b")
+
+	// 置顶 a → order 1
+	if err := s.SetProjectPinned(idA, true); err != nil {
+		t.Fatal(err)
+	}
+	// 置顶 b → order 2(追加到末尾)
+	if err := s.SetProjectPinned(idB, true); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := s.Load()
+	if got := pinOrder(cfg, idA); got != 1 {
+		t.Fatalf("a PinnedOrder = %d, want 1", got)
+	}
+	if got := pinOrder(cfg, idB); got != 2 {
+		t.Fatalf("b PinnedOrder = %d, want 2", got)
+	}
+
+	// 重复置顶 a 不改序号(幂等)
+	if err := s.SetProjectPinned(idA, true); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ = s.Load()
+	if got := pinOrder(cfg, idA); got != 1 {
+		t.Fatalf("a re-pin PinnedOrder = %d, want 1", got)
+	}
+
+	// 取消 a → 0
+	if err := s.SetProjectPinned(idA, false); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ = s.Load()
+	if got := pinOrder(cfg, idA); got != 0 {
+		t.Fatalf("a PinnedOrder after unpin = %d, want 0", got)
+	}
+
+	// id 不存在返回错误
+	if err := s.SetProjectPinned("missing", true); err == nil {
+		t.Fatal("SetProjectPinned(missing) should error")
+	}
+}
+
+func TestReorderPinned(t *testing.T) {
+	s := newTestStore(t)
+	ids := map[string]string{}
+	for _, name := range []string{"a", "b", "c"} {
+		if err := s.Add(Project{Name: name, Path: "/tmp/" + name, Command: "go"}); err != nil {
+			t.Fatal(err)
+		}
+		id := IDForPath("/tmp/" + name)
+		ids[name] = id
+		if err := s.SetProjectPinned(id, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 重排为 c, a, b → order 1,2,3
+	if err := s.ReorderPinned([]string{ids["c"], ids["a"], ids["b"]}); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _ := s.Load()
+	if pinOrder(cfg, ids["c"]) != 1 || pinOrder(cfg, ids["a"]) != 2 || pinOrder(cfg, ids["b"]) != 3 {
+		t.Fatalf("reorder wrong: c=%d a=%d b=%d", pinOrder(cfg, ids["c"]), pinOrder(cfg, ids["a"]), pinOrder(cfg, ids["b"]))
+	}
+}
+
+func pinOrder(cfg Config, id string) int {
+	for _, p := range cfg.Projects {
+		if p.ID == id {
+			return p.PinnedOrder
+		}
+	}
+	return -1
+}

@@ -1,15 +1,15 @@
 export namespace docker {
-
+	
 	export class ComposeService {
 	    name: string;
 	    state: string;
 	    image: string;
 	    ports: string[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ComposeService(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -28,11 +28,11 @@ export namespace docker {
 	    service: string;
 	    composeWorkingDir: string;
 	    ports: string[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ContainerState(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -50,11 +50,11 @@ export namespace docker {
 	    available: boolean;
 	    version: string;
 	    reason: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Info(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.available = source["available"];
@@ -66,16 +66,16 @@ export namespace docker {
 }
 
 export namespace filetree {
-
+	
 	export class Entry {
 	    name: string;
 	    isDir: boolean;
 	    size: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Entry(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -88,11 +88,11 @@ export namespace filetree {
 	    modTime: number;
 	    isBinary: boolean;
 	    truncatedAt?: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new FileBytes(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = source["data"];
@@ -106,11 +106,11 @@ export namespace filetree {
 	    size: number;
 	    truncated: boolean;
 	    binary: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new FileContent(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.content = source["content"];
@@ -124,11 +124,11 @@ export namespace filetree {
 	    modTime: number;
 	    isDir: boolean;
 	    isBinary: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new FileMetaInfo(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.size = source["size"];
@@ -141,11 +141,11 @@ export namespace filetree {
 	    path: string;
 	    name: string;
 	    isDir: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new SearchMatch(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
@@ -156,17 +156,17 @@ export namespace filetree {
 	export class SearchResults {
 	    matches: SearchMatch[];
 	    truncated: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new SearchResults(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.matches = this.convertValues(source["matches"], SearchMatch);
 	        this.truncated = source["truncated"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -189,7 +189,7 @@ export namespace filetree {
 }
 
 export namespace main {
-
+	
 	export class CommandInput {
 	    id: string;
 	    name: string;
@@ -197,11 +197,11 @@ export namespace main {
 	    cwd: string;
 	    env: Record<string, string>;
 	    isDefault: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new CommandInput(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -217,11 +217,11 @@ export namespace main {
 	    commandId: string;
 	    runId: string;
 	    error: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LaunchResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.projectId = source["projectId"];
@@ -258,11 +258,11 @@ export namespace main {
 	    assetUrl: string;
 	    assetSize: number;
 	    canInstall: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new UpdateState(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.current = source["current"];
@@ -284,16 +284,16 @@ export namespace main {
 }
 
 export namespace runner {
-
+	
 	export class Status {
 	    State: string;
 	    PID: number;
 	    ExitCode: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Status(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.State = source["State"];
@@ -305,16 +305,16 @@ export namespace runner {
 }
 
 export namespace store {
-
+	
 	export class DetectionOption {
 	    type: string;
 	    command: string;
 	    args: string[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DetectionOption(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.type = source["type"];
@@ -325,11 +325,11 @@ export namespace store {
 	export class GroupItem {
 	    projectId: string;
 	    commandId: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new GroupItem(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.projectId = source["projectId"];
@@ -344,11 +344,11 @@ export namespace store {
 	    cwd: string;
 	    env: Record<string, string>;
 	    isDefault: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LaunchCommand(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -364,18 +364,18 @@ export namespace store {
 	    id: string;
 	    name: string;
 	    items: GroupItem[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new LaunchGroup(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.items = this.convertValues(source["items"], GroupItem);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -407,11 +407,12 @@ export namespace store {
 	    commands?: LaunchCommand[];
 	    composeFile?: string;
 	    detectionOptions?: DetectionOption[];
-
+	    pinnedOrder?: number;
+	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -426,8 +427,9 @@ export namespace store {
 	        this.commands = this.convertValues(source["commands"], LaunchCommand);
 	        this.composeFile = source["composeFile"];
 	        this.detectionOptions = this.convertValues(source["detectionOptions"], DetectionOption);
+	        this.pinnedOrder = source["pinnedOrder"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;

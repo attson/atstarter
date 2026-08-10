@@ -1,6 +1,7 @@
 package detector
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -57,6 +58,41 @@ func firstCmdMain(dir string) string {
 		return ""
 	}
 	return names[0]
+}
+
+// mavenCommand 依据是否 Spring Boot、是否带 mvnw wrapper,给出建议启动命令。
+// 非 Spring Boot 的普通 Maven 项目只给构建命令,启动方式交由用户覆盖。
+func mavenCommand(dir string) string {
+	mvn := "mvn"
+	if exists(dir, "mvnw") {
+		mvn = "./mvnw"
+	}
+	if fileContains(dir, "pom.xml", "spring-boot") {
+		return mvn + " spring-boot:run"
+	}
+	return mvn + " package"
+}
+
+// gradleCommand 依据是否 Spring Boot、是否带 gradlew wrapper,给出建议启动命令。
+func gradleCommand(dir string) string {
+	gradle := "gradle"
+	if exists(dir, "gradlew") {
+		gradle = "./gradlew"
+	}
+	if fileContains(dir, "build.gradle", "org.springframework.boot") ||
+		fileContains(dir, "build.gradle.kts", "org.springframework.boot") {
+		return gradle + " bootRun"
+	}
+	return gradle + " run"
+}
+
+// fileContains 判断 dir 下相对文件是否存在且内容包含 sub;读不到返回 false。
+func fileContains(dir, rel, sub string) bool {
+	b, err := os.ReadFile(filepath.Join(dir, rel))
+	if err != nil {
+		return false
+	}
+	return bytes.Contains(b, []byte(sub))
 }
 
 // firstExisting 返回候选相对路径中第一个存在的;都不存在返回 ""。

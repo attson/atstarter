@@ -142,6 +142,10 @@ export function RenameProject(arg1, arg2, arg3) {
   return window['go']['main']['App']['RenameProject'](arg1, arg2, arg3);
 }
 
+export function ReorderPinnedProjects(arg1) {
+  return window['go']['main']['App']['ReorderPinnedProjects'](arg1);
+}
+
 export function ResetProjects() {
   return window['go']['main']['App']['ResetProjects']();
 }
@@ -160,6 +164,10 @@ export function ScanWorkspaces(arg1) {
 
 export function SearchProjectFiles(arg1, arg2, arg3) {
   return window['go']['main']['App']['SearchProjectFiles'](arg1, arg2, arg3);
+}
+
+export function SetProjectPinned(arg1, arg2) {
+  return window['go']['main']['App']['SetProjectPinned'](arg1, arg2);
 }
 
 export function SetWorkspaces(arg1) {

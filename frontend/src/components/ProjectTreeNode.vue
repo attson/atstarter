@@ -11,7 +11,7 @@ const props = defineProps({
   forceExpanded: Boolean,
   missingIds: { type: Set, default: () => new Set() },
 })
-const emit = defineEmits(['select', 'toggle'])
+const emit = defineEmits(['select', 'toggle', 'context-menu'])
 
 function isMissing(node) {
   return node.type === 'project' && props.missingIds && props.missingIds.has(node.project.id)
@@ -29,6 +29,11 @@ function isExpanded(node) {
 
 function hasChildren(node) {
   return node.children && node.children.length > 0
+}
+
+function onContextMenu(node, event) {
+  emit('select', node.project.id)
+  emit('context-menu', { id: node.project.id, x: event.clientX, y: event.clientY })
 }
 </script>
 
@@ -56,6 +61,7 @@ function hasChildren(node) {
         :forceExpanded="forceExpanded"
         @select="emit('select', $event)"
         @toggle="emit('toggle', $event)"
+        @context-menu="emit('context-menu', $event)"
       />
     </div>
   </div>
@@ -68,6 +74,7 @@ function hasChildren(node) {
       tabindex="0"
       :title="isMissing(node) ? '项目路径已不存在' : undefined"
       @click="emit('select', node.project.id)"
+      @contextmenu.prevent="onContextMenu(node, $event)"
       @keydown.enter.prevent="emit('select', node.project.id)"
       @keydown.space.prevent="emit('select', node.project.id)"
     >
@@ -99,6 +106,7 @@ function hasChildren(node) {
         :missingIds="missingIds"
         @select="emit('select', $event)"
         @toggle="emit('toggle', $event)"
+        @context-menu="emit('context-menu', $event)"
       />
     </div>
   </div>

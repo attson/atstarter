@@ -103,35 +103,107 @@ func shellLine(spec Spec) string {
 }
 
 // shellExports 把 env 覆盖拼成在 login shell rc 执行“之后”生效的 export 前缀。
-// 传入的是原始未展开的值:其中对 $PATH / ${PATH} 的引用有意保留,交给 shell 在
-// rc 之后展开(那时 nvm/pnpm 等已把各自的 bin 注入 PATH),使 PATH=x:$PATH 表现为
-// “在当前 PATH 前追加 x”而非用进程贫瘠 PATH 覆盖;其余 $VAR 仍由 Go 用进程环境展开。
+// 传入的是原始未展开的值,对两类变量引用有意保留、交给 shell 在 rc 之后展开:
+//   - $PATH / ${PATH}:那时 nvm/pnpm 等已把各自的 bin 注入 PATH,使 PATH=x:$PATH
+//     表现为“在当前 PATH 前追加 x”而非用进程贫瘠 PATH 覆盖;
+//   - 用户在本 env 里定义的其它变量(如 JAVA_HOME):使 PATH=$JAVA_HOME/bin:$PATH
+//     这类同份 env 内的互相引用能被 shell 解析到本 env 刚赋的值。
+//
+// 其余 $VAR 仍由 Go 用进程环境展开。多个赋值逐条 export(而非单条并行赋值),并按
+// 依赖排序——被引用的变量排在引用它的变量之前,shell 顺序执行才能读到新值。
 func shellExports(env map[string]string) string {
-	if len(env) == 0 {
-		return ""
-	}
-	assignments := make([]string, 0, len(env))
-	for k, v := range env {
-		if !isShellEnvName(k) {
-			continue
+	userVars := make(map[string]bool, len(env))
+	for k := range env {
+		if isShellEnvName(k) {
+			userVars[k] = true
 		}
-		assignments = append(assignments, shellQuote(k)+"="+shellExportValue(v))
 	}
-	if len(assignments) == 0 {
+	if len(userVars) == 0 {
 		return ""
 	}
-	sort.Strings(assignments)
-	return "export " + strings.Join(assignments, " ")
+	ordered := orderByDependency(env, userVars)
+	exports := make([]string, 0, len(ordered))
+	for _, k := range ordered {
+		exports = append(exports, "export "+shellQuote(k)+"="+shellExportValue(env[k], userVars))
+	}
+	return strings.Join(exports, "; ")
 }
 
-// shellExportValue 把一个 env 值编码为 export 右侧的 shell 片段。对 $PATH / ${PATH}
-// 的引用输出为未被单引号包裹的 "$PATH",让 shell 在 rc 之后展开(见 shellExports);
-// 其余内容(含其他 $VAR)先由 Go 用进程环境展开,再单引号包裹避免二次展开与断词。
-func shellExportValue(v string) string {
+// orderByDependency 对 userVars 里的变量名排序:若 A 的值引用了 userVars 中的 B,
+// 则 B 排在 A 之前。用稳定的贪心分层(每轮取出“不再依赖未输出变量”者,字母序),
+// 存在环时把剩余变量按字母序兜底输出,保证终止。
+func orderByDependency(env map[string]string, userVars map[string]bool) []string {
+	remaining := make([]string, 0, len(userVars))
+	for k := range userVars {
+		remaining = append(remaining, k)
+	}
+	sort.Strings(remaining)
+
+	done := make(map[string]bool, len(remaining))
+	ordered := make([]string, 0, len(remaining))
+	for len(remaining) > 0 {
+		progressed := false
+		next := remaining[:0]
+		for _, k := range remaining {
+			ready := true
+			for dep := range referencedVars(env[k], userVars) {
+				if dep != k && !done[dep] {
+					ready = false
+					break
+				}
+			}
+			if ready {
+				ordered = append(ordered, k)
+				done[k] = true
+				progressed = true
+			} else {
+				next = append(next, k)
+			}
+		}
+		remaining = next
+		if !progressed { // 依赖成环:剩余按字母序兜底,避免死循环
+			ordered = append(ordered, remaining...)
+			break
+		}
+	}
+	return ordered
+}
+
+// keptVars 返回本次编码中“引用应保留给 shell 展开”的变量名集合:PATH 恒在其中,
+// 再并入用户在本 env 里定义的变量名。
+func keptVars(userVars map[string]bool) map[string]bool {
+	kept := make(map[string]bool, len(userVars)+1)
+	for k := range userVars {
+		kept[k] = true
+	}
+	kept["PATH"] = true
+	return kept
+}
+
+// referencedVars 返回 v 中引用到的、属于 userVars 的变量名集合(供依赖排序用)。
+func referencedVars(v string, userVars map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	rest := v
+	for {
+		idx, n, name := indexVarRef(rest, userVars)
+		if idx < 0 {
+			return out
+		}
+		out[name] = true
+		rest = rest[idx+n:]
+	}
+}
+
+// shellExportValue 把一个 env 值编码为 export 右侧的 shell 片段。对 keptVars 内变量
+// 的 $VAR / ${VAR} 引用输出为未被单引号包裹的 "$VAR",让 shell 在 rc 之后展开
+// (见 shellExports);其余内容(含其他 $VAR)先由 Go 用进程环境展开,再单引号包裹
+// 避免二次展开与断词。
+func shellExportValue(v string, userVars map[string]bool) string {
+	kept := keptVars(userVars)
 	var b strings.Builder
 	rest := v
 	for {
-		idx := indexPathRef(rest)
+		idx, n, name := indexVarRef(rest, kept)
 		if idx < 0 {
 			if rest != "" {
 				b.WriteString(shellQuote(os.Expand(rest, os.Getenv)))
@@ -144,37 +216,38 @@ func shellExportValue(v string) string {
 		if idx > 0 {
 			b.WriteString(shellQuote(os.Expand(rest[:idx], os.Getenv)))
 		}
-		b.WriteString(`"$PATH"`)
-		rest = rest[idx+pathRefLen(rest[idx:]):]
+		b.WriteString(`"$` + name + `"`)
+		rest = rest[idx+n:]
 	}
 }
 
-// indexPathRef 返回 s 中第一个 $PATH 或 ${PATH} 引用的起始下标,没有则返回 -1。
-// 只匹配恰好是 PATH 的引用:$PATH 后不能紧跟标识符字符(避免误吞 $PATHEXTRA)。
-func indexPathRef(s string) int {
+// indexVarRef 返回 s 中第一个 $NAME 或 ${NAME}(NAME ∈ names)引用的起始下标、
+// 匹配长度、变量名;没有则返回 (-1, 0, "")。$NAME 形式要求其后不紧跟标识符字符,
+// 避免把 $PATHEXTRA 误当成 $PATH。
+func indexVarRef(s string, names map[string]bool) (int, int, string) {
 	for i := 0; i+1 < len(s); i++ {
 		if s[i] != '$' {
 			continue
 		}
-		if strings.HasPrefix(s[i+1:], "{PATH}") {
-			return i
-		}
-		if strings.HasPrefix(s[i+1:], "PATH") {
-			after := i + 5 // len("$PATH")
-			if after >= len(s) || !isIdentByte(s[after]) {
-				return i
+		if s[i+1] == '{' {
+			if end := strings.IndexByte(s[i+2:], '}'); end >= 0 {
+				name := s[i+2 : i+2+end]
+				if names[name] {
+					return i, 2 + end + 1, name // ${ + name + }
+				}
 			}
+			continue
+		}
+		j := i + 1
+		for j < len(s) && isIdentByte(s[j]) {
+			j++
+		}
+		name := s[i+1 : j]
+		if names[name] {
+			return i, j - i, name
 		}
 	}
-	return -1
-}
-
-// pathRefLen 返回位于 ref 开头的 PATH 引用长度($PATH=5,${PATH}=7)。
-func pathRefLen(ref string) int {
-	if strings.HasPrefix(ref, "${PATH}") {
-		return 7
-	}
-	return 5 // $PATH
+	return -1, 0, ""
 }
 
 func isIdentByte(b byte) bool {

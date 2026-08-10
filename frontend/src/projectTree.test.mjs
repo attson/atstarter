@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { buildProjectTree } from './projectTree.js'
+import { buildProjectTree, buildPinnedList } from './projectTree.js'
 
 const projects = [
   {
@@ -117,5 +117,28 @@ const filteredPlatform = filteredWorktree[0].children.find((node) => node.type =
 assert.ok(filteredPlatform)
 assert.equal(filteredPlatform.children.length, 1)
 assert.equal(filteredPlatform.children[0].project.name, 'budget-usage-proxy')
+
+// buildPinnedList: 只收 pinnedOrder>0,按 pinnedOrder 升序,扁平
+{
+  const pinnedProjects = [
+    { id: 'p1', name: 'zeta', path: '/home/u/zeta', detectedType: 'go', pinnedOrder: 2 },
+    { id: 'p2', name: 'alpha', path: '/home/u/alpha', detectedType: 'go', pinnedOrder: 1 },
+    { id: 'p3', name: 'nope', path: '/home/u/nope', detectedType: 'go' }, // 未置顶
+    { id: 'p4', name: 'wt', path: '/home/u/alpha/.claude/worktrees/wt', detectedType: 'go', pinnedOrder: 3 },
+  ]
+  const pinnedStatuses = { p2: { State: 'running' } }
+  const list = buildPinnedList(pinnedProjects, pinnedStatuses, '')
+  assert.equal(list.length, 3, 'only pinned projects')
+  assert.deepEqual(list.map((n) => n.project.id), ['p2', 'p1', 'p4'], 'sorted by pinnedOrder asc')
+  assert.equal(list[0].type, 'project', 'flat project nodes')
+  assert.equal(list[0].status.State, 'running', 'carries status')
+
+  // query 过滤
+  const filteredPinned = buildPinnedList(pinnedProjects, pinnedStatuses, 'zeta')
+  assert.deepEqual(filteredPinned.map((n) => n.project.id), ['p1'], 'query filters pinned list')
+
+  // 空
+  assert.equal(buildPinnedList([], {}, '').length, 0, 'empty')
+}
 
 console.log('projectTree tests passed')

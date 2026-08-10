@@ -616,6 +616,16 @@ func (a *App) RemoveProject(id string) error {
 	return a.store.Remove(id)
 }
 
+// SetProjectPinned 置顶或取消置顶项目。
+func (a *App) SetProjectPinned(id string, pinned bool) error {
+	return a.store.SetProjectPinned(id, pinned)
+}
+
+// ReorderPinnedProjects 按传入 ID 顺序重排置顶项目。
+func (a *App) ReorderPinnedProjects(orderedIDs []string) error {
+	return a.store.ReorderPinned(orderedIDs)
+}
+
 func runIDForCommand(projectID, commandID string) string {
 	if commandID == "" {
 		commandID = store.DefaultCommandID

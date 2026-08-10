@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import AppButton from './ui/AppButton.vue'
 import CommandRow from './CommandRow.vue'
-import { commandFormsForProject } from '../commandForms.js'
+import { commandFormsForProject, blankCommandForm } from '../commandForms.js'
 import { envTextToMap } from '../envVars.js'
 
 const props = defineProps({ project: Object, show: Boolean })
@@ -32,14 +32,7 @@ function save() {
 }
 
 function addCommand() {
-  commands.value.push({
-    id: '',
-    name: `Command ${commands.value.length + 1}`,
-    line: '',
-    cwd: '',
-    envText: '',
-    isDefault: commands.value.length === 0,
-  })
+  commands.value.push(blankCommandForm(props.project, commands.value.length))
 }
 
 function removeCommand(index) {

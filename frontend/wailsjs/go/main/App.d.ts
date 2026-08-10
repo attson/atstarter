@@ -76,6 +76,8 @@ export function RemoveProjectPath(arg1:string,arg2:string,arg3:boolean):Promise<
 
 export function RenameProject(arg1:string,arg2:string,arg3:string):Promise<void>;
 
+export function ReorderPinnedProjects(arg1:Array<string>):Promise<void>;
+
 export function ResetProjects():Promise<void>;
 
 export function RestartContainer(arg1:string):Promise<void>;
@@ -85,6 +87,8 @@ export function SaveGroup(arg1:store.LaunchGroup):Promise<store.LaunchGroup>;
 export function ScanWorkspaces(arg1:Array<string>):Promise<Array<store.Project>>;
 
 export function SearchProjectFiles(arg1:string,arg2:string,arg3:number):Promise<filetree.SearchResults>;
+
+export function SetProjectPinned(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetWorkspaces(arg1:Array<string>):Promise<void>;
 

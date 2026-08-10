@@ -16,12 +16,14 @@ import UpdateBanner from './components/UpdateBanner.vue'
 import ComposeDetail from './components/ComposeDetail.vue'
 import ContainerPanel from './components/ContainerPanel.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
-import { FolderPlus, Radar, Plus, RefreshCw } from 'lucide-vue-next'
+import ContextMenu from './components/ui/ContextMenu.vue'
+import { FolderPlus, Radar, Plus, RefreshCw, Pin, PinOff, Play, Square, Trash2, FolderOpen } from 'lucide-vue-next'
 import {
   ListProjects, AddProject, StartProjectCommand, StopProjectCommand,
   GetStatus, UpdateProjectCommands, ListGroups, SaveGroup, RemoveGroup,
   StartGroup, StopGroup, GetWorkspaces, SetWorkspaces, ScanWorkspaces, AddScanned,
   UpdateProject, ResetProjects, RemoveProject, ListMissingProjectIDs,
+  StartProject, StopProject, OpenProjectPath, SetProjectPinned, ReorderPinnedProjects,
 } from '../wailsjs/go/main/App'
 import { ComposeDown, RemoveContainer, DockerAvailable } from '../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
@@ -34,6 +36,7 @@ const selectedId = ref('')
 const selectedGroupId = ref('')
 const statuses = ref({})
 const selectedCommandIds = ref({})
+const contextMenu = ref({ show: false, x: 0, y: 0, projectId: '' })
 const showEdit = ref(false)
 const showScan = ref(false)
 const showGroup = ref(false)
@@ -151,6 +154,56 @@ function defaultCommandId(project) {
 
 function runIdForCommand(projectId, commandId) {
   return `${projectId}:${commandId || 'default'}`
+}
+
+function projectRunState(id) {
+  const p = projects.value.find((x) => x.id === id)
+  if (!p) return 'stopped'
+  const runId = runIdForCommand(id, defaultCommandId(p))
+  return (statuses.value[runId] || {}).State || 'stopped'
+}
+
+const contextMenuItems = computed(() => {
+  const id = contextMenu.value.projectId
+  if (!id) return []
+  const p = projects.value.find((x) => x.id === id)
+  const isPinned = !!(p && p.pinnedOrder > 0)
+  const running = projectRunState(id) === 'running'
+  return [
+    { key: 'pin', label: isPinned ? '取消置顶' : '置顶', icon: isPinned ? PinOff : Pin },
+    { key: 'toggle', label: running ? '停止' : '启动', icon: running ? Square : Play },
+    { key: 'open', label: '在文件管理器打开', icon: FolderOpen },
+    { key: 'remove', label: '从列表移除', icon: Trash2, danger: true },
+  ]
+})
+
+function onContextMenu({ id, x, y }) {
+  contextMenu.value = { show: true, x, y, projectId: id }
+}
+function closeContextMenu() {
+  contextMenu.value = { ...contextMenu.value, show: false }
+}
+async function onContextMenuSelect(key) {
+  const id = contextMenu.value.projectId
+  if (!id) return
+  if (key === 'pin') {
+    const p = projects.value.find((x) => x.id === id)
+    await SetProjectPinned(id, !(p && p.pinnedOrder > 0))
+    await refresh()
+  } else if (key === 'toggle') {
+    if (projectRunState(id) === 'running') await StopProject(id)
+    else await StartProject(id)
+    await pollStatuses()
+  } else if (key === 'open') {
+    await OpenProjectPath(id, '')
+  } else if (key === 'remove') {
+    await RemoveProject(id)
+    await refresh()
+  }
+}
+async function onReorderPinned(ids) {
+  await ReorderPinnedProjects(ids)
+  await refresh()
 }
 
 function setSelectedCommand(commandId) {
@@ -403,8 +456,9 @@ onUnmounted(() => {
           :statuses="projectStatuses" :statusFilter="statusFilter" :rescanning="rescanning" :missingIds="missingIds"
           @select="selectProject" @select-group="selectGroup"
           @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true"
-          @rescan="onRescanProjects" @reset="onConfirmResetProjects" />
-        <GroupDetail v-if="selectedGroup" :group="selectedGroup" :projects="projects"
+          @rescan="onRescanProjects" @reset="onConfirmResetProjects"
+          @context-menu="onContextMenu" @reorder-pinned="onReorderPinned" />
+        <GroupDetail v-if="selectedGroup" :group="selectedGroup" :projects="projects" :statuses="statuses"
           @start="onStartGroup" @stop="onStopGroup" @edit="onEditGroup" @remove="onRemoveGroup"
           @select-command="selectCommand" />
         <ComposeDetail v-else-if="isComposeSelected" :project="selected" :dockerAvailable="dockerAvailable"
@@ -432,6 +486,13 @@ onUnmounted(() => {
     <AddProjectDialog :show="showAddProject" @close="showAddProject = false" @save="onAddProject" />
     <AddToGroupDialog :show="showAddToGroup" :groups="groups" :project="selected" :command="selectedCommand"
       @close="showAddToGroup = false" @save="onAddToGroup" />
+    <ContextMenu
+      v-if="contextMenu.show"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :items="contextMenuItems"
+      @select="onContextMenuSelect"
+      @close="closeContextMenu" />
     <ScanDialog :show="showScan" :projects="projects" @close="showScan = false" @added="refresh" />
     <ConfirmDialog :show="confirm.show" :title="confirm.title" :message="confirm.message"
       :confirmText="confirm.confirmText" :danger="confirm.danger"
