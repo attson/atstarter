@@ -78,6 +78,10 @@ export function ListMissingProjectIDs() {
   return window['go']['main']['App']['ListMissingProjectIDs']();
 }
 
+export function ListPackageScripts(arg1) {
+  return window['go']['main']['App']['ListPackageScripts'](arg1);
+}
+
 export function ListProjectDir(arg1, arg2) {
   return window['go']['main']['App']['ListProjectDir'](arg1, arg2);
 }
@@ -96,6 +100,10 @@ export function OpenProjectPath(arg1, arg2) {
 
 export function PickDirectory() {
   return window['go']['main']['App']['PickDirectory']();
+}
+
+export function PickDirectoryFrom(arg1) {
+  return window['go']['main']['App']['PickDirectoryFrom'](arg1);
 }
 
 export function ProjectAssetURL(arg1, arg2) {

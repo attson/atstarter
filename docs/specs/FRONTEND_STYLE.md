@@ -77,17 +77,42 @@ line, cwd, and env.
 
 ### 3.3 Command Form Pattern
 
-Applicable to `EditProjectDialog.vue` and add/edit command flows.
+Applicable to `EditProjectDialog.vue` and add/edit command flows. One command renders as one
+`CommandRow.vue`; the dialog owns the list (add/remove/default), the row owns a single command.
 
 1. Build forms through `commandFormsForProject(project)`.
 2. If command `cwd` is empty, display `project.path` as the input value so users can edit directly.
-3. Round-trip env as one `KEY=value` per line.
-4. On save, parse env text through `envTextToMap`.
-5. Keep exactly one default command selected in the form.
+3. Field order inside a row is fixed: name + default/remove actions, then `cwd`, then command line,
+   then env. `cwd` sits above the command line because it scopes the command.
+4. The `cwd` input carries a trailing inline folder-icon button that calls `PickDirectoryFrom` with
+   the current effective cwd, so the native picker opens where the user already is.
+5. Round-trip env as one `KEY=value` per line.
+6. On save, parse env text through `envTextToMap`.
+7. Keep exactly one default command selected in the form.
 
-Reference implementation: `frontend/src/commandForms.js`, `frontend/src/envVars.js`.
+Reference implementation: `frontend/src/commandForms.js`, `frontend/src/envVars.js`,
+`frontend/src/components/CommandRow.vue`.
 
-### 3.4 Env Text Pattern
+### 3.4 Script Completion Pattern
+
+Applicable to the command-line input in `CommandRow.vue`.
+
+1. Completion triggers only on `<pm> run <prefix>` where `<pm>` is `npm`, `pnpm`, `yarn`, or `bun`,
+   and nothing follows the prefix. Bare `pnpm dev` is out of scope: separating scripts from a package
+   manager's own subcommands (`install`, `add`, `build`) is ambiguous and mis-completes.
+2. Candidates come from `ListPackageScripts(effectiveCwd)`, where `effectiveCwd` is the row's `cwd`
+   falling back to `project.path`. Results are cached per directory for the life of the dialog.
+3. Matching is case-insensitive; prefix hits sort before substring hits, each group keeping the
+   backend's alphabetical order.
+4. The overlay is a custom floating list rendered with `components/ui` tokens, not a native
+   `<datalist>`, so it follows the theme and can show each script's actual command.
+5. Keys: `ArrowUp`/`ArrowDown` move, `Enter`/`Tab` accept, `Escape` closes without bubbling to the
+   dialog. Options use `@mousedown.prevent` so clicking does not blur the input.
+6. Failure to read scripts closes the overlay silently. Completion never blocks or errors typing.
+
+Reference implementation: `frontend/src/scriptComplete.js`.
+
+### 3.5 Env Text Pattern
 
 `envTextToMap` behavior is part of the UI contract:
 

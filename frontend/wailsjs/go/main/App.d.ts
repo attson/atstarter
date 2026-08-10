@@ -3,8 +3,8 @@
 import {store} from '../models';
 import {docker} from '../models';
 import {runner} from '../models';
-import {filetree} from '../models';
 import {main} from '../models';
+import {filetree} from '../models';
 
 export function AddProject(arg1:string):Promise<store.Project>;
 
@@ -44,6 +44,8 @@ export function ListGroups():Promise<Array<store.LaunchGroup>>;
 
 export function ListMissingProjectIDs():Promise<Array<string>>;
 
+export function ListPackageScripts(arg1:string):Promise<Array<main.PackageScript>>;
+
 export function ListProjectDir(arg1:string,arg2:string):Promise<Array<filetree.Entry>>;
 
 export function ListProjects():Promise<Array<store.Project>>;
@@ -53,6 +55,8 @@ export function MkdirProject(arg1:string,arg2:string):Promise<void>;
 export function OpenProjectPath(arg1:string,arg2:string):Promise<void>;
 
 export function PickDirectory():Promise<string>;
+
+export function PickDirectoryFrom(arg1:string):Promise<string>;
 
 export function ProjectAssetURL(arg1:string,arg2:string):Promise<string>;
 

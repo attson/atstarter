@@ -58,6 +58,7 @@ jobs:
         run: |
           node --test frontend/src/projectTree.test.mjs
           node --test frontend/src/composables/useTheme.test.mjs
+          node --test frontend/src/scriptComplete.test.mjs
 
   build-linux:
     name: linux/${{ matrix.arch }}

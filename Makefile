@@ -35,6 +35,7 @@ test:
 	node --test frontend/src/dockerState.test.mjs
 	node --test frontend/src/envVars.test.mjs
 	node --test frontend/src/projectDetection.test.mjs
+	node --test frontend/src/scriptComplete.test.mjs
 	node --test frontend/src/updateSchedule.test.mjs
 	node --test frontend/src/workspaceRoots.test.mjs
 

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import AppButton from './ui/AppButton.vue'
+import CommandRow from './CommandRow.vue'
 import { commandFormsForProject } from '../commandForms.js'
 import { envTextToMap } from '../envVars.js'
 
@@ -65,29 +66,15 @@ function setDefault(index) {
             <AppButton variant="secondary" size="sm" @click="addCommand">Add command</AppButton>
           </div>
           <div class="command-list">
-            <div v-for="(cmd, index) in commands" :key="cmd.id || index" class="command-row">
-              <div class="command-top">
-                <input v-model="cmd.name" placeholder="Name" />
-                <AppButton
-                  :variant="cmd.isDefault ? 'primary' : 'secondary'"
-                  size="sm"
-                  @click="setDefault(index)"
-                >Default</AppButton>
-                <AppButton
-                  variant="secondary"
-                  size="sm"
-                  :disabled="commands.length <= 1"
-                  @click="removeCommand(index)"
-                >Remove</AppButton>
-              </div>
-              <input v-model="cmd.line" placeholder="如 pnpm run dev 或 go run main.go serve" />
-              <input v-model="cmd.cwd" :placeholder="project && project.path" />
-              <textarea
-                v-model="cmd.envText"
-                spellcheck="false"
-                placeholder="环境变量,每行一个: KEY=value"
-              />
-            </div>
+            <CommandRow
+              v-for="(cmd, index) in commands"
+              :key="cmd.id || index"
+              :cmd="cmd"
+              :project-path="(project && project.path) || ''"
+              :can-remove="commands.length > 1"
+              @set-default="setDefault(index)"
+              @remove="removeCommand(index)"
+            />
           </div>
           <div class="btns">
             <AppButton variant="secondary" @click="emit('close')">取消</AppButton>
@@ -142,8 +129,7 @@ h3 {
   font-weight: var(--fw-medium);
 }
 
-.dialog input,
-.dialog textarea {
+.dialog input {
   height: 32px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -155,17 +141,7 @@ h3 {
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
 }
 
-.dialog textarea {
-  min-height: 76px;
-  resize: vertical;
-  padding: var(--space-4) var(--space-5);
-  line-height: 1.45;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-}
-
-.dialog input:focus,
-.dialog textarea:focus {
+.dialog input:focus {
   border-color: var(--text-subtle);
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
@@ -183,23 +159,6 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-}
-
-.command-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--bg);
-}
-
-.command-top {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: var(--space-4);
 }
 
 .btns {
