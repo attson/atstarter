@@ -88,6 +88,9 @@ const members = computed(() => {
 .group-wrap { min-width: 0; }
 
 .group-item {
+  /* 同 ProjectTreeNode 的 .tree-row:左右内边距必须算进 width:100%,
+     否则行会撑出 .tree-scroll。这里内容高度已经超过 min-height,行高不受影响。 */
+  box-sizing: border-box;
   width: 100%;
   display: flex;
   align-items: center;

@@ -116,6 +116,10 @@ function onContextMenu(node, event) {
 .tree-group { min-width: 0; }
 
 .tree-row {
+  /* 缩进靠内联 padding-left 按层级算,再加 padding-right —— 没有 border-box 的话
+     这些都加在 width:100% 之外,行会撑出 .tree-scroll,既出横向滚动条又让
+     .project-name 的省略号截断失效(内容有地方溢出就不会被截)。 */
+  box-sizing: border-box;
   width: 100%;
   border: 0;
   background: transparent;
@@ -169,7 +173,9 @@ function onContextMenu(node, event) {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 28px;
+  /* border-box 下上下内边距算进 min-height,提到 32 是为了让行高与改用
+     border-box 之前保持一致(28 + 2 + 2)。 */
+  min-height: 32px;
   margin: 1px 0;
   padding-top: 2px;
   padding-bottom: 2px;
