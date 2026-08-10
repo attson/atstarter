@@ -150,6 +150,9 @@ Reference implementation: `frontend/src/scriptComplete.js`.
 - [ ] Keep text truncation/tooltip behavior for long paths and commands.
 - [ ] Keep icon-only run controls titled for hover/accessibility.
 - [ ] Add pure helper tests when state transformation logic changes.
+- [ ] Declare `box-sizing: border-box` on any element that combines `width: 100%` with padding or a
+      border. There is no global reset in `style.css`, so the default `content-box` silently widens
+      the element past its container.
 
 ### Conditional
 
@@ -162,3 +165,6 @@ Reference implementation: `frontend/src/scriptComplete.js`.
 
 - [ ] Run relevant `node --test frontend/src/*.test.mjs frontend/src/composables/*.test.mjs`.
 - [ ] Run `cd frontend && npm run build` for UI or generated binding changes.
+- [ ] Check layout against the app's own stylesheet, not only the VitePress home demo. VitePress
+      applies a global `border-box` reset that the app does not, so box-model bugs can look fine in
+      the demo and break in the app.
