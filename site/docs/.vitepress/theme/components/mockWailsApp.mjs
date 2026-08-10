@@ -383,6 +383,28 @@ export async function UpdateProject(nextProject) {
   if (index !== -1) projects[index] = clone(nextProject)
 }
 
+// 置顶序号语义对齐 store.SetProjectPinned:置顶取当前最大值+1(追加到末尾),
+// 已置顶则不动;取消置顶归 0。
+export async function SetProjectPinned(projectId, pinned) {
+  const project = projects.find((item) => item.id === projectId)
+  if (!project) return
+  if (!pinned) {
+    project.pinnedOrder = 0
+    return
+  }
+  if (project.pinnedOrder > 0) return
+  project.pinnedOrder = Math.max(0, ...projects.map((p) => p.pinnedOrder || 0)) + 1
+}
+
+// 对齐 store.ReorderPinned:按传入顺序重排为 1..N,不在列表里的项目不动。
+export async function ReorderPinnedProjects(orderedIds) {
+  const ids = Array.isArray(orderedIds) ? orderedIds : []
+  ids.forEach((id, index) => {
+    const project = projects.find((item) => item.id === id)
+    if (project) project.pinnedOrder = index + 1
+  })
+}
+
 export async function AddProject(dir) {
   const name = String(dir || '').split('/').filter(Boolean).pop() || 'new-project'
   projects.push({

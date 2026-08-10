@@ -60,6 +60,12 @@ jobs:
           node --test frontend/src/composables/useTheme.test.mjs
           node --test frontend/src/scriptComplete.test.mjs
 
+      # The site build only runs after merge (pages.yml is push-to-main), so a
+      # frontend import the demo mocks don't export used to break the docs site
+      # with no pre-merge signal. This check is pure node — no site deps needed.
+      - name: demo mock coverage
+        run: node --test site/docs/.vitepress/theme/components/mockWailsCoverage.test.mjs
+
   build-linux:
     name: linux/${{ matrix.arch }}
     needs: test
