@@ -38,6 +38,7 @@ test:
 	node --test frontend/src/scriptComplete.test.mjs
 	node --test frontend/src/updateSchedule.test.mjs
 	node --test frontend/src/workspaceRoots.test.mjs
+	node --test site/docs/.vitepress/theme/components/mockWailsCoverage.test.mjs
 
 test-race:
 	go test -race ./internal/runner/
