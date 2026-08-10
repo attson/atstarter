@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -417,6 +418,46 @@ func (a *App) PickDirectory() (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "选择工作区根目录",
 	})
+}
+
+// PickDirectoryFrom 调起系统原生文件夹选择器,defaultDir 作为初始定位目录。
+// 用户取消时返回空字符串(无错误)。用于编辑命令的工作目录:从当前值起步比从
+// 用户主目录起步少点很多次。
+func (a *App) PickDirectoryFrom(defaultDir string) (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:            "选择工作目录",
+		DefaultDirectory: expandHome(strings.TrimSpace(defaultDir)),
+	})
+}
+
+// PackageScript 是 package.json scripts 里的一条:脚本名 + 实际命令。
+type PackageScript struct {
+	Name   string `json:"name"`
+	Script string `json:"script"`
+}
+
+// ListPackageScripts 读取 dir 下 package.json 的 scripts,按脚本名字典序返回,
+// 供前端在 `npm run ` 之类的输入上做补全。
+//
+// 读不到内容(目录不存在、没有 package.json、JSON 非法、没有 scripts 字段)一律
+// 返回空切片且不报错:补全是锦上添花,目录还没填完或不是 Node 项目都属于常态,
+// 弹错误只会打断用户输入。
+func (a *App) ListPackageScripts(dir string) ([]PackageScript, error) {
+	out := []PackageScript{}
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return out, nil
+	}
+	scripts := detector.ReadScripts(expandHome(dir))
+	names := make([]string, 0, len(scripts))
+	for name := range scripts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		out = append(out, PackageScript{Name: name, Script: scripts[name]})
+	}
+	return out, nil
 }
 
 // AddScanned 批量保存用户勾选的候选项目。

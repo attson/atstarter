@@ -292,6 +292,19 @@ export async function ListMissingProjectIDs() { return [] }
 export async function GetWorkspaces() { return ['/Users/demo/workspaces', '/Users/demo/sandboxes'] }
 export async function SetWorkspaces() {}
 export async function PickDirectory() { return '/Users/demo/workspaces' }
+export async function PickDirectoryFrom(defaultDir) { return defaultDir || '/Users/demo/workspaces' }
+
+// 演示站没有真实文件系统,给所有目录返回同一份 scripts,让编辑对话框里的
+// `npm run ` 补全能被看到。
+const demoPackageScripts = [
+  { name: 'build', script: 'vite build' },
+  { name: 'dev', script: 'vite' },
+  { name: 'docs:dev', script: 'vitepress dev docs' },
+  { name: 'lint', script: 'eslint .' },
+  { name: 'test', script: 'vitest run' },
+]
+
+export async function ListPackageScripts() { return clone(demoPackageScripts) }
 export async function DockerAvailable() { return { available: true, version: 'Docker 28.0.0', reason: '' } }
 export async function GetProjectBranch(path) { return branches.get(path) || 'main' }
 

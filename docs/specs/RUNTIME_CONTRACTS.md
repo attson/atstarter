@@ -129,7 +129,27 @@ Applicable to release checks and installs.
 
 Reference implementation: `updater.go`, `scripts/install-*`.
 
-### 3.6 Local Control Pattern
+### 3.6 Command Form Assist Pattern
+
+Two `App` methods exist only to help the user fill in a `LaunchCommand`. Both are advisory: they never
+mutate config and never block editing.
+
+```go
+App.PickDirectoryFrom(defaultDir string) (string, error)   // "" when the user cancels
+App.ListPackageScripts(dir string) ([]PackageScript, error)
+```
+
+1. `PickDirectoryFrom` expands `~` in `defaultDir` and opens the native picker there. `PickDirectory`
+   stays as the workspace-root variant; do not merge them by changing an existing signature.
+2. `ListPackageScripts` reads exactly `filepath.Join(dir, "package.json")` — no traversal, no
+   recursion, no other filename. `dir` is user-entered and already becomes the runner's working
+   directory, so this adds no trust surface.
+3. It returns `[]PackageScript{Name, Script}` sorted by name, and an empty slice with a nil error for
+   every read failure (missing directory, no `package.json`, invalid JSON, no `scripts` field).
+   Surfacing those as errors would fire constantly while the user is mid-typing.
+4. `package.json` parsing lives in `detector.ReadScripts`. Do not add a second parser.
+
+### 3.7 Local Control Pattern
 
 Applicable to `control_server.go`, `cli.go`, `mcp.go`, and `internal/control`.
 

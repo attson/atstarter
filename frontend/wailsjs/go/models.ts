@@ -230,6 +230,20 @@ export namespace main {
 	        this.error = source["error"];
 	    }
 	}
+	export class PackageScript {
+	    name: string;
+	    script: string;
+
+	    static createFrom(source: any = {}) {
+	        return new PackageScript(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.script = source["script"];
+	    }
+	}
 	export class UpdateState {
 	    current: string;
 	    latest: string;

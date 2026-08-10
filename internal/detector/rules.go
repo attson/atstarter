@@ -14,8 +14,9 @@ func exists(dir, rel string) bool {
 	return err == nil
 }
 
-// readScripts 读取 package.json 的 scripts 字段;失败返回 nil。
-func readScripts(dir string) map[string]string {
+// ReadScripts 读取 dir 下 package.json 的 scripts 字段;读不到或解析失败返回 nil。
+// 只读取固定文件名 package.json,不遍历、不递归。
+func ReadScripts(dir string) map[string]string {
 	b, err := os.ReadFile(filepath.Join(dir, "package.json"))
 	if err != nil {
 		return nil
@@ -31,7 +32,7 @@ func readScripts(dir string) map[string]string {
 
 // pickNodeScript 依次挑选存在的脚本名,优先 dev,其次 serve、start;都没有则返回 "dev"(兜底)。
 func pickNodeScript(dir string) string {
-	scripts := readScripts(dir)
+	scripts := ReadScripts(dir)
 	for _, name := range []string{"dev", "serve", "start"} {
 		if _, ok := scripts[name]; ok {
 			return name
