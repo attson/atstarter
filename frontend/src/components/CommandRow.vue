@@ -188,6 +188,10 @@ async function pickDir() {
 
 input,
 textarea {
+  /* 全局没有 border-box 重置(见 GroupDialog/ScanDialog 的同款声明),
+     而这里的 width:100% 要和左右内边距、边框共存 —— 不显式声明就会撑出
+     .command-row,目录框因为要给文件夹按钮留右内边距,溢出最多。 */
+  box-sizing: border-box;
   width: 100%;
   height: 32px;
   border: 1px solid var(--border-strong);
