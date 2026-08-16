@@ -15,6 +15,10 @@ import {
   RenameProject,
   RemoveProjectPath,
   TrashProjectPath,
+  CopyProjectPath,
+  MoveProjectPath,
+  RevealProjectPath,
+  ProjectAbsPath,
   WatchProjectDir,
   UnwatchProjectDir,
 } from '../../../wailsjs/go/main/App'
@@ -60,6 +64,8 @@ export interface SearchResults {
 
 export interface FileSystemBridge {
   readonly identity: string
+  /** 所属项目 ID。跨项目复制/移动要把它写进剪贴板,所以 bridge 必须自报家门。 */
+  readonly projectId: string
   listDir(path: string): Promise<DirEntry[]>
   searchPaths(query: string, limit: number): Promise<SearchResults>
   readFile(path: string): Promise<FileContent>
@@ -77,6 +83,13 @@ export interface FileSystemBridge {
   rename(from: string, to: string): Promise<void>
   remove(path: string, recursive: boolean): Promise<void>
   trash(path: string): Promise<void>
+  // 复制/移动可跨项目:源项目 ID 由调用方(剪贴板)给出,目标项目就是本 bridge。
+  // 返回后端实际写入的目标 relPath —— 目标同名时后端会自动改名,绝不覆盖。
+  copyFrom(srcProjectId: string, srcPath: string, dstPath: string): Promise<string>
+  moveFrom(srcProjectId: string, srcPath: string, dstPath: string): Promise<string>
+  // 在系统文件管理器中定位(不是用默认程序打开)。
+  reveal(path: string): Promise<void>
+  absPath(path: string): Promise<string>
   watchDir(path: string): Promise<number>
   unwatchDir(id: number): Promise<void>
   onDirChanged(handler: (relDir: string) => void): () => void
@@ -86,6 +99,7 @@ export interface FileSystemBridge {
 export function createProjectFSBridge(projectId: string): FileSystemBridge {
   return {
     identity: 'local:' + projectId,
+    projectId,
     listDir: async (path) => {
       const entries = await ListProjectDir(projectId, path)
       return (entries || []).map((e) => ({ name: e.name, isDir: e.isDir, size: e.size }))
@@ -104,6 +118,10 @@ export function createProjectFSBridge(projectId: string): FileSystemBridge {
     rename: (from, to) => RenameProject(projectId, from, to),
     remove: (path, recursive) => RemoveProjectPath(projectId, path, recursive),
     trash: (path) => TrashProjectPath(projectId, path),
+    copyFrom: (srcProjectId, srcPath, dstPath) => CopyProjectPath(srcProjectId, srcPath, projectId, dstPath),
+    moveFrom: (srcProjectId, srcPath, dstPath) => MoveProjectPath(srcProjectId, srcPath, projectId, dstPath),
+    reveal: (path) => RevealProjectPath(projectId, path),
+    absPath: (path) => ProjectAbsPath(projectId, path),
     watchDir: (path) => WatchProjectDir(projectId, path),
     unwatchDir: (id) => UnwatchProjectDir(id),
     onDirChanged: (handler) => EventsOn('fs:dir-changed', (relDir: string) => handler(relDir)),

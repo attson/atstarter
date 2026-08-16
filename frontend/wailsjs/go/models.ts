@@ -188,6 +188,35 @@ export namespace filetree {
 
 }
 
+export namespace git {
+	
+	export class Branches {
+	    repo: boolean;
+	    branch: string;
+	    detached: boolean;
+	    dirty: boolean;
+	    head: string;
+	    local: string[];
+	    remote: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Branches(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.repo = source["repo"];
+	        this.branch = source["branch"];
+	        this.detached = source["detached"];
+	        this.dirty = source["dirty"];
+	        this.head = source["head"];
+	        this.local = source["local"];
+	        this.remote = source["remote"];
+	    }
+	}
+
+}
+
 export namespace main {
 	
 	export class CommandInput {
@@ -233,11 +262,11 @@ export namespace main {
 	export class PackageScript {
 	    name: string;
 	    script: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PackageScript(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];

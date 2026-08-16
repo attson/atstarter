@@ -61,7 +61,11 @@ The home page demo uses `frontend/src/App.vue` in embedded mode:
 - Preserve Go-shaped polling status keys such as `State`, `PID`, and `ExitCode`, and lower-case event
   payload keys such as `state`, `pid`, and `exitCode`.
 - Keep file APIs project-scoped and synthetic. Mock file paths should look realistic but remain fake.
+- Keep git branch APIs synthetic and in-memory. The demo must never run a real `git` command.
 - Keep release/update data synthetic and non-actionable.
+- `mockWailsCoverage.test.mjs` enforces "every binding the frontend imports is exported by the mock".
+  It scans `.vue`, `.js`, `.mjs`, and `.ts` under `frontend/src` — `.ts` matters because `fsBridge.ts`
+  is where most file bindings are imported.
 
 ### Fixture Rules
 

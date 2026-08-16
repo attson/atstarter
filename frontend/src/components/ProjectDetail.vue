@@ -1,32 +1,21 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Play, Square, RotateCcw, Pencil, FolderPlus, ChevronDown, ChevronUp, GitBranch, Trash2 } from 'lucide-vue-next'
+import { Play, Square, RotateCcw, Pencil, FolderPlus, ChevronDown, ChevronUp, Trash2 } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
 import FileBrowser from './FileBrowser.vue'
+import BranchSwitcher from './BranchSwitcher.vue'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
 import AppIcon from './ui/AppIcon.vue'
 import DetectionSwitch from './DetectionSwitch.vue'
 import { typeLabel } from '../typeLabel.js'
 import { hasDetectionSwitch } from '../projectDetection.js'
-import { GetProjectBranch } from '../../wailsjs/go/main/App'
 
 const props = defineProps({ project: Object, status: Object, selectedCommandId: String, missing: { type: Boolean, default: false } })
 const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group', 'switch-type', 'remove'])
 const commandMenuOpen = ref(false)
-const branch = ref('')
 const detailTab = ref('logs') // 'logs' | 'files'
 watch(() => props.project?.id, () => { detailTab.value = 'logs' })
-let branchToken = 0
-
-async function refreshBranch(path) {
-  const token = ++branchToken
-  branch.value = ''
-  if (!path) return
-  const value = await GetProjectBranch(path)
-  if (token !== branchToken) return
-  branch.value = value || ''
-}
 
 const commands = computed(() => {
   if (!props.project) return []
@@ -66,8 +55,6 @@ watch(() => props.selectedCommandId, () => {
   commandMenuOpen.value = false
 })
 
-watch(() => props.project?.path, (path) => { refreshBranch(path) }, { immediate: true })
-
 function chooseCommand(command) {
   emit('command-change', command.id)
   commandMenuOpen.value = false
@@ -83,10 +70,7 @@ function chooseCommand(command) {
           <AppPill :variant="pillVariant" :dot="state === 'running'">{{ state }}</AppPill>
           <DetectionSwitch v-if="hasDetectionSwitch(project)" :project="project" @switch="emit('switch-type', $event)" />
           <AppPill v-else variant="neutral">{{ typeLabel(project.detectedType) }}</AppPill>
-          <AppPill v-if="branch" variant="neutral" class="branch-pill">
-            <AppIcon :icon="GitBranch" :size="11" />
-            {{ branch }}
-          </AppPill>
+          <BranchSwitcher :project="project" :running="state === 'running'" />
           <AppPill v-if="missing" variant="error" title="项目路径已不存在">missing</AppPill>
         </div>
         <div class="path" :title="project.path">{{ project.path }}</div>
@@ -222,15 +206,6 @@ function chooseCommand(command) {
   min-width: 0;
   max-width: 100%;
   display: contents;
-}
-
-.branch-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--accent-strong);
-  border-color: var(--success-line);
-  background: var(--success-gradient);
 }
 
 .title-line {

@@ -35,15 +35,23 @@ type InlineIntent =
 const props = defineProps<{
   node: TreeNode;
   level: number;
-  selectedPath: string;
+  selectedPaths: Set<string>;
+  focusedPath: string;
+  /** 剪切中的路径:粘贴前显示为半透明,和资源管理器一致。 */
+  cutPaths: Set<string>;
+  /** 当前拖拽悬停的落点目录,用来高亮。 */
+  dropTarget: string;
   inlineIntent?: InlineIntent | null;
 }>();
 
 const emit = defineEmits<{
-  (e: "toggle", n: TreeNode): void;
-  (e: "click-file", n: TreeNode): void;
-  (e: "dblclick-file", n: TreeNode): void;
+  (e: "row-click", ev: MouseEvent, n: TreeNode): void;
+  (e: "row-dblclick", ev: MouseEvent, n: TreeNode): void;
   (e: "context", ev: MouseEvent, n: TreeNode, level: number): void;
+  (e: "drag-start", ev: DragEvent, n: TreeNode): void;
+  (e: "drag-over", ev: DragEvent, n: TreeNode): void;
+  (e: "drag-leave", ev: DragEvent, n: TreeNode): void;
+  (e: "drop-on", ev: DragEvent, n: TreeNode): void;
   (e: "inline-submit", value: string): void;
   (e: "inline-cancel"): void;
 }>();
@@ -109,23 +117,13 @@ function cssVar(name: string, fallback: string): string {
 const folderColor = computed(() => cssVar("--ed-folder", "#d4a14a"));
 const chevronColor = computed(() => cssVar("--ed-chevron", "rgba(173,186,199,0.7)"));
 
-const isSelected = computed(() => props.selectedPath === props.node.path);
+const isSelected = computed(() => props.selectedPaths.has(props.node.path));
+const isFocused = computed(() => props.focusedPath === props.node.path);
+const isCut = computed(() => props.cutPaths.has(props.node.path));
+const isDropTarget = computed(() => props.dropTarget !== "" && props.dropTarget === props.node.path);
 const dirChevron = computed(() => (props.node.expanded ? ChevronDown : ChevronRight));
 const dirIcon = computed(() => (props.node.expanded ? FolderOpen : Folder));
 const fileIcon = computed(() => fileIconFor(props.node.name));
-
-function onClick() {
-  if (props.node.isDir) emit("toggle", props.node);
-  else emit("click-file", props.node);
-}
-
-function onDblClick() {
-  if (!props.node.isDir) emit("dblclick-file", props.node);
-}
-
-function onContext(ev: MouseEvent) {
-  emit("context", ev, props.node, props.level);
-}
 </script>
 
 <template>
@@ -141,17 +139,30 @@ function onContext(ev: MouseEvent) {
     <div
       v-else
       class="node"
-      :class="{ selected: isSelected, 'is-dir': node.isDir, 'is-file': !node.isDir }"
+      :class="{
+        selected: isSelected,
+        focused: isFocused,
+        cut: isCut,
+        'drop-target': isDropTarget,
+        'is-dir': node.isDir,
+        'is-file': !node.isDir,
+      }"
       :data-type="node.isDir ? 'dir' : 'file'"
+      :data-path="node.path"
+      draggable="true"
       :style="{
         paddingLeft: `${level * INDENT_PX}px`,
         height: `${ROW_HEIGHT}px`,
         lineHeight: `${ROW_HEIGHT}px`,
       }"
       :title="node.path"
-      @click="onClick"
-      @dblclick="onDblClick"
-      @contextmenu="onContext"
+      @click="(ev) => emit('row-click', ev, node)"
+      @dblclick="(ev) => emit('row-dblclick', ev, node)"
+      @contextmenu="(ev) => emit('context', ev, node, level)"
+      @dragstart="(ev) => emit('drag-start', ev, node)"
+      @dragover="(ev) => emit('drag-over', ev, node)"
+      @dragleave="(ev) => emit('drag-leave', ev, node)"
+      @drop="(ev) => emit('drop-on', ev, node)"
     >
       <span class="twisty">
         <component
@@ -197,12 +208,18 @@ function onContext(ev: MouseEvent) {
         <FileTreeNode
           :node="c"
           :level="level + 1"
-          :selected-path="selectedPath"
+          :selected-paths="selectedPaths"
+          :focused-path="focusedPath"
+          :cut-paths="cutPaths"
+          :drop-target="dropTarget"
           :inline-intent="inlineIntent"
-          @toggle="(n: TreeNode) => emit('toggle', n)"
-          @click-file="(n: TreeNode) => emit('click-file', n)"
-          @dblclick-file="(n: TreeNode) => emit('dblclick-file', n)"
+          @row-click="(ev: MouseEvent, n: TreeNode) => emit('row-click', ev, n)"
+          @row-dblclick="(ev: MouseEvent, n: TreeNode) => emit('row-dblclick', ev, n)"
           @context="(ev: MouseEvent, n: TreeNode, l: number) => emit('context', ev, n, l)"
+          @drag-start="(ev: DragEvent, n: TreeNode) => emit('drag-start', ev, n)"
+          @drag-over="(ev: DragEvent, n: TreeNode) => emit('drag-over', ev, n)"
+          @drag-leave="(ev: DragEvent, n: TreeNode) => emit('drag-leave', ev, n)"
+          @drop-on="(ev: DragEvent, n: TreeNode) => emit('drop-on', ev, n)"
           @inline-submit="(v: string) => emit('inline-submit', v)"
           @inline-cancel="() => emit('inline-cancel')"
         />
@@ -242,6 +259,10 @@ function onContext(ev: MouseEvent) {
 }
 .node:hover { background: var(--ed-row-hover, rgba(255, 255, 255, 0.05)); }
 .node.selected { background: var(--ed-row-selected, #37373d); }
+/* 焦点行画描边而不是换底色:多选时选中底色仍要看得见。 */
+.node.focused { box-shadow: inset 0 0 0 1px var(--ed-tab-active-bar, #539bf5); }
+.node.cut { opacity: 0.5; }
+.node.drop-target { background: var(--ed-row-selected, #37373d); outline: 1px dashed var(--ed-tab-active-bar, #539bf5); outline-offset: -1px; }
 .twisty {
   display: inline-flex;
   align-items: center;

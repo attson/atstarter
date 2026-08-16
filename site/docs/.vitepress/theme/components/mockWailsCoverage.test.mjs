@@ -18,7 +18,9 @@ function sourceFiles(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name)
     if (entry.isDirectory()) sourceFiles(full, out)
-    else if (/\.(vue|js|mjs)$/.test(entry.name)) out.push(full)
+    // .ts 也要扫:文件浏览器的 fsBridge.ts 是绑定导入最集中的地方,
+    // 漏掉它等于这个不变式对整个文件子系统失效。
+    else if (/\.(vue|js|mjs|ts)$/.test(entry.name)) out.push(full)
   }
   return out
 }

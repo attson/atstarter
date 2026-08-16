@@ -10,10 +10,17 @@ import type { FileSystemBridge } from "./fsBridge";
 
 const CodeEditor = defineAsyncComponent(() => import("./CodeEditor.vue"));
 
+interface EditorPrefs {
+  lineNumbers: boolean;
+  wrap: boolean;
+  tabSize: number;
+  fontSize: number;
+}
+
 const props = defineProps<{
   fs: FileSystemBridge;
   path: string;
-  showLineNumbers: boolean;
+  prefs: EditorPrefs;
   theme: "dimmed" | "light";
   /** Dual-mode toggle for kinds with both source and rendered views
    *  (SVG: code↔image; markdown: code↔rendered HTML). Ignored for
@@ -23,15 +30,29 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "dirty-change", dirty: boolean): void;
+  (e: "cursor-change", pos: { line: number; column: number; selected: number; lines: number }): void;
+  (e: "kind-change", kind: PreviewKind | null): void;
 }>();
 
-const codeEditorRef = ref<{ save: () => Promise<boolean> } | null>(null) as Ref<{ save: () => Promise<boolean> } | null>;
+interface CodeEditorApi {
+  save: () => Promise<boolean>;
+  revert: () => void;
+  gotoLine: (line: number) => void;
+  focus: () => void;
+}
+
+const codeEditorRef = ref<CodeEditorApi | null>(null) as Ref<CodeEditorApi | null>;
 
 async function save(): Promise<boolean> {
   return codeEditorRef.value?.save?.() ?? Promise.resolve(false);
 }
 
-defineExpose({ save });
+defineExpose({
+  save,
+  revert: () => codeEditorRef.value?.revert?.(),
+  gotoLine: (line: number) => codeEditorRef.value?.gotoLine?.(line),
+  focus: () => codeEditorRef.value?.focus?.(),
+});
 
 const T = { errorPrefix: (message: string) => "出错:" + message };
 
@@ -54,9 +75,11 @@ async function resolveKind() {
     const meta = (await fs.fileMeta(path)) as { isBinary: boolean };
     if (!isCurrent(fs, path, request)) return;
     kind.value = previewKind(path, meta.isBinary);
+    emit("kind-change", kind.value);
   } catch (e) {
     if (!isCurrent(fs, path, request)) return;
     error.value = (e as Error).message;
+    emit("kind-change", null);
   }
 }
 
@@ -77,9 +100,10 @@ onBeforeUnmount(() => {
         ref="codeEditorRef"
         :fs="fs"
         :path="path"
-        :show-line-numbers="showLineNumbers"
+        :prefs="prefs"
         :theme="theme"
         @dirty-change="(v: boolean) => emit('dirty-change', v)"
+        @cursor-change="(p: { line: number; column: number; selected: number; lines: number }) => emit('cursor-change', p)"
       />
     </template>
     <template v-else-if="kind === 'image' || (kind === 'svg' && viewMode === 'render')">

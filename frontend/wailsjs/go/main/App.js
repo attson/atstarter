@@ -10,6 +10,10 @@ export function AddScanned(arg1) {
   return window['go']['main']['App']['AddScanned'](arg1);
 }
 
+export function CheckoutProjectBranch(arg1, arg2) {
+  return window['go']['main']['App']['CheckoutProjectBranch'](arg1, arg2);
+}
+
 export function ClearLogs(arg1) {
   return window['go']['main']['App']['ClearLogs'](arg1);
 }
@@ -28,6 +32,14 @@ export function ComposeStop(arg1, arg2) {
 
 export function ComposeUp(arg1, arg2) {
   return window['go']['main']['App']['ComposeUp'](arg1, arg2);
+}
+
+export function CopyProjectPath(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CopyProjectPath'](arg1, arg2, arg3, arg4);
+}
+
+export function CreateProjectBranch(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateProjectBranch'](arg1, arg2, arg3);
 }
 
 export function CreateProjectFile(arg1, arg2) {
@@ -82,6 +94,10 @@ export function ListPackageScripts(arg1) {
   return window['go']['main']['App']['ListPackageScripts'](arg1);
 }
 
+export function ListProjectBranches(arg1) {
+  return window['go']['main']['App']['ListProjectBranches'](arg1);
+}
+
 export function ListProjectDir(arg1, arg2) {
   return window['go']['main']['App']['ListProjectDir'](arg1, arg2);
 }
@@ -94,6 +110,10 @@ export function MkdirProject(arg1, arg2) {
   return window['go']['main']['App']['MkdirProject'](arg1, arg2);
 }
 
+export function MoveProjectPath(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['MoveProjectPath'](arg1, arg2, arg3, arg4);
+}
+
 export function OpenProjectPath(arg1, arg2) {
   return window['go']['main']['App']['OpenProjectPath'](arg1, arg2);
 }
@@ -104,6 +124,10 @@ export function PickDirectory() {
 
 export function PickDirectoryFrom(arg1) {
   return window['go']['main']['App']['PickDirectoryFrom'](arg1);
+}
+
+export function ProjectAbsPath(arg1, arg2) {
+  return window['go']['main']['App']['ProjectAbsPath'](arg1, arg2);
 }
 
 export function ProjectAssetURL(arg1, arg2) {
@@ -152,6 +176,10 @@ export function ResetProjects() {
 
 export function RestartContainer(arg1) {
   return window['go']['main']['App']['RestartContainer'](arg1);
+}
+
+export function RevealProjectPath(arg1, arg2) {
+  return window['go']['main']['App']['RevealProjectPath'](arg1, arg2);
 }
 
 export function SaveGroup(arg1) {

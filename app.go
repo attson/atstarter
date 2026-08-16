@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"atstarter/internal/detector"
 	"atstarter/internal/docker"
 	"atstarter/internal/filetree"
+	"atstarter/internal/git"
 	"atstarter/internal/runner"
 	"atstarter/internal/scanner"
 	"atstarter/internal/store"
@@ -325,6 +325,59 @@ func (a *App) TrashProjectPath(projectID, relPath string) error {
 		return err
 	}
 	return filetree.Trash(root, relPath)
+}
+
+// CopyProjectPath 把 srcProjectID/srcRel 拷贝到 dstProjectID/dstRel,返回实际写入的
+// 目标 relPath(目标同名时自动改名,永不覆盖)。两端各自过自己项目根的 guard,
+// 因此支持跨项目粘贴。
+func (a *App) CopyProjectPath(srcProjectID, srcRel, dstProjectID, dstRel string) (string, error) {
+	srcRoot, err := a.projectRoot(srcProjectID)
+	if err != nil {
+		return "", err
+	}
+	dstRoot, err := a.projectRoot(dstProjectID)
+	if err != nil {
+		return "", err
+	}
+	return filetree.Copy(srcRoot, srcRel, dstRoot, dstRel)
+}
+
+// MoveProjectPath 把 srcProjectID/srcRel 移动到 dstProjectID/dstRel,返回实际写入的
+// 目标 relPath。跨项目时 Rename 失败会降级为拷贝后删除。
+func (a *App) MoveProjectPath(srcProjectID, srcRel, dstProjectID, dstRel string) (string, error) {
+	srcRoot, err := a.projectRoot(srcProjectID)
+	if err != nil {
+		return "", err
+	}
+	dstRoot, err := a.projectRoot(dstProjectID)
+	if err != nil {
+		return "", err
+	}
+	return filetree.Move(srcRoot, srcRel, dstRoot, dstRel)
+}
+
+// RevealProjectPath 在系统文件管理器中定位项目 projectID 下的 relPath
+// (而不是用默认程序打开它)。
+func (a *App) RevealProjectPath(projectID, relPath string) error {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return err
+	}
+	full, err := filetree.ResolveWithin(root, relPath)
+	if err != nil {
+		return err
+	}
+	return revealInSystem(full)
+}
+
+// ProjectAbsPath 返回项目 projectID 下 relPath 的绝对路径,供「复制绝对路径」用。
+// 仍走 root guard,不允许穿越。
+func (a *App) ProjectAbsPath(projectID, relPath string) (string, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return "", err
+	}
+	return filetree.ResolveWithin(root, relPath)
 }
 
 // WatchProjectDir 监听项目 projectID 下 relPath 目录变化,返回句柄。
@@ -795,21 +848,37 @@ func (a *App) GetWorkspaces() ([]string, error) {
 // GetProjectBranch 返回项目工作目录当前的 git 分支名(纯 UI 显示用)。
 // 非 git 仓库、detached HEAD、命令超时或 git 不在 PATH 都返回空串,前端据此隐藏 pill。
 func (a *App) GetProjectBranch(projectPath string) string {
-	if projectPath == "" {
-		return ""
-	}
-	// 快速否决:没有 .git 目录/文件的话根本不是仓库,免掉 exec 开销。
-	if _, err := os.Stat(filepath.Join(projectPath, ".git")); err != nil {
-		return ""
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 800*time.Millisecond)
-	defer cancel()
-	// symbolic-ref --short HEAD 在 detached 时非零退出,正好落到空串分支。
-	out, err := exec.CommandContext(ctx, "git", "-C", projectPath, "symbolic-ref", "--short", "HEAD").Output()
+	return git.CurrentBranch(projectPath)
+}
+
+// ListProjectBranches 返回项目的分支列表与工作区状态,供分支切换器使用。
+// 项目不是 git 仓库时返回 Repo=false 的空结果,而不是错误。
+func (a *App) ListProjectBranches(projectID string) (git.Branches, error) {
+	root, err := a.projectRoot(projectID)
 	if err != nil {
-		return ""
+		return git.Branches{}, err
 	}
-	return strings.TrimSpace(string(out))
+	return git.ListBranches(root)
+}
+
+// CheckoutProjectBranch 把项目切到已有分支 name(只在远端存在时会自动建立
+// 跟踪分支),返回切换后的分支列表。工作区有冲突改动时 git 会拒绝,
+// 错误消息原样带回前端。
+func (a *App) CheckoutProjectBranch(projectID, name string) (git.Branches, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return git.Branches{}, err
+	}
+	return git.Checkout(root, name)
+}
+
+// CreateProjectBranch 以 startPoint(空则当前 HEAD)为起点新建分支并切过去。
+func (a *App) CreateProjectBranch(projectID, name, startPoint string) (git.Branches, error) {
+	root, err := a.projectRoot(projectID)
+	if err != nil {
+		return git.Branches{}, err
+	}
+	return git.CheckoutNew(root, name, startPoint)
 }
 
 // ---- Docker 绑定方法 ----
