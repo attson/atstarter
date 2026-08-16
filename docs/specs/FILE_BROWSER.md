@@ -162,6 +162,10 @@ Applicable to `FileTree.vue` and the pure modules beside it.
    to rewrite or close affected tabs.
 7. Keyboard navigation and range selection are computed by `treeKeyboard.js` over the flattened list of
    *visible* rows, so collapsed subtrees never participate.
+8. The context menu is positioned by `menuPlacement.js` from its *measured* size, not from the click
+   point alone: it flips up/left when the click is near an edge and falls back to edge-clamping plus a
+   `maxHeight` scroll when the menu is taller than the viewport. Menu height depends on which items are
+   shown, so it must be measured after render rather than assumed.
 
 ### 3.7 Editor Shell Pattern
 

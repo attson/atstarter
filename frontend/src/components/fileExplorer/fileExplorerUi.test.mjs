@@ -47,6 +47,13 @@ test('右键菜单覆盖复制/剪切/粘贴/副本/复制路径/在文件管理
   }
 })
 
+test('右键菜单按实测尺寸避开视口边界,不再被底部切掉', () => {
+  assert.match(fileTree, /placeMenu/)
+  assert.match(fileTree, /getBoundingClientRect/)
+  assert.match(fileTree, /:style="menuStyle"/)
+  assert.doesNotMatch(fileTree, /:style="\{ top: menu\.y/, '不能再直接用点击坐标定位')
+})
+
 test('文件操作失败会让用户看见,而不是只 console.warn', () => {
   assert.match(fileTree, /function runFsOp/)
   assert.match(fileTree, /data-test="file-tree-error"/)
