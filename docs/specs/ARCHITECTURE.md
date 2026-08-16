@@ -25,7 +25,7 @@ Wails desktop process
 
   backend: Go
     main.go       Wails entry, embedded frontend, ldflags
-    app.go        module assembly, Wails bindings, event bridge, 69 App methods
+    app.go        module assembly, Wails bindings, event bridge, 68 App methods
     updater.go    GitHub release update flow, 5 update methods
     tray.go       system tray and close-to-tray behavior
     control_server.go  localhost-only control server for CLI/MCP
@@ -53,7 +53,8 @@ directory. There is no server-side state.
 | `internal/store` | Persist config, normalize paths, de-duplicate projects, commands, groups | File-backed state |
 | `internal/runner` | Start/stop processes, capture logs, maintain status, clean process trees | Concurrent runtime |
 | `internal/docker` | Wrap docker/compose CLI, parse snapshots, aggregate service state | CLI facade, injectable exec |
-| `internal/filetree` | Project-scoped file listing, preview, edit, trash, watch | Filesystem state within root |
+| `internal/filetree` | Project-scoped file listing, preview, edit, copy/move, trash, watch | Filesystem state within root |
+| `internal/git` | Project branch status, branch list, checkout / create branch | `git` CLI facade, local operations only |
 | `internal/control` | Control state file and RPC client protocol for CLI/MCP | Runtime discovery, no business logic |
 | `app.go` | Compose modules and expose Wails methods/events | Binding layer only |
 | `control_server.go` | Expose selected App operations on localhost for CLI/MCP | Desktop process remains source of truth |
@@ -81,7 +82,7 @@ run IDs.
 
 ## 4. Wails Binding Surface
 
-`app.go` exposes project, filetree, workspace, group, runtime, Docker, and compose methods. `updater.go`
+`app.go` exposes project, filetree, git, workspace, group, runtime, Docker, and compose methods. `updater.go`
 adds update methods. Changing exported method names, parameters, or return types requires regenerating
 bindings:
 

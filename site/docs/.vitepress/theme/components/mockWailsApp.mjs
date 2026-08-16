@@ -307,6 +307,31 @@ const demoPackageScripts = [
 export async function ListPackageScripts() { return clone(demoPackageScripts) }
 export async function DockerAvailable() { return { available: true, version: 'Docker 28.0.0', reason: '' } }
 export async function GetProjectBranch(path) { return branches.get(path) || 'main' }
+// 演示站的分支切换只改内存里的 demo 状态,不碰任何仓库。
+const demoBranches = { local: ['main', 'feature/editor'], remote: ['feature/docs'] }
+let demoCurrent = 'main'
+function demoBranchState() {
+  return {
+    repo: true,
+    branch: demoCurrent,
+    detached: false,
+    dirty: false,
+    head: 'a1b2c3d',
+    local: [...demoBranches.local],
+    remote: demoBranches.remote.filter((name) => !demoBranches.local.includes(name)),
+  }
+}
+export async function ListProjectBranches() { return demoBranchState() }
+export async function CheckoutProjectBranch(_projectId, name) {
+  if (!demoBranches.local.includes(name)) demoBranches.local.push(name)
+  demoCurrent = name
+  return demoBranchState()
+}
+export async function CreateProjectBranch(_projectId, name) {
+  if (!demoBranches.local.includes(name)) demoBranches.local.push(name)
+  demoCurrent = name
+  return demoBranchState()
+}
 
 export async function GetStatus(runId) {
   ensureRun(runId)
@@ -550,6 +575,11 @@ export async function MkdirProject() {}
 export async function RenameProject() {}
 export async function RemoveProjectPath() {}
 export async function TrashProjectPath() {}
+// 演示站不真的动磁盘:拷贝/移动直接回显目标路径(后端返回的是实际写入路径)。
+export async function CopyProjectPath(_srcProjectId, _srcRel, _dstProjectId, dstRel) { return dstRel }
+export async function MoveProjectPath(_srcProjectId, _srcRel, _dstProjectId, dstRel) { return dstRel }
+export async function RevealProjectPath() {}
+export async function ProjectAbsPath(projectId, relPath) { return '/Users/demo/workspaces/' + projectId + (relPath ? '/' + relPath : '') }
 export async function WatchProjectDir() { return Date.now() }
 export async function UnwatchProjectDir() {}
 export async function UpdateProjectCommand() {}

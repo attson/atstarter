@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { onMounted, onBeforeUnmount, ref, watch } from "vue";
-import { EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { history, defaultKeymap, historyKeymap } from "@codemirror/commands";
 import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
@@ -26,15 +26,23 @@ const T = {
 
 const MAX_BYTES_FRONTEND = 2 * 1024 * 1024;
 
+export interface EditorPrefs {
+  lineNumbers: boolean;
+  wrap: boolean;
+  tabSize: number;
+  fontSize: number;
+}
+
 const props = defineProps<{
   fs: FileSystemBridge;
   path: string;
-  showLineNumbers: boolean;
+  prefs: EditorPrefs;
   theme: "dimmed" | "light";
 }>();
 
 const emit = defineEmits<{
   (e: "dirty-change", dirty: boolean): void;
+  (e: "cursor-change", pos: { line: number; column: number; selected: number; lines: number }): void;
 }>();
 
 const host = ref<HTMLDivElement | null>(null);
@@ -52,19 +60,15 @@ let disposed = false;
 let loadGeneration = 0;
 let originalText = "";
 
-function isCurrent(
-  fs: FileSystemBridge,
-  path: string,
-  showLineNumbers: boolean,
-  theme: "dimmed" | "light",
-  request: number,
-): boolean {
-  return !disposed
-    && loadGeneration === request
-    && props.fs === fs
-    && props.path === path
-    && props.showLineNumbers === showLineNumbers
-    && props.theme === theme;
+// 偏好与主题走 Compartment 热切换,而不是重建编辑器:
+// 以前改行号/切主题会走一遍 load(),把未保存的改动直接丢掉。
+const numbersComp = new Compartment();
+const wrapComp = new Compartment();
+const tabComp = new Compartment();
+const themeComp = new Compartment();
+
+function isCurrent(fs: FileSystemBridge, path: string, request: number): boolean {
+  return !disposed && loadGeneration === request && props.fs === fs && props.path === path;
 }
 
 function cssVar(name: string, fallback: string): string {
@@ -88,7 +92,7 @@ function decodeFileBytes(data: unknown): string {
   return new TextDecoder().decode(bytes);
 }
 
-function makeThemeExt(theme: "dimmed" | "light"): Extension {
+function makeThemeExt(theme: "dimmed" | "light", fontSize: number): Extension {
   return EditorView.theme(
     {
       "&": {
@@ -105,7 +109,7 @@ function makeThemeExt(theme: "dimmed" | "light"): Extension {
       ".cm-activeLineGutter": { backgroundColor: "transparent" },
       ".cm-content": {
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-        fontSize: "13px",
+        fontSize: `${fontSize}px`,
         padding: "8px 0",
       },
       ".cm-lineNumbers .cm-gutterElement": { padding: "0 8px 0 14px" },
@@ -114,17 +118,30 @@ function makeThemeExt(theme: "dimmed" | "light"): Extension {
   );
 }
 
+function themeExtensions(theme: "dimmed" | "light", fontSize: number): Extension {
+  return [makeThemeExt(theme, fontSize), highlightExtensionFor(theme)];
+}
+
 function setDirty(next: boolean) {
   if (dirty.value === next) return;
   dirty.value = next;
   emit("dirty-change", next);
 }
 
+function emitCursor(v: EditorView) {
+  const head = v.state.selection.main;
+  const line = v.state.doc.lineAt(head.head);
+  emit("cursor-change", {
+    line: line.number,
+    column: head.head - line.from + 1,
+    selected: Math.abs(head.to - head.from),
+    lines: v.state.doc.lines,
+  });
+}
+
 async function load() {
   const fs = props.fs;
   const path = props.path;
-  const showLineNumbers = props.showLineNumbers;
-  const theme = props.theme;
   const request = ++loadGeneration;
   if (disposed) return;
   state.value = "loading";
@@ -132,13 +149,13 @@ async function load() {
   view = null;
   try {
     const meta = (await fs.fileMeta(path)) as { size: number; modTime: number; isBinary: boolean };
-    if (!isCurrent(fs, path, showLineNumbers, theme, request)) return;
+    if (!isCurrent(fs, path, request)) return;
     loadedAt.value = meta.modTime;
     reloadPending.value = false;
     if (meta.isBinary) { state.value = "binary"; setDirty(false); return; }
     if (meta.size > MAX_BYTES_FRONTEND) { state.value = "tooLarge"; setDirty(false); return; }
     const result = await fs.readBytes(path, MAX_BYTES_FRONTEND);
-    if (!isCurrent(fs, path, showLineNumbers, theme, request)) return;
+    if (!isCurrent(fs, path, request)) return;
     const text = decodeFileBytes(result.data);
 
     originalText = text;
@@ -146,9 +163,9 @@ async function load() {
     conflict.value = null;
     saveError.value = "";
 
-    const dirtyListener = EditorView.updateListener.of((v) => {
-      if (!v.docChanged) return;
-      setDirty(v.state.doc.toString() !== originalText);
+    const updateListener = EditorView.updateListener.of((v) => {
+      if (v.docChanged) setDirty(v.state.doc.toString() !== originalText);
+      if (v.docChanged || v.selectionSet) emitCursor(v.view);
     });
 
     const saveKey = keymap.of([
@@ -163,32 +180,34 @@ async function load() {
     ]);
 
     const exts: Extension[] = [
-      makeThemeExt(theme),
-      highlightExtensionFor(theme),
+      themeComp.of(themeExtensions(props.theme, props.prefs.fontSize)),
+      numbersComp.of(props.prefs.lineNumbers ? lineNumbers() : []),
+      wrapComp.of(props.prefs.wrap ? EditorView.lineWrapping : []),
+      tabComp.of(EditorState.tabSize.of(props.prefs.tabSize)),
       search(),
       highlightSelectionMatches(),
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
       saveKey,
-      dirtyListener,
+      updateListener,
     ];
-    if (showLineNumbers) exts.push(lineNumbers());
     const langExt = await languageForPath(path);
     if (langExt) exts.push(langExt);
 
-    if (!isCurrent(fs, path, showLineNumbers, theme, request) || !host.value) return;
+    if (!isCurrent(fs, path, request) || !host.value) return;
     const nextView = new EditorView({
       state: EditorState.create({ doc: text, extensions: exts }),
       parent: host.value,
     });
-    if (!isCurrent(fs, path, showLineNumbers, theme, request)) {
+    if (!isCurrent(fs, path, request)) {
       nextView.destroy();
       return;
     }
     view = nextView;
     state.value = "ok";
+    emitCursor(nextView);
   } catch (err) {
-    if (!isCurrent(fs, path, showLineNumbers, theme, request)) return;
+    if (!isCurrent(fs, path, request)) return;
     state.value = "error";
     errorMsg.value = (err as Error).message;
   }
@@ -217,6 +236,21 @@ async function save(): Promise<boolean> {
     }
     return false;
   }
+}
+
+// revert 把文档退回上次加载/保存时的内容,不碰磁盘。撤销栈保留,可以再撤回来。
+function revert() {
+  if (!view) return;
+  view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: originalText } });
+  setDirty(false);
+}
+
+function gotoLine(line: number) {
+  if (!view) return;
+  const target = Math.min(Math.max(1, Math.round(line)), view.state.doc.lines);
+  const pos = view.state.doc.line(target).from;
+  view.dispatch({ selection: { anchor: pos }, scrollIntoView: true });
+  view.focus();
 }
 
 async function overwriteWithServerModTime() {
@@ -255,10 +289,26 @@ onMounted(() => {
   subscribeToDirChanges(props.fs);
 });
 
+// 只有换文件/换项目才重新加载。主题与偏好走 Compartment,不能丢文档。
+watch(() => [props.path, props.fs], () => { void load(); });
+
 watch(
-  () => [props.path, props.fs, props.showLineNumbers, props.theme],
-  () => { void load(); },
+  () => [props.theme, props.prefs.fontSize],
+  () => {
+    view?.dispatch({
+      effects: themeComp.reconfigure(themeExtensions(props.theme, props.prefs.fontSize)),
+    });
+  },
 );
+watch(() => props.prefs.lineNumbers, (on) => {
+  view?.dispatch({ effects: numbersComp.reconfigure(on ? lineNumbers() : []) });
+});
+watch(() => props.prefs.wrap, (on) => {
+  view?.dispatch({ effects: wrapComp.reconfigure(on ? EditorView.lineWrapping : []) });
+});
+watch(() => props.prefs.tabSize, (size) => {
+  view?.dispatch({ effects: tabComp.reconfigure(EditorState.tabSize.of(size)) });
+});
 
 watch(() => props.fs, (fs) => subscribeToDirChanges(fs));
 
@@ -274,6 +324,9 @@ onBeforeUnmount(() => {
 // DOM keyboard event. It's a thin no-op wrapper in production.
 defineExpose({
   save,
+  revert,
+  gotoLine,
+  focus: () => view?.focus(),
   testAppend: (text: string) => {
     if (!view) return;
     view.dispatch({ changes: { from: view.state.doc.length, insert: text } });

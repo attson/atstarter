@@ -1,10 +1,29 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { File, Folder, Search, X } from 'lucide-vue-next'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { File, FilePlus2, Folder, FolderPlus, RefreshCw, Search, X } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import FileTree from './fileExplorer/FileTree.vue'
 import FileEditor from './fileExplorer/FileEditor.vue'
+import EditorTabs from './fileExplorer/EditorTabs.vue'
+import EditorToolbar from './fileExplorer/EditorToolbar.vue'
+import EditorStatusBar from './fileExplorer/EditorStatusBar.vue'
+import EditorPrefsPanel from './fileExplorer/EditorPrefsPanel.vue'
+import FileConfirmDialog from './fileExplorer/FileConfirmDialog.vue'
 import { createProjectFSBridge } from './fileExplorer/fsBridge'
+import { readPrefs, writePrefs } from './fileExplorer/editorPrefs.js'
+import {
+  activateTab,
+  closeTab,
+  createTabsState,
+  findTab,
+  neighborTab,
+  openTab,
+  removePath,
+  renamePath,
+  setTabDirty,
+  setTabViewMode,
+} from './fileExplorer/editorTabs.js'
+import { baseName, rewritePrefix } from './fileExplorer/pathOps.js'
 import './fileExplorer/theme-bridge.css'
 
 const props = defineProps({ projectId: { type: String, required: true } })
@@ -19,9 +38,36 @@ const fs = computed(() => createProjectFSBridge(props.projectId))
 // FileEditor 主题:App 的 dark → CodeMirror 的 dimmed。
 const editorTheme = computed(() => (activeTheme.value === 'dark' ? 'dimmed' : 'light'))
 
-const selectedPath = ref('')       // 当前预览/编辑的文件 relPath
-const dirty = ref(false)           // 编辑器是否有未保存改动
-const fileEditorRef = ref(null)
+const storage = typeof localStorage === 'undefined' ? null : localStorage
+const prefs = reactive(readPrefs(storage))
+const prefsOpen = ref(false)
+// CodeEditor 只认这四项;showHidden 是文件树的事,不传下去。
+const editorPrefs = computed(() => ({
+  lineNumbers: prefs.lineNumbers,
+  wrap: prefs.wrap,
+  tabSize: prefs.tabSize,
+  fontSize: prefs.fontSize,
+}))
+
+function updatePrefs(patch) {
+  const next = writePrefs(storage, { ...prefs, ...patch })
+  Object.assign(prefs, next)
+}
+
+// 标签页:切走的标签留在内存里(每个标签一个常驻 FileEditor,用 v-show 隐藏),
+// 只有关闭标签时才拦截未保存改动。
+const tabs = ref(createTabsState())
+const activePath = computed(() => tabs.value.activePath)
+const activeTab = computed(() => findTab(tabs.value, activePath.value))
+// 每个标签自己的光标位置与预览类型,切回来时状态栏/工具栏不闪。
+const cursors = reactive({})
+const kinds = reactive({})
+
+const treeRef = ref(null)
+const statusBarRef = ref(null)
+const editorRefs = new Map()
+const closeGuard = ref(null)
+
 const searchQuery = ref('')
 const searchResults = ref([])
 const searchLoading = ref(false)
@@ -33,22 +79,149 @@ let searchGeneration = 0
 const trimmedSearchQuery = computed(() => searchQuery.value.trim())
 const searching = computed(() => trimmedSearchQuery.value.length > 0)
 
-// 行号显隐:默认隐藏,右键预览区可开关;偏好持久化。
-const showLineNumbers = ref(localStorage.getItem('fileBrowser.lineNumbers') === '1')
-const menu = ref({ open: false, x: 0, y: 0 })
-
 // 左侧文件树面板收起(腾空间给预览);偏好持久化。
-const treeCollapsed = ref(localStorage.getItem('fileBrowser.treeCollapsed') === '1')
+const treeCollapsed = ref(storage?.getItem('fileBrowser.treeCollapsed') === '1')
 function toggleTree() {
   treeCollapsed.value = !treeCollapsed.value
-  localStorage.setItem('fileBrowser.treeCollapsed', treeCollapsed.value ? '1' : '0')
+  storage?.setItem('fileBrowser.treeCollapsed', treeCollapsed.value ? '1' : '0')
 }
 
-// atterm FileTree 的 @file-clicked 传来相对项目根的 relPath。
-function onSelect(path) {
-  if (!path) return
-  selectedPath.value = path
+/* ------------------------------------------------------------ 标签页操作 */
+
+function setEditorRef(path, el) {
+  if (el) editorRefs.set(path, el)
+  else editorRefs.delete(path)
 }
+
+function openPath(path) {
+  if (!path) return
+  tabs.value = openTab(tabs.value, path)
+}
+
+function activate(path) {
+  tabs.value = activateTab(tabs.value, path)
+  void nextTick(() => editorRefs.get(path)?.focus?.())
+}
+
+// requestClose 是关闭标签的唯一入口:脏标签先弹「保存 / 不保存 / 取消」。
+function requestClose(path) {
+  const tab = findTab(tabs.value, path)
+  if (!tab) return
+  if (tab.dirty) {
+    closeGuard.value = path
+    return
+  }
+  forceClose(path)
+}
+
+function forceClose(path) {
+  tabs.value = closeTab(tabs.value, path)
+  delete cursors[path]
+  delete kinds[path]
+  editorRefs.delete(path)
+}
+
+async function resolveCloseGuard(id) {
+  const path = closeGuard.value
+  closeGuard.value = null
+  if (!path || id === 'cancel') return
+  if (id === 'save') {
+    const saved = await editorRefs.get(path)?.save?.()
+    if (!saved) return // 保存失败(冲突/权限)就把标签留着,别把改动吞了
+  }
+  forceClose(path)
+}
+
+function onDirtyChange(path, dirty) {
+  tabs.value = setTabDirty(tabs.value, path, dirty)
+}
+
+function onCursorChange(path, pos) {
+  cursors[path] = pos
+}
+
+function onKindChange(path, kind) {
+  kinds[path] = kind
+}
+
+const activeKind = computed(() => kinds[activePath.value] ?? null)
+const canRender = computed(() => activeKind.value === 'markdown' || activeKind.value === 'svg')
+const isCodeView = computed(() => {
+  if (activeKind.value === 'code') return true
+  return canRender.value && activeTab.value?.viewMode === 'code'
+})
+const activeCursor = computed(() => cursors[activePath.value] ?? { line: 1, column: 1, selected: 0, lines: 1 })
+
+const KIND_LABELS = {
+  code: '文本',
+  markdown: 'Markdown',
+  svg: 'SVG',
+  image: '图片',
+  video: '视频',
+  audio: '音频',
+  pdf: 'PDF',
+  'binary-unknown': '二进制',
+}
+const kindLabel = computed(() => KIND_LABELS[activeKind.value] ?? '')
+
+function toggleViewMode() {
+  const tab = activeTab.value
+  if (!tab) return
+  tabs.value = setTabViewMode(tabs.value, tab.path, tab.viewMode === 'code' ? 'render' : 'code')
+}
+
+function saveActive() {
+  void editorRefs.get(activePath.value)?.save?.()
+}
+
+function revertActive() {
+  editorRefs.get(activePath.value)?.revert?.()
+}
+
+function gotoLine(line) {
+  editorRefs.get(activePath.value)?.gotoLine?.(line)
+}
+
+async function revealActive() {
+  if (!activePath.value) return
+  try {
+    await fs.value.reveal(activePath.value)
+  } catch (err) {
+    treeError.value = err?.message || '无法在文件管理器中显示'
+  }
+}
+
+/* ---------------------------------------------------- 文件树回调与错误 */
+
+const treeError = ref('')
+
+function onTreeError(message) {
+  treeError.value = message
+}
+
+// 重命名/移动之后标签要跟着走,光标与类型缓存也一起搬。
+function onPathRenamed(from, to) {
+  tabs.value = renamePath(tabs.value, from, to)
+  for (const map of [cursors, kinds]) {
+    for (const key of Object.keys(map)) {
+      const next = rewritePrefix(key, from, to)
+      if (next === key) continue
+      map[next] = map[key]
+      delete map[key]
+    }
+  }
+}
+
+function onPathRemoved(path) {
+  tabs.value = removePath(tabs.value, path)
+  for (const map of [cursors, kinds]) {
+    for (const key of Object.keys(map)) {
+      if (key === path || key.startsWith(path + '/')) delete map[key]
+    }
+  }
+}
+
+/* ---------------------------------------------------------------- 搜索 */
 
 function clearSearch() {
   searchQuery.value = ''
@@ -60,7 +233,7 @@ function clearSearch() {
 
 function onSearchResultClick(result) {
   if (!result || result.isDir) return
-  selectedPath.value = result.path
+  openPath(result.path)
 }
 
 function resetSearchResults() {
@@ -108,28 +281,37 @@ async function runSearch(bridge, query, request) {
   }
 }
 
-function onDirtyChange(v) { dirty.value = v }
+/* ------------------------------------------------------------ 快捷键 */
 
-// 保存快捷键 Ctrl/Cmd+S 交给 FileEditor(CodeEditor 内部也监听,这里兜底触发)。
 function onKeydown(e) {
-  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
-    if (!selectedPath.value) return
+  const mod = e.ctrlKey || e.metaKey
+  if (!mod) return
+  const key = e.key.toLowerCase()
+  if (key === 's') {
+    if (!activePath.value) return
     e.preventDefault()
-    fileEditorRef.value?.save?.()
+    saveActive()
+    return
   }
-}
-
-// 预览区右键:切换行号。
-function onContextMenu(e) {
-  if (!selectedPath.value) return
-  e.preventDefault()
-  menu.value = { open: true, x: e.clientX, y: e.clientY }
-}
-function closeMenu() { menu.value.open = false }
-function toggleLineNumbers() {
-  showLineNumbers.value = !showLineNumbers.value
-  localStorage.setItem('fileBrowser.lineNumbers', showLineNumbers.value ? '1' : '0')
-  menu.value.open = false
+  if (key === 'w') {
+    if (!activePath.value) return
+    e.preventDefault()
+    requestClose(activePath.value)
+    return
+  }
+  if (key === 'g') {
+    if (!activePath.value || !isCodeView.value) return
+    e.preventDefault()
+    statusBarRef.value?.openGoto?.()
+    return
+  }
+  // Ctrl/Cmd + PageUp/PageDown 在标签间走。
+  if (e.key === 'PageDown' || e.key === 'PageUp') {
+    const next = neighborTab(tabs.value, e.key === 'PageDown' ? 1 : -1)
+    if (!next) return
+    e.preventDefault()
+    activate(next)
+  }
 }
 
 function documentTheme() {
@@ -144,6 +326,15 @@ function syncActiveTheme() {
 
 watch(resolvedTheme, syncActiveTheme)
 watch(() => [trimmedSearchQuery.value, fs.value], scheduleSearch)
+// 换项目 = 换一套标签。内容都在各自的 CodeEditor 里,跟着卸载。
+watch(() => props.projectId, () => {
+  tabs.value = createTabsState()
+  editorRefs.clear()
+  for (const key of Object.keys(cursors)) delete cursors[key]
+  for (const key of Object.keys(kinds)) delete kinds[key]
+  treeError.value = ''
+  clearSearch()
+})
 
 onMounted(() => {
   syncActiveTheme()
@@ -167,7 +358,19 @@ onBeforeUnmount(() => {
       <div class="tree-head">
         <div class="tree-title-row">
           <span class="tree-title">文件</span>
-          <button class="icon-btn" title="收起文件树" @click="toggleTree">‹</button>
+          <span class="tree-tools">
+            <!-- 最外层新建的固定入口:不依赖右键选中了哪一行。 -->
+            <button class="icon-btn" data-test="tree-new-file" title="在项目根新建文件" @click="treeRef?.newFile()">
+              <FilePlus2 :size="14" :stroke-width="1.8" />
+            </button>
+            <button class="icon-btn" data-test="tree-new-folder" title="在项目根新建文件夹" @click="treeRef?.newFolder()">
+              <FolderPlus :size="14" :stroke-width="1.8" />
+            </button>
+            <button class="icon-btn" data-test="tree-refresh" title="刷新" @click="treeRef?.refresh()">
+              <RefreshCw :size="14" :stroke-width="1.8" />
+            </button>
+            <button class="icon-btn" title="收起文件树" @click="toggleTree">‹</button>
+          </span>
         </div>
         <label class="search-box">
           <Search :size="13" :stroke-width="1.8" />
@@ -195,7 +398,7 @@ onBeforeUnmount(() => {
             v-for="result in searchResults"
             :key="result.path"
             class="search-result"
-            :class="{ selected: selectedPath === result.path, disabled: result.isDir }"
+            :class="{ selected: activePath === result.path, disabled: result.isDir }"
             type="button"
             :title="result.path"
             @click="onSearchResultClick(result)"
@@ -210,39 +413,89 @@ onBeforeUnmount(() => {
       </div>
       <FileTree
         v-else
+        ref="treeRef"
         class="tree-mount"
         :fs="fs"
         root=""
-        :show-hidden="true"
-        @file-clicked="onSelect"
+        :show-hidden="prefs.showHidden"
+        @file-clicked="openPath"
+        @path-renamed="onPathRenamed"
+        @path-removed="onPathRemoved"
+        @error="onTreeError"
       />
     </div>
-    <div class="preview-col" @contextmenu="onContextMenu">
-      <div v-if="!selectedPath" class="msg">从左侧选择文件查看内容。</div>
+    <div class="preview-col">
+      <EditorTabs
+        v-if="tabs.tabs.length"
+        :tabs="tabs.tabs"
+        :active-path="activePath"
+        @activate="activate"
+        @close="requestClose"
+      />
+      <div v-if="!activePath" class="msg">从左侧选择文件查看内容。</div>
       <template v-else>
-        <div class="preview-toolbar">
-          <span class="path">{{ selectedPath }}</span>
-          <span v-if="dirty" class="dirty" title="有未保存改动">●</span>
+        <EditorToolbar
+          :path="activePath"
+          :dirty="!!activeTab?.dirty"
+          :can-render="canRender"
+          :view-mode="activeTab?.viewMode ?? 'code'"
+          :editable="isCodeView"
+          @save="saveActive"
+          @revert="revertActive"
+          @toggle-view="toggleViewMode"
+          @reveal="revealActive"
+          @open-prefs="prefsOpen = true"
+        />
+        <div class="editor-stack">
+          <!-- 每个标签一个常驻实例:切标签不重载,未保存的改动留在内存里。 -->
+          <FileEditor
+            v-for="tab in tabs.tabs"
+            :key="tab.path"
+            v-show="tab.path === activePath"
+            :ref="(el) => setEditorRef(tab.path, el)"
+            class="editor-host"
+            :fs="fs"
+            :path="tab.path"
+            :prefs="editorPrefs"
+            :theme="editorTheme"
+            :view-mode="tab.viewMode"
+            @dirty-change="(v) => onDirtyChange(tab.path, v)"
+            @cursor-change="(p) => onCursorChange(tab.path, p)"
+            @kind-change="(k) => onKindChange(tab.path, k)"
+          />
         </div>
-        <FileEditor
-          ref="fileEditorRef"
-          class="editor-host"
-          :fs="fs"
-          :path="selectedPath"
-          :show-line-numbers="showLineNumbers"
-          :theme="editorTheme"
-          view-mode="code"
-          @dirty-change="onDirtyChange"
+        <EditorStatusBar
+          ref="statusBarRef"
+          :line="activeCursor.line"
+          :column="activeCursor.column"
+          :selected="activeCursor.selected"
+          :lines="activeCursor.lines"
+          :show-cursor="isCodeView"
+          :kind-label="kindLabel"
+          @goto="gotoLine"
         />
       </template>
+      <div v-if="treeError" class="browser-error" data-test="file-browser-error">{{ treeError }}</div>
     </div>
 
-    <!-- 预览区右键菜单:切换行号 -->
-    <div v-if="menu.open" class="ctx-backdrop" @click="closeMenu" @contextmenu.prevent="closeMenu">
-      <ul class="ctx-menu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }" @click.stop>
-        <li @click="toggleLineNumbers">{{ showLineNumbers ? '隐藏行号' : '显示行号' }}</li>
-      </ul>
-    </div>
+    <EditorPrefsPanel
+      v-if="prefsOpen"
+      :prefs="prefs"
+      @update="updatePrefs"
+      @close="prefsOpen = false"
+    />
+
+    <FileConfirmDialog
+      v-if="closeGuard"
+      :title="`「${baseName(closeGuard)}」有未保存的改动`"
+      message="关闭标签会丢失这些改动。"
+      :buttons="[
+        { id: 'save', label: '保存并关闭', kind: 'primary' },
+        { id: 'discard', label: '不保存', kind: 'danger' },
+        { id: 'cancel', label: '取消', kind: 'secondary' },
+      ]"
+      @resolve="resolveCloseGuard"
+    />
   </div>
 </template>
 
@@ -252,9 +505,10 @@ onBeforeUnmount(() => {
 .tree-col { overflow: hidden; border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .tree-mount { flex: 1; min-height: 0; overflow: auto; }
 .tree-head { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-2); border-bottom: 1px solid var(--border); }
-.tree-title-row { display: flex; align-items: center; justify-content: space-between; min-height: 22px; }
+.tree-title-row { display: flex; align-items: center; justify-content: space-between; min-height: 22px; gap: var(--space-2); }
 .tree-title { font-size: var(--fs-sm); color: var(--text-muted); }
-.icon-btn { border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 3px; }
+.tree-tools { display: inline-flex; align-items: center; gap: 2px; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; border-radius: 3px; }
 .icon-btn:hover { background: var(--surface-hover, rgba(127,127,127,.15)); color: var(--text); }
 .search-box { display: flex; align-items: center; gap: var(--space-2); min-height: 26px; padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--elevated); color: var(--text-muted); }
 .search-box input { flex: 1; min-width: 0; border: 0; outline: 0; padding: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-sm); }
@@ -275,17 +529,8 @@ onBeforeUnmount(() => {
 .tree-expand-strip { border: none; border-right: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; font-size: 16px; writing-mode: vertical-rl; padding: var(--space-2) 0; }
 .tree-expand-strip:hover { background: var(--surface-hover, rgba(127,127,127,.15)); color: var(--text); }
 .preview-col { display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }
-.editor-host { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.editor-stack { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+.editor-host { position: absolute; inset: 0; min-width: 0; min-height: 0; overflow: hidden; }
 .msg { padding: var(--space-2); color: var(--text-muted); font-size: var(--fs-sm); }
-.preview-toolbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); }
-.preview-toolbar .path { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-.preview-toolbar .dirty { color: var(--warning, #c80); }
-
-/* 右键菜单 */
-.ctx-backdrop { position: fixed; inset: 0; z-index: 1000; }
-.ctx-menu { position: fixed; margin: 0; padding: 4px; list-style: none; min-width: 120px;
-  background: var(--surface, #222); border: 1px solid var(--border); border-radius: var(--radius-sm, 4px);
-  box-shadow: 0 4px 16px rgba(0,0,0,.3); font-size: var(--fs-sm); }
-.ctx-menu li { padding: 6px 12px; border-radius: 3px; cursor: pointer; color: var(--text); white-space: nowrap; }
-.ctx-menu li:hover { background: var(--accent, #37f); color: #fff; }
+.browser-error { padding: var(--space-1) var(--space-2); border-top: 1px solid var(--border); color: var(--danger); font-size: var(--fs-xs); }
 </style>

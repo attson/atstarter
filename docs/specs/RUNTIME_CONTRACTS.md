@@ -26,6 +26,15 @@ fs:dir-changed    string // changed relative directory
 ```
 
 ```go
+// Project git branch surface (local operations only)
+git.CurrentBranch(dir) string
+git.GetStatus(dir) (git.Status, error)
+git.ListBranches(dir) (git.Branches, error)
+git.Checkout(dir, name) (git.Branches, error)
+git.CheckoutNew(dir, name, startPoint) (git.Branches, error)
+```
+
+```go
 // Local control discovery for CLI/MCP
 control.WriteState(<config>.control.json, {url, token, pid, version})
 control.Client.Call(method, params, out)
@@ -149,7 +158,32 @@ App.ListPackageScripts(dir string) ([]PackageScript, error)
    Surfacing those as errors would fire constantly while the user is mid-typing.
 4. `package.json` parsing lives in `detector.ReadScripts`. Do not add a second parser.
 
-### 3.7 Local Control Pattern
+### 3.7 Git Branch Pattern
+
+Applicable to `internal/git` and the `*ProjectBranch*` App methods.
+
+1. Everything goes through the system `git` binary. No git library, no reimplementation of ref parsing.
+2. Every command carries a timeout: 3s for reads, 60s for checkout. A hung git must never hang the UI.
+3. `IsRepo` short-circuits on a missing `.git` entry before paying for an `exec`. Worktrees keep a
+   `.git` file rather than a directory, so only existence is checked.
+4. A non-repository project is a normal state, not an error: `GetStatus`/`ListBranches` return
+   `Repo=false` and the UI hides the branch control.
+5. `ListBranches` reads `refs/heads` and `refs/remotes` through `for-each-ref`. Remote entries are
+   reduced to short names, `origin/HEAD` is dropped, and any remote branch that already has a local
+   counterpart is dropped. Checking out a remote-only short name relies on git's DWIM to create the
+   tracking branch.
+6. Branch names are validated before being passed to git. Names starting with `-`, containing
+   whitespace or `~ ^ : ? * [ \`, leading/trailing/double `/`, leading `.`, `..`, trailing `.lock`,
+   or `@{` are rejected. The same rules are mirrored in `frontend/src/gitBranches.js` for immediate
+   feedback; the Go side remains the enforcing gate.
+7. Failures return git's own stderr verbatim. "Your local changes to the following files would be
+   overwritten" is more useful than any message we could compose.
+8. Scope is local-only: no `fetch`, `pull`, `push`, `merge`, or `stash`. Dirty worktrees are reported,
+   not resolved — git decides whether a checkout is safe.
+
+Reference implementation: `internal/git/git.go`, `frontend/src/components/BranchSwitcher.vue`.
+
+### 3.8 Local Control Pattern
 
 Applicable to `control_server.go`, `cli.go`, `mcp.go`, and `internal/control`.
 
@@ -188,6 +222,8 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 - Do not push release tags from a non-main commit.
 - Do not let CLI/MCP bypass the desktop process for runner, Docker, project, group, or log state.
 - Do not persist control URL/token/PID/version into `config.json`.
+- Do not pass unvalidated branch names to `git`, and do not add network git operations
+  (`fetch`/`pull`/`push`) to `internal/git`.
 
 ## 5. New Implementation Checklist
 
@@ -205,6 +241,8 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 - [ ] If changing Wails build commands, keep `-tags webkit2_41` for Ubuntu 24.04.
 - [ ] If changing docker behavior, cover parser/command construction with fake exec tests.
 - [ ] If changing updater install/download, cover cancellation, mirror fallback, and verification paths.
+- [ ] If changing `internal/git`, cover non-repo, detached HEAD, dirty worktree, remote-only branches,
+      and hostile branch names.
 
 ### Verification
 

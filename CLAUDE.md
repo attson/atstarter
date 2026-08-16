@@ -32,7 +32,7 @@ wails build -tags webkit2_41
 
 ```text
 main.go                 Wails entry, embedded frontend, Version/UpdateVerifyPublicKey ldflags
-app.go                  Wails binding layer, module assembly, event bridge, 69 App methods
+app.go                  Wails binding layer, module assembly, event bridge, 68 App methods
 tray.go                 system tray, close-to-tray, running count, quit flow
 updater.go              GitHub release self-update, mirrors, Ed25519 + SHA256 verification, 5 update methods
 internal/
@@ -42,7 +42,8 @@ internal/
   store/                JSON config, path IDs, commands, groups
   runner/               process lifecycle, logs, login shell, process tree cleanup
   docker/               docker/compose CLI facade and parsers
-  filetree/             project-scoped file browser, metadata, write, trash, watch
+  filetree/             project-scoped file browser, metadata, write, copy/move, trash, watch
+  git/                  project branch status, branch list, checkout/create (local git CLI only)
 frontend/src/           Vue3 app, custom UI components, theme tokens, file explorer
 ```
 
@@ -69,7 +70,7 @@ frontend/src/           Vue3 app, custom UI components, theme tokens, file explo
 
 ### Domain Terms
 
-- Use these terms consistently: `Project`, `LaunchCommand`, `LaunchGroup`, `Workspace`, `RunID`, `ComposeService`, `ContainerState`, `FileEntry`.
+- Use these terms consistently: `Project`, `LaunchCommand`, `LaunchGroup`, `Workspace`, `RunID`, `ComposeService`, `ContainerState`, `FileEntry`, `EditorTab`, `Branch`.
 - Do not call a `LaunchCommand` a "script" in persisted models; "command" means structured `command + args + cwd + env`.
 
 ### Runtime Boundaries
@@ -78,7 +79,8 @@ frontend/src/           Vue3 app, custom UI components, theme tokens, file explo
 - Default command ID is exactly `default`. Non-default command IDs must not collide with `default`.
 - `runner` status reads/writes stay under `r.mu`; callbacks run outside the lock with copied values; slow process-tree cleanup stays outside locks.
 - Unix process launch uses login interactive shell and process group cleanup. Preserve `$SHELL -l -i -c` and `setsid` unless replacing the full contract.
-- File browser APIs must resolve all relative paths inside project root and reject path traversal.
+- File browser APIs must resolve all relative paths inside project root and reject path traversal. Copy/move take two project IDs and resolve each side against its own root; they never overwrite (auto-rename via `filetree.UniqueName`).
+- `internal/git` shells out to the system `git` for local operations only. No `fetch`/`pull`/`push`, every command has a timeout, branch names are validated before reaching git, and git's own stderr is surfaced verbatim.
 
 ### Frontend Rules
 
@@ -86,6 +88,7 @@ frontend/src/           Vue3 app, custom UI components, theme tokens, file explo
 - Theme colors, spacing, radii, shadows, and typography come from `styles/tokens.css` plus `theme.light.css`/`theme.dark.css`.
 - Project detail path is a full-width single-line row with `title` for hover full path. Command edit belongs on the command row.
 - EditProjectDialog command forms round-trip `env` as one `KEY=value` per line; empty command `cwd` displays `project.path` as editable value.
+- The file editor keeps one live `FileEditor` per open tab (`v-show`), so switching tabs must not reload the document. Editor preferences and theme are applied through CodeMirror `Compartment` reconfiguration, never by rebuilding the view.
 
 ### Git And Release
 

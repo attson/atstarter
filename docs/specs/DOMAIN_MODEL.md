@@ -23,6 +23,8 @@ targets and runtime processes while keeping Docker, files, logs, groups, and upd
 | Compose Service | `docker.ComposeService` | Runtime aggregate view of one docker compose service | `internal/docker/docker.go` |
 | Container State | `docker.ContainerState` | Runtime snapshot from `docker ps -a` | `internal/docker/docker.go` |
 | File Entry | `filetree.Entry` | Direct child item in a project directory | `internal/filetree/filetree.go` |
+| Editor Tab | `editorTabs` state | One open file in the project file editor, with its dirty flag and view mode | `frontend/src/components/fileExplorer/editorTabs.js` |
+| Branch | `git.Branches` | Local/remote branch list plus worktree status for one project | `internal/git/git.go` |
 | Control State | `control.State` | Runtime-only localhost control discovery for CLI/MCP | `internal/control/protocol.go` |
 
 ### Terminology Constraints
@@ -47,6 +49,7 @@ The core domain is project launch management: `Project`, `LaunchCommand`, `Launc
 | Detection | Feeds store with suggested project type and command | Does not persist by itself |
 | Docker | Provides runtime state and lifecycle for containers/compose | Does not write project config except compose detection metadata |
 | File Browser | Reads and mutates files under a project root | Does not alter launch semantics |
+| Git Branch | Reports and switches the project's git branch | Read-only toward launch config; local git operations only, never network |
 | Updater | Manages application binary update state | Does not touch project config |
 | Tray | Displays runtime count and exit controls | Delegates process state to runner/app |
 | Local Control | Lets CLI/MCP call desktop runtime operations | Does not own business state |
