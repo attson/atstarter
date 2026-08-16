@@ -1,11 +1,12 @@
 <script lang="ts" setup>
-import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { computed, nextTick, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import FileTreeNode from "./FileTreeNode.vue";
 import ConfirmDialog from "./FileConfirmDialog.vue";
 import InlineEditRow from "./InlineEditRow.vue";
 import type { FileSystemBridge } from "./fsBridge";
 import { baseName, isDescendant, joinPath, parentDir, targetDirFor } from "./pathOps.js";
 import { fileClipboard, planDrop, planPaste } from "./fileClipboard.js";
+import { placeMenu } from "./menuPlacement.js";
 import {
   findRow,
   flattenVisible,
@@ -76,6 +77,30 @@ type ContextMenuAnchor = {
   shift: boolean;
 };
 const menu = ref<ContextMenuAnchor | null>(null);
+const menuRef = ref<HTMLDivElement | null>(null);
+// 菜单先以点击点为准渲染但不可见,量到真实尺寸后再定位 —— 高度取决于菜单项
+// 多少(根菜单和节点菜单不一样长),只能实测,不能写死。
+const menuStyle = ref<Record<string, string>>({ visibility: "hidden" });
+
+watch(menu, async (anchor) => {
+  if (!anchor) return;
+  menuStyle.value = { left: `${anchor.x}px`, top: `${anchor.y}px`, visibility: "hidden" };
+  await nextTick();
+  const el = menuRef.value;
+  if (!el || menu.value !== anchor) return;
+  const rect = el.getBoundingClientRect();
+  const placed = placeMenu(
+    { x: anchor.x, y: anchor.y },
+    { width: rect.width, height: rect.height },
+    { width: window.innerWidth, height: window.innerHeight },
+  );
+  menuStyle.value = {
+    left: `${placed.left}px`,
+    top: `${placed.top}px`,
+    maxHeight: `${placed.maxHeight}px`,
+    visibility: "visible",
+  };
+});
 
 type InlineIntent =
   | { kind: "newFile"; parentPath: string; parentLevel: number }
@@ -930,9 +955,10 @@ defineExpose({
 
     <div
       v-if="menu"
+      ref="menuRef"
       class="ctx-menu"
       data-test="file-tree-menu"
-      :style="{ top: menu.y + 'px', left: menu.x + 'px' }"
+      :style="menuStyle"
       @click.stop
       @contextmenu.prevent.stop
     >
@@ -990,7 +1016,10 @@ defineExpose({
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
+  /* 菜单比视口还高时(小窗口 + 完整节点菜单)内部滚动,而不是伸到视口外。 */
+  overflow-y: auto;
 }
+.ctx-menu button { flex: 0 0 auto; }
 .ctx-menu button {
   background: none;
   border: none;
