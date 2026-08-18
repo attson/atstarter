@@ -49,6 +49,7 @@ VIAddVersionKey "ProductName"     "${INFO_PRODUCTNAME}"
 ManifestDPIAware true
 
 !include "MUI.nsh"
+!include "WinMessages.nsh"
 
 !define MUI_ICON "..\icon.ico"
 !define MUI_UNICON "..\icon.ico"
@@ -88,6 +89,19 @@ Section
 
     !insertmacro wails.files
 
+    InitPluginsDir
+    SetOutPath "$PLUGINSDIR"
+    File "/oname=update-path.ps1" "update-path.ps1"
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\update-path.ps1" -Action add -Directory "$INSTDIR"'
+    Pop $0
+    Pop $1
+    ${If} $0 != 0
+        DetailPrint "Failed to add AT Starter to PATH: $1"
+        Abort
+    ${EndIf}
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment"
+    SetOutPath "$INSTDIR"
+
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 
@@ -99,6 +113,18 @@ SectionEnd
 
 Section "uninstall"
     !insertmacro wails.setShellContext
+
+    InitPluginsDir
+    SetOutPath "$PLUGINSDIR"
+    File "/oname=update-path.ps1" "update-path.ps1"
+    nsExec::ExecToStack '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\update-path.ps1" -Action remove -Directory "$INSTDIR"'
+    Pop $0
+    Pop $1
+    ${If} $0 != 0
+        DetailPrint "Failed to remove AT Starter from PATH: $1"
+        Abort
+    ${EndIf}
+    SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment"
 
     RMDir /r "$AppData\${PRODUCT_EXECUTABLE}" # Remove the WebView2 DataPath
 

@@ -2,7 +2,7 @@
 // asset with progress reporting, verifies its SHA-256 against a
 // SHA256SUMS file whose Ed25519 signature is checked with
 // UpdateVerifyPublicKey (embedded via -ldflags at build time), then
-// applies the update by handing off to a per-OS install script.
+// applies the update through a platform-specific installer.
 //
 // State is held on the App and pushed to the frontend as "update:state"
 // events. All exported methods return a fresh UpdateState snapshot so
@@ -34,7 +34,6 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-//go:embed scripts/install-darwin.sh
 //go:embed scripts/install-linux.sh
 //go:embed scripts/install-windows.ps1
 var installScripts embed.FS
@@ -384,27 +383,14 @@ func (a *App) UpdateInstall() UpdateState {
 		u.emit(a.ctx)
 		return u.snapshot()
 	}
-	target := exePath
-	if runtime.GOOS == "darwin" {
-		// On macOS the running exec is inside <App>.app/Contents/MacOS/<name>.
-		// Walk up to the .app bundle so the install script replaces the whole thing.
-		app := exePath
-		for i := 0; i < 4 && filepath.Ext(app) != ".app"; i++ {
-			app = filepath.Dir(app)
-		}
-		if filepath.Ext(app) == ".app" {
-			target = app
-		}
-	}
-
-	if err := runInstall(asset, target, exePath); err != nil {
+	if err := runInstall(asset, exePath, exePath); err != nil {
 		u.setError(err)
 		u.emit(a.ctx)
 		return u.snapshot()
 	}
 
-	// Hand off cleanly — the install pipeline has already spawned `open` on
-	// the new bundle. quitRequested 必须置位,否则 beforeClose 会把
+	// Hand off cleanly. The platform installer has already scheduled a relaunch.
+	// quitRequested 必须置位,否则 beforeClose 会把
 	// runtime.Quit 拦成"隐藏窗口"(托盘存在时的默认行为),老进程不退、
 	// Launch Services 不会启动新版。
 	quitRequested.Store(true)
@@ -413,8 +399,8 @@ func (a *App) UpdateInstall() UpdateState {
 }
 
 // runInstall 是平台分发点。真正的实现按 GOOS 分文件(install_darwin.go /
-// install_other.go),暴露成变量便于测试注入。darwin 走内联实现(挂载/拷贝/
-// rename 全在 App 还活着时同步做完,错误能返回给前端);其它平台暂时保留外部
+// install_other.go),暴露成变量便于测试注入。darwin 走内联实现(挂载 DMG 并
+// 执行 PKG,错误能返回给前端);其它平台暂时保留外部
 // 脚本方案 —— windows/linux 的更新流程与 darwin 差别较大,单独重构更清晰。
 var runInstall = platformInstall
 
@@ -464,8 +450,6 @@ func runInstallScript(asset, target, execPath string) error {
 
 func installScriptName() string {
 	switch runtime.GOOS {
-	case "darwin":
-		return "install-darwin.sh"
 	case "linux":
 		return "install-linux.sh"
 	case "windows":

@@ -134,9 +134,15 @@ Applicable to release checks and installs.
 2. Select asset by platform/arch.
 3. Expand standard GitHub release URLs through configured mirrors, with original URL as final fallback.
 4. Verify `SHA256SUMS.sig` with Ed25519 public key and verify asset SHA256.
-5. Run embedded installer script detached, then quit the app.
+5. Linux and Windows hand off to their embedded installer scripts. macOS mounts the release DMG,
+   finds its PKG, runs `/usr/sbin/installer` with authorization, and reports mount/install/detach
+   failures before quitting.
+6. Relaunch the installed executable only after installation succeeds. The macOS PKG installs both
+   `/Applications/AT Starter.app` and `/usr/local/bin/atstarter`; its DMG does not expose a drag-copy
+   App bundle.
 
-Reference implementation: `updater.go`, `scripts/install-*`.
+Reference implementation: `updater.go`, `install_darwin.go`, `install_macos_package.go`,
+`scripts/install-linux.sh`, `scripts/install-windows.ps1`.
 
 ### 3.6 Command Form Assist Pattern
 
@@ -250,3 +256,11 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 - [ ] `$GO test ./...`
 - [ ] Frontend pure tests with `node --test ...`
 - [ ] `cd frontend && npm run build` for UI or binding changes.
+
+## 决策记录
+
+### 2026-08-18 Separate the product display name from the automation command
+
+Keep `AT Starter` as the desktop display name and `atstarter` as the cross-platform CLI/MCP command.
+The macOS DMG carries a PKG because drag-copy installation cannot create the PATH entry; versions
+using the old DMG layout require one manual install to cross this packaging change.

@@ -23,13 +23,16 @@
 ## 跑起来
 
 ```bash
-# 只用桌面端:到 Releases 下载对应平台的包,启动即用。
+# 只用桌面端:到 Releases 下载对应平台的正式安装包。
+# macOS 打开 DMG 后运行 AT Starter.pkg;Linux 使用 Deb;Windows 使用安装器。
 
 # 源码调试:
 make dev              # Wails 桌面端(Ubuntu 24.04 自带 -tags webkit2_41)
 ```
 
 依赖 Go 1.24+ / Node 20+ / Wails v2。Linux 需 `libwebkit2gtk-4.1-dev libayatana-appindicator3-dev`。
+正式安装完成后,三个平台都通过 `atstarter` 调用 CLI/MCP;Windows 需新开终端。
+tar/zip 便携包不会自动加入 PATH。
 
 AI Agent / 脚本控制:
 

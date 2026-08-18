@@ -34,6 +34,12 @@ codex plugin add atstarter-control@personal
 
 重新安装后开新线程。Codex 需要新会话才能加载更新后的 skill 和 MCP 工具。
 
+## 安装后提示 `atstarter: command not found`
+
+请确认使用的是正式安装包:macOS 打开 DMG 后需要运行其中的 `AT Starter.pkg`,不能只
+拖出 App;Linux 使用 Deb;Windows 使用安装器并新开一个终端。tar/zip 便携包不会自动
+加入 PATH。
+
 ## 自更新下载卡在 0%
 
 内置下载加速镜像(ghfast.top / gh-proxy.com / ghproxy.net),会逐个尝试并自动回退到

@@ -113,6 +113,16 @@ services, and logs. CLI output is a JSON envelope:
 `atstarter cli app start --wait` may launch the desktop binary when no control server is reachable.
 All other commands require the desktop process to be running.
 
+## 4.2 Product And Command Naming
+
+`AT Starter` is the user-facing product name used for window titles, application bundles, shortcuts,
+and installer UI. `atstarter` is the canonical automation command on every platform
+(`atstarter.exe` on Windows). Formal installers must make that command available to a newly opened
+terminal; portable tar/zip archives do not modify PATH.
+
+Release asset filenames may keep the `AT-Starter` prefix. MCP/plugin configuration must execute
+`atstarter mcp` directly rather than depend on a platform shell or a display-name executable.
+
 ## 5. Runtime Events
 
 | Event | Payload | Producer | Consumer |

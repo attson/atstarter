@@ -4,21 +4,21 @@
 set -euo pipefail
 
 version_no_v="${VERSION#v}"
-bin="build/bin/AT Starter"
+bin="build/bin/atstarter"
 out="build/bin/${ARTIFACT_NAME}_${version_no_v}_${ARCH}.deb"
 root="$(mktemp -d)"
 trap 'rm -rf "$root"' EXIT
 
 test -f "$bin"
 
-install -Dm755 "$bin" "$root/usr/bin/AT-Starter"
+install -Dm755 "$bin" "$root/usr/bin/atstarter"
 install -Dm644 build/appicon.png "$root/usr/share/pixmaps/AT-Starter.png"
 install -Dm644 build/appicon.png "$root/usr/share/icons/hicolor/1024x1024/apps/AT-Starter.png"
 install -Dm644 /dev/stdin "$root/usr/share/applications/AT-Starter.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=AT Starter
-Exec=AT-Starter
+Exec=atstarter
 Icon=AT-Starter
 Terminal=false
 Categories=Development;Utility;
