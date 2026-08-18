@@ -15,6 +15,7 @@ frontend/package.json.md5
 docs/brainstorm/drafts/
 docs/brainstorm/notes/
 docs/superpowers/
+docs/tasks/
 .superpowers/
 .claude/settings.local.json
 *.local

@@ -4,86 +4,30 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
 )
 
-// platformInstall 是 runInstall 在 darwin 上的实现(通过 var 注入,见
-// updater.go)。参数保持与其它平台一致(execPath 在这里不需要,GOOS 分发前
-// 已经把 target 归约到 .app bundle)。
+// platformInstall keeps the cross-platform installer signature. The PKG owns
+// the fixed destination, so the current target and executable paths are not
+// needed on macOS.
 func platformInstall(asset, target, execPath string) error {
 	return installDarwin(asset, target)
 }
 
-// installDarwin 在 Go 里同步完成整个 macOS 升级流程,避免"派 bash 后立刻退出、
-// 赌孤儿进程能独立跑完"的脆弱模型。所有可能失败的步骤在 App 还活着的时候执行,
-// 出错能真正返回给前端。全流程:
-//
-//  1. hdiutil attach —— 挂 DMG,阻塞等待,拿到 mount point。任何失败(EULA / 损坏 /
-//     占用中)都在这里直接返回给用户。
-//  2. 找到 DMG 里的 *.app 源目录。
-//  3. 决定 destParent(优先原位置,否则 /Applications,否则 ~/Applications)。
-//  4. ditto 到 destParent/*.app.new —— staging 与目标同目录,保证后续 rename 原子。
-//     (ditto 而非 cp -R:保留 xattr / ACL / HFS 元数据,Apple 官方推荐用于 bundle)
-//  5. 剥离 quarantine 属性,免得新 bundle 被 Gatekeeper 拦。
-//  6. 原子 rename swap:老 → .old,.new → 目标。任一步失败尝试回滚。
-//  7. 清理 .old,unmount DMG。
-//  8. spawn 一个 relaunch helper:等待当前进程退出后 `open -n <bundle>`。
-//
-// 返回 nil 后由调用者置位 quitRequested 再 wailsruntime.Quit。helper 已经在等,
-// 老进程一退,Launch Services 就启动新版。
-func installDarwin(dmgPath, targetApp string) error {
-	if _, err := os.Stat(dmgPath); err != nil {
-		return fmt.Errorf("asset missing: %w", err)
-	}
-
-	mountPoint, err := hdiutilAttach(dmgPath)
-	if err != nil {
-		return fmt.Errorf("hdiutil attach: %w", err)
-	}
-	// 无论后续成败都要 detach,DMG 挂着不释放会占内存 + 阻塞下次 attach。
-	defer hdiutilDetach(mountPoint)
-
-	srcApp, err := firstAppIn(mountPoint)
-	if err != nil {
-		return fmt.Errorf("find .app in dmg: %w", err)
-	}
-
-	destParent, err := chooseDestParent(targetApp)
-	if err != nil {
-		return err
-	}
-	destApp := filepath.Join(destParent, filepath.Base(srcApp))
-	stagingApp := destApp + ".new"
-	oldApp := destApp + ".old"
-
-	// 上一次失败可能留下的残骸。忽略"不存在"以外的错误(权限等)—— 若真删不掉,
-	// 后续 ditto/rename 会报出来。
-	_ = os.RemoveAll(stagingApp)
-	_ = os.RemoveAll(oldApp)
-
-	if err := runCommand("ditto", srcApp, stagingApp); err != nil {
-		return fmt.Errorf("ditto to staging: %w", err)
-	}
-	_ = runCommand("xattr", "-dr", "com.apple.quarantine", stagingApp)
-
-	if err := renameSwap(destApp, oldApp, stagingApp); err != nil {
-		_ = os.RemoveAll(stagingApp)
-		return err
-	}
-	_ = os.RemoveAll(oldApp)
-
-	// 不能在旧实例仍运行时直接 open:Launch Services 只会激活现有实例,
-	// 不会排队等它退出后重开。让 helper 等当前 PID 消失后再 open -n。
-	if err := startDarwinRelaunchAfterExit(destApp); err != nil {
-		return fmt.Errorf("schedule relaunch: %w", err)
-	}
-	return nil
+// installDarwin mounts the release DMG and runs the PKG inside it. The PKG is
+// responsible for replacing /Applications/AT Starter.app and installing the
+// /usr/local/bin/atstarter symlink as one privileged operation.
+func installDarwin(dmgPath, _ string) error {
+	return installMacOSPackageDMG(dmgPath, macOSPackageInstallOps{
+		attach:   hdiutilAttach,
+		detach:   hdiutilDetach,
+		install:  installDarwinPackage,
+		relaunch: startDarwinRelaunchAfterExit,
+	})
 }
 
 // hdiutilAttach 挂载 DMG 并返回 mount point 路径。
@@ -121,104 +65,15 @@ func hdiutilAttach(dmgPath string) (string, error) {
 	return mount, nil
 }
 
-func hdiutilDetach(mountPoint string) {
+func hdiutilDetach(mountPoint string) error {
 	if mountPoint == "" {
-		return
+		return nil
 	}
-	_ = exec.Command("hdiutil", "detach", mountPoint, "-quiet", "-force").Run()
+	return runCommand("hdiutil", "detach", mountPoint, "-quiet", "-force")
 }
 
-// firstAppIn 返回 dir 下第一个 *.app 目录的绝对路径(深度 ≤ 2)。
-// DMG 内一般就一个,最多有"Applications 符号链接 + 真 .app"两项。
-func firstAppIn(dir string) (string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", err
-	}
-	for _, e := range entries {
-		if e.IsDir() && strings.HasSuffix(e.Name(), ".app") {
-			return filepath.Join(dir, e.Name()), nil
-		}
-	}
-	// 兜底扫一层子目录,应对少数 DMG 把 .app 放子目录里的情况。
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		subEntries, _ := os.ReadDir(filepath.Join(dir, e.Name()))
-		for _, s := range subEntries {
-			if s.IsDir() && strings.HasSuffix(s.Name(), ".app") {
-				return filepath.Join(dir, e.Name(), s.Name()), nil
-			}
-		}
-	}
-	return "", errors.New("no .app found in mount")
-}
-
-// chooseDestParent 选择新 .app 的落点父目录:
-//   - 优先原位置(targetApp 的 dirname),让升级"就地"覆盖 —— 用户 Dock/Alfred
-//     指向的路径永远稳定。
-//   - 原位置不可写(常见:/Applications 需管理员且当前用户不是 admin)→ 退到
-//     ~/Applications。位置漂了,但至少能装上;下次可提示用户手动挪。
-//   - 家目录都拿不到:极少见,直接失败。
-//
-// 不选"/Applications 作为独立分支"—— 原位置本身就通常是 /Applications;若真不
-// 是且它可写,原位置分支已经命中。
-func chooseDestParent(targetApp string) (string, error) {
-	origParent := filepath.Dir(targetApp)
-	if isWritableDir(origParent) {
-		return origParent, nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("no writable install location: %w", err)
-	}
-	userApps := filepath.Join(home, "Applications")
-	if err := os.MkdirAll(userApps, 0o755); err != nil {
-		return "", fmt.Errorf("create ~/Applications: %w", err)
-	}
-	return userApps, nil
-}
-
-func isWritableDir(dir string) bool {
-	info, err := os.Stat(dir)
-	if err != nil || !info.IsDir() {
-		return false
-	}
-	// os 层的 Access(W_OK) 在 Go 里没有直接 API;实测创建一个临时文件更可靠。
-	f, err := os.CreateTemp(dir, ".atstarter-writetest-*")
-	if err != nil {
-		return false
-	}
-	name := f.Name()
-	_ = f.Close()
-	_ = os.Remove(name)
-	return true
-}
-
-// renameSwap 原子替换 bundle:
-//  1. destApp 若存在 → rename 到 oldApp(为回滚保留);不存在(全新装)→ 跳过。
-//  2. stagingApp → destApp。
-//  3. 第 2 步失败尝试把 oldApp rename 回来。
-//
-// 同盘上 rename 是原子的:任何瞬间要么老 bundle 在位、要么新 bundle 在位,不会
-// 出现"目标目录不存在"的窗口,避免 Launch Services / Dock 图标错乱。
-func renameSwap(destApp, oldApp, stagingApp string) error {
-	stashed := false
-	if _, err := os.Stat(destApp); err == nil {
-		if err := os.Rename(destApp, oldApp); err != nil {
-			return fmt.Errorf("stash old bundle: %w", err)
-		}
-		stashed = true
-	}
-	if err := os.Rename(stagingApp, destApp); err != nil {
-		if stashed {
-			// 回滚:把老 bundle 复位。失败也没救了,报原始错。
-			_ = os.Rename(oldApp, destApp)
-		}
-		return fmt.Errorf("swap in new bundle: %w", err)
-	}
-	return nil
+func installDarwinPackage(pkgPath string) error {
+	return runCommand("osascript", macOSPackageInstallerArgs(pkgPath)...)
 }
 
 // runCommand 执行一条命令,失败时把 stderr 塞进 error,便于前端展示。

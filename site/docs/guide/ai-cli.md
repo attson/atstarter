@@ -7,6 +7,12 @@ AT Starter 除了桌面界面,还提供面向脚本和 AI agent 的本地控制�
 
 桌面 App 仍然是运行态来源。CLI/MCP 不会另起一套 runner,也不会绕开 App 直接改运行态。
 
+## 安装与命令名
+
+正式安装包在 macOS、Linux 和 Windows 上统一提供 `atstarter` 命令。macOS 需打开
+DMG 并运行其中的 `AT Starter.pkg`;Linux 使用 Deb;Windows 使用安装器并在安装后
+新开终端。tar/zip 便携包不会自动加入 PATH。
+
 ## 启动模型
 
 桌面 App 启动后会监听 localhost 控制服务,并在配置文件旁写入运行时状态文件:
@@ -151,5 +157,5 @@ claude plugin update atstarter-control
 不支持插件的客户端可以直接注册 MCP:
 
 ```bash
-claude mcp add atstarter -- bash -lc 'if command -v atstarter >/dev/null 2>&1; then exec atstarter mcp; fi; echo "atstarter binary not found in PATH; install atstarter or add it to PATH, then retry" >&2; exit 1'
+claude mcp add atstarter -- atstarter mcp
 ```

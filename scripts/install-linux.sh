@@ -19,12 +19,12 @@ trap 'rm -rf "$tmp"' EXIT
 
 tar -xzf "$asset" -C "$tmp"
 
-# Tarball contains a single binary named "AT Starter".
+# Tarball contains a single binary named "atstarter".
 src=""
 while IFS= read -r -d '' candidate; do
   src="$candidate"
   break
-done < <(find "$tmp" -maxdepth 2 -type f \( -name "AT Starter" -o -name "atstarter" \) -print0)
+done < <(find "$tmp" -maxdepth 2 -type f -name "atstarter" -print0)
 
 test -n "$src" || { log "no binary found in tarball"; exit 1; }
 chmod +x "$src"

@@ -45,6 +45,7 @@ test-race:
 	go test -race ./internal/runner/
 
 clean:
-	rm -rf "build/bin/AT Starter" "build/bin/AT Starter.app" "build/bin/AT Starter.exe" \
+	rm -rf build/bin/atstarter build/bin/atstarter.app build/bin/atstarter.exe \
+	  "build/bin/AT Starter" "build/bin/AT Starter.app" "build/bin/AT Starter.exe" \
 	  build/bin/AT-Starter-*.tar.gz build/bin/AT-Starter-*.zip \
 	  build/bin/AT-Starter_*.dmg build/bin/AT-Starter_*.deb build/bin/AT-Starter_*_amd64.exe

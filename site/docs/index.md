@@ -172,7 +172,7 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
 <div class="downloads">
   <a class="download-card reveal" href="https://github.com/attson/atstarter/releases/latest" target="_blank" rel="noreferrer">
     <div class="os">macOS</div>
-    <div class="os-sub">.dmg / .zip · Intel / Apple Silicon</div>
+    <div class="os-sub">.dmg（内含 .pkg）/ .zip · Intel / Apple Silicon</div>
   </a>
   <a class="download-card reveal" href="https://github.com/attson/atstarter/releases/latest" target="_blank" rel="noreferrer">
     <div class="os">Linux</div>

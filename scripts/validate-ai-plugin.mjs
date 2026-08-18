@@ -46,12 +46,10 @@ assert.equal(codexPlugin.mcpServers, './.mcp.json')
 const claudePlugin = readJSON(join(pluginPath, '.claude-plugin', 'plugin.json'))
 assert.equal(claudePlugin.name, pluginName)
 assert.equal(claudePlugin.skills?.[0], './skills/use-atstarter')
-assert.equal(claudePlugin.mcpServers?.atstarter?.command, 'bash')
-assert.deepEqual(claudePlugin.mcpServers.atstarter.args, [
-  '-lc',
-  "if command -v atstarter >/dev/null 2>&1; then exec atstarter mcp; fi; echo 'atstarter binary not found in PATH; install atstarter or add it to PATH, then retry' >&2; exit 1",
-])
+assert.equal(claudePlugin.mcpServers?.atstarter?.command, 'atstarter')
+assert.deepEqual(claudePlugin.mcpServers.atstarter.args, ['mcp'])
 
 const mcpConfig = readJSON(join(pluginPath, '.mcp.json'))
-assert.equal(mcpConfig.mcpServers?.atstarter?.command, 'bash')
+assert.equal(mcpConfig.mcpServers?.atstarter?.command, 'atstarter')
+assert.deepEqual(mcpConfig.mcpServers.atstarter.args, ['mcp'])
 assertFile(join(pluginPath, 'skills', 'use-atstarter', 'SKILL.md'))

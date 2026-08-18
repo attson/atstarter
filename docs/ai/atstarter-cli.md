@@ -4,6 +4,13 @@ atstarter exposes a local control surface for AI agents through the desktop app.
 The desktop app remains the source of truth for projects, process state, logs,
 Docker, and compose operations.
 
+## Installation and command name
+
+The formal macOS, Linux, and Windows installers expose the same `atstarter`
+command. On macOS, open the DMG and run `AT Starter.pkg`; on Linux, install the
+Deb; on Windows, run the installer and open a new terminal. Portable tar/zip
+archives do not modify PATH.
+
 ## Runtime model
 
 When the desktop app starts, it opens a localhost-only control server and writes
@@ -191,5 +198,5 @@ updating.
 If a client does not support plugins, register the MCP server directly:
 
 ```bash
-claude mcp add atstarter -- bash -lc 'if command -v atstarter >/dev/null 2>&1; then exec atstarter mcp; fi; echo "atstarter binary not found in PATH; install atstarter or add it to PATH, then retry" >&2; exit 1'
+claude mcp add atstarter -- atstarter mcp
 ```
