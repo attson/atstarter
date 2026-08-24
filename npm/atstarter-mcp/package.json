@@ -1,0 +1,40 @@
+{
+  "name": "@attson/atstarter-mcp",
+  "version": "0.1.0",
+  "description": "npx launcher for the AT Starter MCP server. Locates the locally installed atstarter binary and runs `atstarter mcp`.",
+  "type": "module",
+  "bin": {
+    "atstarter-mcp": "./bin/atstarter-mcp.mjs"
+  },
+  "exports": {
+    "./locate": "./lib/locate.mjs"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "atstarter",
+    "mcp",
+    "npx",
+    "launcher",
+    "desktop",
+    "docker",
+    "compose"
+  ],
+  "homepage": "https://github.com/attson/atstarter",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/attson/atstarter.git",
+    "directory": "npm/atstarter-mcp"
+  },
+  "license": "MIT",
+  "author": "atstarter"
+}
