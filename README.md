@@ -42,6 +42,12 @@ atstarter cli project start <project> --command default
 atstarter mcp                                             # stdio MCP server
 ```
 
+MCP 最省事的接法(任意客户端,无需 plugin marketplace):
+
+```bash
+claude mcp add atstarter -- npx -y @attson/atstarter-mcp
+```
+
 ---
 
 ## 文档

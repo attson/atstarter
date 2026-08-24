@@ -116,6 +116,35 @@ plugins/atstarter-control
 插件会注册 `atstarter mcp`,并附带使用说明 skill。AI 会优先通过 MCP
 调用桌面 App 的本地控制服务;如果桌面 App 未启动,可先调用启动工具。
 
+三种接入方式各有侧重:**npx / MCP 兜底**是纯 MCP 工具,一行配置即可,适用于任何
+支持 `mcpServers` 的客户端;**Codex / Claude Code 插件**在 MCP 之外额外附带使用
+说明 skill。已安装桌面端的用户三种都可用。
+
+### 通过 npx(最简,通用客户端)
+
+装好 AT Starter 桌面端后,任意 MCP 客户端加一段配置即可,无需 plugin marketplace:
+
+```json
+{
+  "mcpServers": {
+    "atstarter": {
+      "command": "npx",
+      "args": ["-y", "@attson/atstarter-mcp"]
+    }
+  }
+}
+```
+
+Claude Code 也可一行:
+
+```bash
+claude mcp add atstarter -- npx -y @attson/atstarter-mcp
+```
+
+`@attson/atstarter-mcp` 只是启动器:它不下载任何东西,而是定位本机已装的
+`atstarter` 二进制并执行 `atstarter mcp`。二进制不在 PATH(便携包 / 新终端未刷新
+PATH)时,它会探测各平台常规安装位置;非标准安装可用 `ATSTARTER_BIN` 指定路径。
+
 ### Codex
 
 安装:
