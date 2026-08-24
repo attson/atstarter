@@ -80,13 +80,7 @@ atstarter cli compose logs <project> --service web --tail 200
 
 ## MCP 工具
 
-运行 MCP server:
-
-```bash
-atstarter mcp
-```
-
-主要工具:
+接入方式见下方「[接入 AI](#接入-ai)」。MCP server 暴露的主要工具:
 
 | 工具 | 用途 |
 |------|------|
@@ -105,24 +99,10 @@ atstarter mcp
 
 MCP tool result 是文本内容,里面包含和 CLI 相同的 JSON envelope。
 
-## AI 插件
+## 接入 AI
 
-仓库内置 `atstarter-control` 插件包,同时支持 Codex 和 Claude Code:
-
-```text
-plugins/atstarter-control
-```
-
-插件会注册 `atstarter mcp`,并附带使用说明 skill。AI 会优先通过 MCP
-调用桌面 App 的本地控制服务;如果桌面 App 未启动,可先调用启动工具。
-
-三种接入方式各有侧重:**npx / MCP 兜底**是纯 MCP 工具,一行配置即可,适用于任何
-支持 `mcpServers` 的客户端;**Codex / Claude Code 插件**在 MCP 之外额外附带使用
-说明 skill。已安装桌面端的用户三种都可用。
-
-### 通过 npx(最简,通用客户端)
-
-装好 AT Starter 桌面端后,任意 MCP 客户端加一段配置即可,无需 plugin marketplace:
+装好 AT Starter 桌面端后,任意支持 `mcpServers` 的客户端加一段 npx 配置即可,
+无需 plugin marketplace:
 
 ```json
 {
@@ -145,46 +125,20 @@ claude mcp add atstarter -- npx -y @attson/atstarter-mcp
 `atstarter` 二进制并执行 `atstarter mcp`。二进制不在 PATH(便携包 / 新终端未刷新
 PATH)时,它会探测各平台常规安装位置;非标准安装可用 `ATSTARTER_BIN` 指定路径。
 
-### Codex
+AI 会优先通过 MCP 调用桌面 App 的本地控制服务。如果桌面 App 未启动,先调
+`atstarter_app_ping` 检查,返回 `app_not_running` 时用 `atstarter_app_start` 拉起。
 
-安装:
+### 直连已装二进制
 
-```bash
-codex plugin marketplace add attson/atstarter --ref main --sparse .agents --sparse plugins
-codex plugin add atstarter-control@atstarter
-```
-
-更新:
-
-```bash
-codex plugin marketplace upgrade atstarter
-codex plugin add atstarter-control@atstarter
-```
-
-安装或更新后开新线程,让 Codex 重新加载新的 skill 和 MCP 工具。
-
-### Claude Code
-
-安装:
-
-```bash
-claude plugin marketplace add attson/atstarter --sparse .claude-plugin plugins
-claude plugin install atstarter-control@atstarter
-```
-
-更新:
-
-```bash
-claude plugin marketplace update atstarter
-claude plugin update atstarter-control
-```
-
-安装或更新后执行 `/reload-plugins`,或开启新的 Claude Code 会话。
-
-### MCP 兜底
-
-不支持插件的客户端可以直接注册 MCP:
+已装桌面端、不想经过 npm 的客户端,可以直接注册本机二进制:
 
 ```bash
 claude mcp add atstarter -- atstarter mcp
 ```
+
+### 插件包(可选,附带引导 skill)
+
+仓库还内置 `plugins/atstarter-control` 插件包,支持 Codex 和 Claude Code。它在 MCP
+之外额外附带一个 `use-atstarter` skill 引导 AI 使用工具。安装步骤见
+[插件 README](https://github.com/attson/atstarter/tree/main/plugins/atstarter-control)。
+多数客户端直接用上面的 npx 配置即可,无需插件。
