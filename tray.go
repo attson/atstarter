@@ -53,6 +53,10 @@ func traySupported() bool {
 	return true
 }
 
+func useNativeHideOnClose() bool {
+	return false
+}
+
 func trayOnReady() {
 	systray.SetIcon(trayIcon)
 	systray.SetTitle("")

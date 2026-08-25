@@ -131,20 +131,20 @@ func (a *App) shutdown(ctx context.Context) {
 	a.runner.StopAll()
 }
 
-// beforeClose 由 Wails 在窗口关闭前调用。runtime.Quit 也会经过这里,因此:
-//   - 托盘「退出」已置位 quitRequested → 放行,真正退出。
-//   - 托盘没起来 → 放行正常退出,避免把用户锁进无窗口又无托盘的死状态。
-//   - 其余(用户点窗口 X)→ 隐藏到托盘并阻止退出。
+// beforeClose 由 Wails 在窗口关闭前调用。macOS 的窗口关闭由
+// HideWindowOnClose 原生处理,因此进入这里的是应用退出请求,必须放行。
+// 其他平台仍区分主动退出与窗口关闭:主动退出或无托盘时放行,其余隐藏到托盘。
 func (a *App) beforeClose(ctx context.Context) (prevent bool) {
-	if quitRequested.Load() {
-		return false
-	}
-	if !isTrayReady() {
+	if !shouldPreventClose(quitRequested.Load(), isTrayReady(), useNativeHideOnClose()) {
 		return false
 	}
 	runtime.WindowHide(ctx)
 	setTrayWindowVisible(false)
 	return true
+}
+
+func shouldPreventClose(quitRequested, trayReady, nativeHideOnClose bool) bool {
+	return !quitRequested && trayReady && !nativeHideOnClose
 }
 
 // ---- 暴露给前端的方法 ----
