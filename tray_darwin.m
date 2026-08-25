@@ -3,6 +3,7 @@
 #import <dispatch/dispatch.h>
 
 extern void darwinTrayReady(void);
+extern void darwinTrayVisibilityChanged(bool visible);
 extern void darwinTrayToggle(void);
 extern void darwinTrayStopAll(void);
 extern void darwinTrayQuit(void);
@@ -31,6 +32,10 @@ extern void darwinTrayQuit(void);
 }
 
 - (void)setupWithIconData:(NSData *)iconData {
+	NSNotificationCenter *notifications = [NSNotificationCenter defaultCenter];
+	[notifications addObserver:self selector:@selector(handleApplicationDidHide:) name:NSApplicationDidHideNotification object:NSApp];
+	[notifications addObserver:self selector:@selector(handleApplicationDidUnhide:) name:NSApplicationDidUnhideNotification object:NSApp];
+
 	self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSSquareStatusItemLength];
 	self.statusItem.button.toolTip = @"AT Starter";
 	if (iconData != nil) {
@@ -71,6 +76,14 @@ extern void darwinTrayQuit(void);
 	[menu addItem:quitItem];
 
 	self.statusItem.menu = menu;
+}
+
+- (void)handleApplicationDidHide:(NSNotification *)notification {
+	darwinTrayVisibilityChanged(false);
+}
+
+- (void)handleApplicationDidUnhide:(NSNotification *)notification {
+	darwinTrayVisibilityChanged(true);
 }
 
 - (void)handleToggle:(id)sender {

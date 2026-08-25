@@ -44,6 +44,10 @@ func traySupported() bool {
 	return true
 }
 
+func useNativeHideOnClose() bool {
+	return true
+}
+
 //export darwinTrayReady
 func darwinTrayReady() {
 	trayMu.Lock()
@@ -54,6 +58,15 @@ func darwinTrayReady() {
 	if !wasReady && trayApp != nil && trayApp.runner != nil {
 		updateTrayRunning(trayApp.runner.RunningCount())
 	}
+}
+
+//export darwinTrayVisibilityChanged
+func darwinTrayVisibilityChanged(visible C.bool) {
+	setDarwinTrayVisibility(bool(visible))
+}
+
+func setDarwinTrayVisibility(visible bool) {
+	setTrayWindowVisible(visible)
 }
 
 //export darwinTrayToggle
