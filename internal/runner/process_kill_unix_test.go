@@ -252,6 +252,7 @@ func TestShellJoinExpandsTilde(t *testing.T) {
 }
 
 func TestStartReappliesEnvOverridesAfterLoginShellMutatesPath(t *testing.T) {
+	useEnvironmentShell(t)
 	root := t.TempDir()
 	wantBin := root + "/want/bin"
 	oldBin := root + "/old/bin"
@@ -310,6 +311,7 @@ func TestStartReappliesEnvOverridesAfterLoginShellMutatesPath(t *testing.T) {
 // 旧实现由 Go 用 GUI 进程的贫瘠 PATH 预展开 $PATH,再 rc 后覆盖,导致 nodeBin
 // 丢失、tool 找不到。
 func TestStartPreservesLoginShellPathWhenEnvAppendsPATH(t *testing.T) {
+	useEnvironmentShell(t)
 	root := t.TempDir()
 	wantBin := root + "/want/bin"
 	nodeBin := root + "/node/bin"
@@ -361,15 +363,33 @@ func TestStartPreservesLoginShellPathWhenEnvAppendsPATH(t *testing.T) {
 	}
 }
 
-func TestUserShell(t *testing.T) {
-	t.Setenv("SHELL", "/usr/bin/zsh")
-	if got := userShell(); got != "/usr/bin/zsh" {
-		t.Errorf("userShell() with SHELL set = %q, want /usr/bin/zsh", got)
+func TestResolveUserShell(t *testing.T) {
+	passwd := []byte("root:x:0:0:root:/root:/bin/bash\nme:x:1000:1000:Me:/home/me:/usr/bin/zsh\n")
+	tests := []struct {
+		name     string
+		envShell string
+		uid      int
+		passwd   []byte
+		want     string
+	}{
+		{"account shell wins over stale environment", "/bin/bash", 1000, passwd, "/usr/bin/zsh"},
+		{"environment fallback", "/usr/bin/fish", 2000, passwd, "/usr/bin/fish"},
+		{"default fallback", "", 2000, passwd, "/bin/sh"},
 	}
-	t.Setenv("SHELL", "")
-	if got := userShell(); got != "/bin/sh" {
-		t.Errorf("userShell() with empty SHELL = %q, want /bin/sh", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := resolveUserShell(tc.envShell, tc.uid, tc.passwd); got != tc.want {
+				t.Errorf("resolveUserShell() = %q, want %q", got, tc.want)
+			}
+		})
 	}
+}
+
+func useEnvironmentShell(t *testing.T) {
+	t.Helper()
+	original := readPasswdFile
+	readPasswdFile = func() []byte { return nil }
+	t.Cleanup(func() { readPasswdFile = original })
 }
 
 func TestIsShellNoise(t *testing.T) {

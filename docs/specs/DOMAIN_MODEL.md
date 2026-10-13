@@ -26,6 +26,7 @@ targets and runtime processes while keeping Docker, files, logs, groups, and upd
 | Editor Tab | `editorTabs` state | One open file in the project file editor, with its dirty flag and view mode | `frontend/src/components/fileExplorer/editorTabs.js` |
 | Branch | `git.Branches` | Local/remote branch list plus worktree status for one project | `internal/git/git.go` |
 | Control State | `control.State` | Runtime-only localhost control discovery for CLI/MCP | `internal/control/protocol.go` |
+| App Settings | `store.AppSettings` | Cross-project shell and log typography preferences | `internal/store/model.go` |
 
 ### Terminology Constraints
 
@@ -200,6 +201,7 @@ running -> error
 | runner maps | Runtime Process | In-memory only |
 | docker CLI snapshots | ContainerState, ComposeService | Runtime only |
 | `<config>.control.json` | Control State | Runtime-only discovery, removed on shutdown |
+| `config.json.settings` | App Settings | Cross-project runtime and log display preferences |
 
 ## 7. Extension Registry
 

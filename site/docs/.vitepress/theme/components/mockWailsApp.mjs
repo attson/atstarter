@@ -291,6 +291,15 @@ export async function ListGroups() { return clone(groups) }
 export async function ListMissingProjectIDs() { return [] }
 export async function GetWorkspaces() { return ['/Users/demo/workspaces', '/Users/demo/sandboxes'] }
 export async function SetWorkspaces() {}
+let demoSettings = {
+  shell: '', autoShell: '/bin/zsh', availableShells: ['/bin/zsh', '/bin/bash'],
+  logFontFamily: 'monospace', logFontSize: 11, logLetterSpacing: 0,
+}
+export async function GetAppSettings() { return clone(demoSettings) }
+export async function SaveAppSettings(settings) {
+  demoSettings = { ...demoSettings, ...clone(settings) }
+  return clone(demoSettings)
+}
 export async function PickDirectory() { return '/Users/demo/workspaces' }
 export async function PickDirectoryFrom(defaultDir) { return defaultDir || '/Users/demo/workspaces' }
 

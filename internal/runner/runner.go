@@ -29,6 +29,7 @@ type Spec struct {
 	Args    []string
 	Dir     string            // 工作目录;为空则用当前目录
 	Env     map[string]string // 叠加到 os.Environ() 之上
+	Shell   string            // Unix 登录 shell;为空时自动发现账户 shell
 }
 
 // LogLine 是一行输出,带来源项目与流类型。

@@ -95,6 +95,9 @@ func TestResetProjectsClearsProjectsAndGroupsButKeepsWorkspaces(t *testing.T) {
 	if err := s.SetWorkspaces([]string{"/workspace"}); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.SetSettings(AppSettings{Shell: "/bin/zsh", LogFontFamily: "monospace", LogFontSize: 12}); err != nil {
+		t.Fatal(err)
+	}
 	if err := s.Add(Project{Name: "a", Path: "/x/proj"}); err != nil {
 		t.Fatal(err)
 	}
@@ -118,6 +121,24 @@ func TestResetProjectsClearsProjectsAndGroupsButKeepsWorkspaces(t *testing.T) {
 	}
 	if len(cfg.Workspaces) != 1 || cfg.Workspaces[0] != "/workspace" {
 		t.Fatalf("expected workspaces preserved, got %+v", cfg.Workspaces)
+	}
+	if cfg.Settings.Shell != "/bin/zsh" || cfg.Settings.LogFontSize != 12 {
+		t.Fatalf("expected settings preserved, got %+v", cfg.Settings)
+	}
+}
+
+func TestSetSettingsRoundTrips(t *testing.T) {
+	s := newTestStore(t)
+	want := AppSettings{Shell: "/usr/bin/zsh", LogFontFamily: "JetBrains Mono", LogFontSize: 13, LogLetterSpacing: 1}
+	if err := s.SetSettings(want); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := s.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Settings != want {
+		t.Fatalf("settings = %+v, want %+v", cfg.Settings, want)
 	}
 }
 

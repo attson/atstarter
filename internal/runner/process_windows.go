@@ -4,6 +4,11 @@ package runner
 
 import "os/exec"
 
+// Windows 直接启动命令，不使用 Unix shell 设置。
+func DefaultShell() string             { return "" }
+func AvailableShells() []string        { return []string{} }
+func ValidateShell(shell string) error { return nil }
+
 // setupProcAttr 在 Windows 上暂不做进程组设置(后续可接 Job Object)。
 func setupProcAttr(cmd *exec.Cmd) {}
 

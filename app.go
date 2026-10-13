@@ -53,6 +53,40 @@ type LaunchResult struct {
 	Error     string `json:"error"`
 }
 
+type AppSettings struct {
+	Shell            string   `json:"shell"`
+	AutoShell        string   `json:"autoShell"`
+	AvailableShells  []string `json:"availableShells"`
+	LogFontFamily    string   `json:"logFontFamily"`
+	LogFontSize      int      `json:"logFontSize"`
+	LogLetterSpacing int      `json:"logLetterSpacing"`
+}
+
+const (
+	defaultLogFontFamily = "monospace"
+	defaultLogFontSize   = 11
+)
+
+func appSettingsFromConfig(settings store.AppSettings) AppSettings {
+	fontFamily := strings.TrimSpace(settings.LogFontFamily)
+	if fontFamily == "" {
+		fontFamily = defaultLogFontFamily
+	}
+	fontSize := settings.LogFontSize
+	if fontSize < 9 || fontSize > 20 {
+		fontSize = defaultLogFontSize
+	}
+	letterSpacing := settings.LogLetterSpacing
+	if letterSpacing < 0 || letterSpacing > 4 {
+		letterSpacing = 0
+	}
+	return AppSettings{
+		Shell: strings.TrimSpace(settings.Shell), AutoShell: runner.DefaultShell(),
+		AvailableShells: runner.AvailableShells(), LogFontFamily: fontFamily,
+		LogFontSize: fontSize, LogLetterSpacing: letterSpacing,
+	}
+}
+
 // NewApp 用默认配置路径(用户配置目录)构造。
 func NewApp() *App {
 	return NewAppWithConfig(defaultConfigPath())
@@ -729,6 +763,7 @@ func (a *App) StartProjectCommand(id, commandID string) error {
 			}
 			return a.runner.Start(runner.Spec{
 				ID: runIDForCommand(p.ID, cmd.ID), Command: cmd.Command, Args: cmd.Args, Dir: dir, Env: env,
+				Shell: strings.TrimSpace(cfg.Settings.Shell),
 			})
 		}
 	}
@@ -843,6 +878,41 @@ func (a *App) GetWorkspaces() ([]string, error) {
 		return nil, err
 	}
 	return cfg.Workspaces, nil
+}
+
+// GetAppSettings 返回已保存偏好及当前系统可用的 shell 候选。
+func (a *App) GetAppSettings() (AppSettings, error) {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return AppSettings{}, err
+	}
+	return appSettingsFromConfig(cfg.Settings), nil
+}
+
+// SaveAppSettings 校验并保存跨项目应用偏好。
+func (a *App) SaveAppSettings(settings AppSettings) (AppSettings, error) {
+	settings.Shell = strings.TrimSpace(settings.Shell)
+	settings.LogFontFamily = strings.TrimSpace(settings.LogFontFamily)
+	if err := runner.ValidateShell(settings.Shell); err != nil {
+		return AppSettings{}, err
+	}
+	if settings.LogFontFamily == "" || len(settings.LogFontFamily) > 128 {
+		return AppSettings{}, errors.New("log font family is invalid")
+	}
+	if settings.LogFontSize < 9 || settings.LogFontSize > 20 {
+		return AppSettings{}, errors.New("log font size must be between 9 and 20")
+	}
+	if settings.LogLetterSpacing < 0 || settings.LogLetterSpacing > 4 {
+		return AppSettings{}, errors.New("log letter spacing must be between 0 and 4")
+	}
+	persisted := store.AppSettings{
+		Shell: settings.Shell, LogFontFamily: settings.LogFontFamily,
+		LogFontSize: settings.LogFontSize, LogLetterSpacing: settings.LogLetterSpacing,
+	}
+	if err := a.store.SetSettings(persisted); err != nil {
+		return AppSettings{}, err
+	}
+	return appSettingsFromConfig(persisted), nil
 }
 
 // GetProjectBranch 返回项目工作目录当前的 git 分支名(纯 UI 显示用)。
@@ -989,10 +1059,23 @@ func composeRunID(projectID, service string) string {
 	return "compose:" + projectID + ":" + service
 }
 
+func (a *App) configuredShell() (string, error) {
+	cfg, err := a.store.Load()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(cfg.Settings.Shell), nil
+}
+
 // FollowContainerLogs 起一个 docker logs -f 长驻进程,日志走 log:<runID>。
 func (a *App) FollowContainerLogs(id string) error {
+	shell, err := a.configuredShell()
+	if err != nil {
+		return err
+	}
 	return a.runner.Start(runner.Spec{
 		ID: containerRunID(id), Command: a.docker.Command(), Args: []string{"logs", "-f", "--tail", "200", id},
+		Shell: shell,
 	})
 }
 func (a *App) StopFollowContainerLogs(id string) error {
@@ -1013,7 +1096,11 @@ func (a *App) FollowComposeLogs(projectID, service string) error {
 	if service != "" {
 		args = append(args, service)
 	}
-	return a.runner.Start(runner.Spec{ID: composeRunID(projectID, service), Command: a.docker.Command(), Args: args})
+	shell, err := a.configuredShell()
+	if err != nil {
+		return err
+	}
+	return a.runner.Start(runner.Spec{ID: composeRunID(projectID, service), Command: a.docker.Command(), Args: args, Shell: shell})
 }
 func (a *App) StopFollowComposeLogs(projectID, service string) error {
 	return a.runner.Stop(composeRunID(projectID, service))
