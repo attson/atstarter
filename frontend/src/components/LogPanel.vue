@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted, nextTick, inject } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -7,11 +7,14 @@ import '@xterm/xterm/css/xterm.css'
 import { GetLogs, ClearLogs } from '../../wailsjs/go/main/App'
 import { EventsOn, EventsOff, ClipboardSetText, BrowserOpenURL } from '../../wailsjs/runtime/runtime'
 import { useTheme } from '../composables/useTheme'
+import { normalizeAppSettings, terminalFontFamily } from '../appSettings.js'
 
 const SCROLLBACK = 1000
 
 const props = defineProps({ projectId: String, status: Object })
 const { resolvedTheme } = useTheme()
+const appSettings = inject('appSettings', ref(normalizeAppSettings()))
+const terminalSettings = computed(() => normalizeAppSettings(appSettings.value))
 
 const termHost = ref(null)
 const empty = ref(true)
@@ -181,6 +184,15 @@ watch(activeTheme, () => {
   if (term) term.options.theme = readThemeColors()
 })
 
+watch(terminalSettings, async (settings) => {
+  if (!term) return
+  term.options.fontFamily = terminalFontFamily(settings.logFontFamily)
+  term.options.fontSize = settings.logFontSize
+  term.options.letterSpacing = settings.logLetterSpacing
+  await nextTick()
+  if (fitAddon) fitAddon.fit()
+}, { deep: true })
+
 onMounted(() => {
   syncActiveTheme()
   themeObserver = new MutationObserver(syncActiveTheme)
@@ -191,8 +203,9 @@ onMounted(() => {
     convertEol: true,
     disableStdin: true,
     cursorBlink: false,
-    fontFamily: '"SF Mono", SFMono-Regular, ui-monospace, Menlo, Consolas, "Liberation Mono", monospace',
-    fontSize: 11,
+    fontFamily: terminalFontFamily(terminalSettings.value.logFontFamily),
+    fontSize: terminalSettings.value.logFontSize,
+    letterSpacing: terminalSettings.value.logLetterSpacing,
     lineHeight: 1.25,
     theme: readThemeColors(),
   })

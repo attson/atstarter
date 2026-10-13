@@ -143,6 +143,16 @@ func (s *Store) SetWorkspaces(dirs []string) error {
 	return s.save(cfg)
 }
 
+// SetSettings 覆盖跨项目应用偏好。
+func (s *Store) SetSettings(settings AppSettings) error {
+	cfg, err := s.Load()
+	if err != nil {
+		return err
+	}
+	cfg.Settings = settings
+	return s.save(cfg)
+}
+
 // SaveGroup 新增或覆盖一个启动分组。ID 为空时自动生成。
 func (s *Store) SaveGroup(g LaunchGroup) (LaunchGroup, error) {
 	cfg, err := s.Load()

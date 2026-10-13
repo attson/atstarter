@@ -57,12 +57,21 @@ type LaunchGroup struct {
 	Items []GroupItem `json:"items"`
 }
 
+// AppSettings 是跨项目生效的应用偏好。零值保持旧配置兼容。
+type AppSettings struct {
+	Shell            string `json:"shell,omitempty"`
+	LogFontFamily    string `json:"logFontFamily,omitempty"`
+	LogFontSize      int    `json:"logFontSize,omitempty"`
+	LogLetterSpacing int    `json:"logLetterSpacing,omitempty"`
+}
+
 // Config 是配置文件的顶层结构。
 type Config struct {
 	Version    int           `json:"version"`
 	Workspaces []string      `json:"workspaces"`
 	Projects   []Project     `json:"projects"`
 	Groups     []LaunchGroup `json:"groups"`
+	Settings   AppSettings   `json:"settings,omitempty"`
 }
 
 // IDForPath 由项目绝对路径生成稳定 ID(去重依据)。

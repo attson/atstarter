@@ -36,6 +36,7 @@ envMapToText(env)
 | Containers | `ContainerPanel.vue` | Host container list and lifecycle |
 | File browser | `FileBrowser.vue`, `fileExplorer/*` | Project-scoped file operations |
 | Dialogs | `*Dialog.vue` | Modal editing/confirmation flows |
+| App settings | `SettingsDialog.vue` | Default shell and live log typography preferences |
 | UI primitives | `components/ui/*` | Buttons, icons, pills, theme toggle |
 
 ### Layout Constraints
@@ -122,6 +123,18 @@ Reference implementation: `frontend/src/scriptComplete.js`.
 - Keys and values are trimmed.
 - Later duplicate keys overwrite earlier keys.
 - Serialization sorts keys for stable display.
+
+### 3.6 App Settings Pattern
+
+1. The top bar gear opens `SettingsDialog.vue`; settings remain a modal tool rather than a new app view.
+2. Default shell offers automatic account-shell discovery, discovered executable shells, and an
+   explicit custom absolute path.
+3. Log typography offers font family, font size, and non-negative character spacing with a live
+   terminal preview.
+4. Saved log typography applies to every mounted `LogPanel` immediately. Shell changes apply only to
+   subsequently started processes.
+5. Settings persist through `GetAppSettings`/`SaveAppSettings` in `config.json.settings`; frontend
+   normalization lives in `appSettings.js` and has `node:test` coverage.
 
 ## 4. Allowed And Forbidden
 

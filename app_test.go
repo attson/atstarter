@@ -100,6 +100,48 @@ func TestNewAppUsesDevConfigInWorkingDirectory(t *testing.T) {
 	}
 }
 
+func TestAppSettingsDefaultsAndSave(t *testing.T) {
+	app := newTestApp(t)
+	defaults, err := app.GetAppSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.LogFontFamily != "monospace" || defaults.LogFontSize != 11 || defaults.LogLetterSpacing != 0 {
+		t.Fatalf("unexpected defaults: %+v", defaults)
+	}
+
+	shell := filepath.Join(t.TempDir(), "custom-shell")
+	if err := os.WriteFile(shell, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := app.SaveAppSettings(AppSettings{
+		Shell: shell, LogFontFamily: "JetBrains Mono", LogFontSize: 13, LogLetterSpacing: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Shell != shell || saved.LogFontFamily != "JetBrains Mono" || saved.LogFontSize != 13 || saved.LogLetterSpacing != 1 {
+		t.Fatalf("saved settings = %+v", saved)
+	}
+	reloaded, err := app.GetAppSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Shell != shell || reloaded.LogFontFamily != "JetBrains Mono" {
+		t.Fatalf("reloaded settings = %+v", reloaded)
+	}
+}
+
+func TestSaveAppSettingsRejectsInvalidShell(t *testing.T) {
+	app := newTestApp(t)
+	_, err := app.SaveAppSettings(AppSettings{
+		Shell: "relative/zsh", LogFontFamily: "monospace", LogFontSize: 11,
+	})
+	if err == nil {
+		t.Fatal("expected invalid shell path to be rejected")
+	}
+}
+
 func TestDefaultConfigPathHonorsEnvOverride(t *testing.T) {
 	want := filepath.Join(t.TempDir(), "custom.json")
 	t.Setenv("ATSTARTER_CONFIG", want)

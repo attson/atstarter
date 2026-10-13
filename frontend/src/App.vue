@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, provide } from 'vue'
 import ProjectList from './components/ProjectList.vue'
 import ProjectDetail from './components/ProjectDetail.vue'
 import GroupDetail from './components/GroupDetail.vue'
@@ -16,19 +16,22 @@ import UpdateBanner from './components/UpdateBanner.vue'
 import ComposeDetail from './components/ComposeDetail.vue'
 import ContainerPanel from './components/ContainerPanel.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import SettingsDialog from './components/SettingsDialog.vue'
 import ContextMenu from './components/ui/ContextMenu.vue'
-import { FolderPlus, Radar, Plus, RefreshCw, Pin, PinOff, Play, Square, Trash2, FolderOpen } from 'lucide-vue-next'
+import { FolderPlus, Radar, Plus, RefreshCw, Pin, PinOff, Play, Square, Trash2, FolderOpen, Settings2 } from 'lucide-vue-next'
 import {
   ListProjects, AddProject, StartProjectCommand, StopProjectCommand,
   GetStatus, UpdateProjectCommands, ListGroups, SaveGroup, RemoveGroup,
   StartGroup, StopGroup, GetWorkspaces, SetWorkspaces, ScanWorkspaces, AddScanned,
   UpdateProject, ResetProjects, RemoveProject, ListMissingProjectIDs,
   StartProject, StopProject, OpenProjectPath, SetProjectPinned, ReorderPinnedProjects,
+  GetAppSettings, SaveAppSettings,
 } from '../wailsjs/go/main/App'
 import { ComposeDown, RemoveContainer, DockerAvailable } from '../wailsjs/go/main/App'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 import { inferWorkspaceRoots } from './workspaceRoots'
 import { applyDetectionOption } from './projectDetection.js'
+import { normalizeAppSettings } from './appSettings.js'
 
 const projects = ref([])
 const groups = ref([])
@@ -53,6 +56,11 @@ const containerSummary = ref({ total: 0, running: 0, exited: 0 })
 const confirm = ref({ show: false, kind: '', payload: null, title: '', message: '', confirmText: '', danger: true })
 const containerPanelRef = ref(null)
 const updateBannerRef = ref(null)
+const showSettings = ref(false)
+const appSettings = ref(normalizeAppSettings())
+const settingsSaving = ref(false)
+const settingsError = ref('')
+provide('appSettings', appSettings)
 const props = defineProps({
   embedded: { type: Boolean, default: false },
 })
@@ -105,6 +113,33 @@ function toggleStatusFilter(kind) {
 
 async function onCheckUpdates() {
   await updateBannerRef.value?.check({ notify: true })
+}
+
+async function loadAppSettings() {
+  try {
+    appSettings.value = normalizeAppSettings(await GetAppSettings())
+  } catch (e) {
+    console.error('读取设置失败:', e)
+  }
+}
+
+async function openSettings() {
+  settingsError.value = ''
+  await loadAppSettings()
+  showSettings.value = true
+}
+
+async function onSaveSettings(value) {
+  settingsSaving.value = true
+  settingsError.value = ''
+  try {
+    appSettings.value = normalizeAppSettings(await SaveAppSettings(value))
+    showSettings.value = false
+  } catch (e) {
+    settingsError.value = String(e)
+  } finally {
+    settingsSaving.value = false
+  }
 }
 
 const selected = computed(() => projects.value.find((p) => p.id === selectedId.value))
@@ -395,7 +430,7 @@ async function onAddToGroup(payload) {
 
 let timer
 onMounted(async () => {
-  await refresh()
+  await Promise.all([refresh(), loadAppSettings()])
   await pollStatuses()
   await checkDocker()
   timer = setInterval(pollStatuses, 1500)
@@ -433,6 +468,9 @@ onUnmounted(() => {
       </div>
       <div class="top-actions">
         <ThemeToggle />
+        <AppButton variant="secondary" size="sm" icon-only title="设置" aria-label="设置" @click="openSettings">
+          <template #icon><AppIcon :icon="Settings2" :size="14" /></template>
+        </AppButton>
         <AppButton variant="secondary" size="sm" icon-only title="检查更新" aria-label="检查更新" @click="onCheckUpdates">
           <template #icon><AppIcon :icon="RefreshCw" :size="14" /></template>
         </AppButton>
@@ -497,6 +535,8 @@ onUnmounted(() => {
     <ConfirmDialog :show="confirm.show" :title="confirm.title" :message="confirm.message"
       :confirmText="confirm.confirmText" :danger="confirm.danger"
       @close="confirm = { ...confirm, show: false }" @confirm="onConfirmAccept" />
+    <SettingsDialog :show="showSettings" :settings="appSettings" :saving="settingsSaving" :error="settingsError"
+      @close="showSettings = false" @save="onSaveSettings" />
   </Teleport>
 </template>
 

@@ -58,6 +58,10 @@ export function FollowContainerLogs(arg1) {
   return window['go']['main']['App']['FollowContainerLogs'](arg1);
 }
 
+export function GetAppSettings() {
+  return window['go']['main']['App']['GetAppSettings']();
+}
+
 export function GetLogs(arg1) {
   return window['go']['main']['App']['GetLogs'](arg1);
 }
@@ -180,6 +184,10 @@ export function RestartContainer(arg1) {
 
 export function RevealProjectPath(arg1, arg2) {
   return window['go']['main']['App']['RevealProjectPath'](arg1, arg2);
+}
+
+export function SaveAppSettings(arg1) {
+  return window['go']['main']['App']['SaveAppSettings'](arg1);
 }
 
 export function SaveGroup(arg1) {

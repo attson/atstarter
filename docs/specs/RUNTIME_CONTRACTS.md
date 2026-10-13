@@ -12,7 +12,7 @@ updater, Wails bindings, and events.
 detector.Detect(dir) Result
 cmdparse.Parse(line) (command string, args []string, err error)
 store.NormalizeProjectCommands(project) store.Project
-runner.Start(runner.Spec{ID, Command, Args, Dir, Env})
+runner.Start(runner.Spec{ID, Command, Args, Dir, Env, Shell})
 ```
 
 ```go
@@ -91,7 +91,10 @@ Reference implementation: `internal/store/store.go`, `internal/store/model.go`.
 Applicable to all project commands and log follow commands.
 
 1. Build `runner.Spec` with stable run ID.
-2. On Unix, wrap command with `$SHELL -l -i -c` and shell-quote each token after `~` expansion.
+2. On Unix, wrap commands with `Spec.Shell` using `-l -i -c`. An empty shell means automatic mode:
+   read the system account login shell from `/etc/passwd` because a desktop launcher may inherit a
+   stale `$SHELL`, then use `$SHELL` and `/bin/sh` as fallbacks. Shell-quote each token after `~`
+   expansion.
 3. Build process env from `os.Environ()` plus command env overrides; expand override values with
    process env first so values like `PATH=/custom/bin:$PATH` work without executing shell syntax.
 4. On Unix, re-apply valid shell variable env overrides inside the `-c` line after shell startup,
@@ -223,7 +226,7 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 - Do not read/write `runner.managed.status` outside `r.mu`.
 - Do not call status/log callbacks while holding `r.mu`.
 - Do not run `killTree` or other slow process cleanup under `r.mu`.
-- Do not remove Unix login shell wrapping without solving GUI PATH and `~` expansion.
+- Do not remove Unix account-login-shell wrapping without solving GUI PATH and `~` expansion.
 - Do not trust frontend-provided file paths outside the project root.
 - Do not push release tags from a non-main commit.
 - Do not let CLI/MCP bypass the desktop process for runner, Docker, project, group, or log state.

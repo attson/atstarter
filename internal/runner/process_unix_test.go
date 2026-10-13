@@ -2,7 +2,18 @@
 
 package runner
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
+
+func TestBuildCmdUsesExplicitShell(t *testing.T) {
+	want := filepath.Join(t.TempDir(), "custom-shell")
+	cmd := buildCmd(Spec{Command: "echo", Args: []string{"ok"}, Shell: want})
+	if cmd.Path != want {
+		t.Fatalf("buildCmd shell = %q, want %q", cmd.Path, want)
+	}
+}
 
 func TestShellExportValue(t *testing.T) {
 	// FOO 用于验证非 PATH 的 $VAR 仍由 Go 展开;PATH 引用则保留给 shell。

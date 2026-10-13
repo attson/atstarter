@@ -32,7 +32,7 @@ wails build -tags webkit2_41
 
 ```text
 main.go                 Wails entry, embedded frontend, Version/UpdateVerifyPublicKey ldflags
-app.go                  Wails binding layer, module assembly, event bridge, 68 App methods
+app.go                  Wails binding layer, module assembly, event bridge, 70 App methods
 tray.go                 system tray, close-to-tray, running count, quit flow
 updater.go              GitHub release self-update, mirrors, Ed25519 + SHA256 verification, 5 update methods
 internal/
@@ -78,7 +78,7 @@ frontend/src/           Vue3 app, custom UI components, theme tokens, file explo
 - `store.IDForPath(path)` is the project de-duplication key. Preserve path normalization before storing.
 - Default command ID is exactly `default`. Non-default command IDs must not collide with `default`.
 - `runner` status reads/writes stay under `r.mu`; callbacks run outside the lock with copied values; slow process-tree cleanup stays outside locks.
-- Unix process launch uses login interactive shell and process group cleanup. Preserve `$SHELL -l -i -c` and `setsid` unless replacing the full contract.
+- Unix process launch uses the system account's login interactive shell (with `$SHELL` only as a fallback) and process group cleanup. Preserve `-l -i -c` and `setsid` unless replacing the full contract.
 - File browser APIs must resolve all relative paths inside project root and reject path traversal. Copy/move take two project IDs and resolve each side against its own root; they never overwrite (auto-rename via `filetree.UniqueName`).
 - `internal/git` shells out to the system `git` for local operations only. No `fetch`/`pull`/`push`, every command has a timeout, branch names are validated before reaching git, and git's own stderr is surfaced verbatim.
 

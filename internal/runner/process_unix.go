@@ -3,9 +3,12 @@
 package runner
 
 import (
+	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -270,20 +273,97 @@ func isShellEnvName(name string) bool {
 	return true
 }
 
-// userShell 返回用户登录 shell($SHELL),为空则回退 /bin/sh。
-func userShell() string {
-	if sh := os.Getenv("SHELL"); sh != "" {
+// passwdShell 返回 passwd 数据中 uid 对应的登录 shell。
+func passwdShell(data []byte, uid int) string {
+	want := strconv.Itoa(uid)
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Split(line, ":")
+		if len(fields) >= 7 && fields[2] == want {
+			return strings.TrimSpace(fields[6])
+		}
+	}
+	return ""
+}
+
+// resolveUserShell 优先使用账户配置的登录 shell。桌面应用继承到的 $SHELL 可能
+// 来自启动器而非当前账户(例如账户已切到 zsh,GUI 环境仍是 bash),此时相信它会
+// 跳过用户实际的 rc 文件,使 go/node 等只在 rc 中配置的工具无法启动。
+func resolveUserShell(envShell string, uid int, passwdData []byte) string {
+	if sh := passwdShell(passwdData, uid); sh != "" {
 		return sh
+	}
+	if envShell != "" {
+		return envShell
 	}
 	return "/bin/sh"
 }
 
-// buildCmd 用登录交互式 shell 包裹命令,让子进程拿到用户 shell 的完整 PATH
+var readPasswdFile = func() []byte {
+	data, _ := os.ReadFile("/etc/passwd")
+	return data
+}
+
+// userShell 返回系统账户的登录 shell；无法读取账户信息时才使用 $SHELL，最后
+// 回退 /bin/sh。macOS 的目录服务用户通常不在 /etc/passwd 中，因此会自然使用
+// 系统提供的 $SHELL。
+func userShell() string {
+	return resolveUserShell(os.Getenv("SHELL"), os.Getuid(), readPasswdFile())
+}
+
+// DefaultShell 返回“自动”模式当前解析到的账户登录 shell。
+func DefaultShell() string { return userShell() }
+
+// AvailableShells 返回当前账户 shell 与 /etc/shells 中可执行的绝对路径。
+func AvailableShells() []string {
+	candidates := []string{userShell()}
+	if data, err := os.ReadFile("/etc/shells"); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" && !strings.HasPrefix(line, "#") {
+				candidates = append(candidates, line)
+			}
+		}
+	}
+	seen := map[string]bool{}
+	out := make([]string, 0, len(candidates))
+	for _, shell := range candidates {
+		if seen[shell] || ValidateShell(shell) != nil {
+			continue
+		}
+		seen[shell] = true
+		out = append(out, shell)
+	}
+	return out
+}
+
+// ValidateShell 校验用户显式选择的 shell。空值表示自动模式。
+func ValidateShell(shell string) error {
+	if shell == "" {
+		return nil
+	}
+	if !filepath.IsAbs(shell) {
+		return errors.New("shell path must be absolute")
+	}
+	info, err := os.Stat(shell)
+	if err != nil {
+		return errors.New("shell does not exist: " + shell)
+	}
+	if info.IsDir() || info.Mode().Perm()&0o111 == 0 {
+		return errors.New("shell is not executable: " + shell)
+	}
+	return nil
+}
+
+// buildCmd 用账户的登录交互式 shell 包裹命令,让子进程拿到用户 shell 的完整 PATH
 // (pnpm / nvm / go 等)。-l 加载 login rc,-i 加载交互 rc(PATH 通常在这),
 // -c 执行拼好的命令行。
 func buildCmd(spec Spec) *exec.Cmd {
 	line := shellLine(spec)
-	return exec.Command(userShell(), "-l", "-i", "-c", line)
+	shell := spec.Shell
+	if shell == "" {
+		shell = userShell()
+	}
+	return exec.Command(shell, "-l", "-i", "-c", line)
 }
 
 // shellNoiseMarkers 是交互式 shell 在无控制 TTY 时(CI、部分 GUI 启动场景)

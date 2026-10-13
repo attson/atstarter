@@ -219,6 +219,28 @@ export namespace git {
 
 export namespace main {
 	
+	export class AppSettings {
+	    shell: string;
+	    autoShell: string;
+	    availableShells: string[];
+	    logFontFamily: string;
+	    logFontSize: number;
+	    logLetterSpacing: number;
+
+	    static createFrom(source: any = {}) {
+	        return new AppSettings(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.shell = source["shell"];
+	        this.autoShell = source["autoShell"];
+	        this.availableShells = source["availableShells"];
+	        this.logFontFamily = source["logFontFamily"];
+	        this.logFontSize = source["logFontSize"];
+	        this.logLetterSpacing = source["logLetterSpacing"];
+	    }
+	}
 	export class CommandInput {
 	    id: string;
 	    name: string;

@@ -3,8 +3,8 @@
 import {store} from '../models';
 import {git} from '../models';
 import {docker} from '../models';
-import {runner} from '../models';
 import {main} from '../models';
+import {runner} from '../models';
 import {filetree} from '../models';
 
 export function AddProject(arg1:string):Promise<store.Project>;
@@ -34,6 +34,8 @@ export function DockerAvailable():Promise<docker.Info>;
 export function FollowComposeLogs(arg1:string,arg2:string):Promise<void>;
 
 export function FollowContainerLogs(arg1:string):Promise<void>;
+
+export function GetAppSettings():Promise<main.AppSettings>;
 
 export function GetLogs(arg1:string):Promise<Array<string>>;
 
@@ -96,6 +98,8 @@ export function ResetProjects():Promise<void>;
 export function RestartContainer(arg1:string):Promise<void>;
 
 export function RevealProjectPath(arg1:string,arg2:string):Promise<void>;
+
+export function SaveAppSettings(arg1:main.AppSettings):Promise<main.AppSettings>;
 
 export function SaveGroup(arg1:store.LaunchGroup):Promise<store.LaunchGroup>;
 
