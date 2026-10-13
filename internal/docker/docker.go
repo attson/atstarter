@@ -119,7 +119,7 @@ func (c *Client) ComposeDown(ctx context.Context, dir, file string) error {
 	return c.runVoid(ctx, append(c.composeBase(dir, file), "down")...)
 }
 
-// ListServiceNames 返回 compose 项目的 service 名列表。
+// ListServiceNames 返回 compose 项目的 service 名列表,并保持 compose 文件中的声明顺序。
 func (c *Client) ListServiceNames(ctx context.Context, dir, file string) ([]string, error) {
 	args := append(c.composeBase(dir, file), "config", "--services")
 	res := c.exec(ctx, c.Command(), args...)
@@ -129,7 +129,7 @@ func (c *Client) ListServiceNames(ctx context.Context, dir, file string) ([]stri
 	if res.ExitCode != 0 {
 		return nil, errFromResult(res)
 	}
-	return parseServiceNames(res.Stdout), nil
+	return orderServiceNames(dir, file, parseServiceNames(res.Stdout)), nil
 }
 
 // ExecResult 是 CLI 调用结果(导出以便上层注入测试)。

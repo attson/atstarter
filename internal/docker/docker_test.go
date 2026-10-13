@@ -134,7 +134,7 @@ func TestComposeArgs(t *testing.T) {
 		t.Errorf("down = %q", got)
 	}
 	names, _ := c.ListServiceNames(ctx, dir, "")
-	if len(names) != 2 || names[0] != "web" {
+	if len(names) != 2 || names[0] != "api" || names[1] != "web" {
 		t.Errorf("services = %v", names)
 	}
 }
