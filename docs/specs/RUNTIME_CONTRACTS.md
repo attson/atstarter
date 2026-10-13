@@ -126,6 +126,8 @@ Applicable to container panel and compose detail.
 3. Use short app-layer timeouts for detection/list/config.
 4. Use lifecycle commands detached where applicable (`compose up -d`).
 5. Poll snapshots and emit only meaningful availability/state updates.
+6. Keep compose services in their YAML declaration order; services that are only discoverable from the
+   resolved Compose model are appended in stable lexical order.
 
 Reference implementation: `internal/docker`, `app.go`.
 
