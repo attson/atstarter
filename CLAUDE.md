@@ -78,6 +78,7 @@ frontend/src/           Vue3 app, custom UI components, theme tokens, file explo
 - `store.IDForPath(path)` is the project de-duplication key. Preserve path normalization before storing.
 - Default command ID is exactly `default`. Non-default command IDs must not collide with `default`.
 - `runner` status reads/writes stay under `r.mu`; callbacks run outside the lock with copied values; slow process-tree cleanup stays outside locks.
+- Status polling uses one `GetStatuses(runIDs)` snapshot and pauses while the document is hidden. Runner logs cross Wails only through bounded `logs:batch` events; hidden or inactive terminals restore from `GetLogs` instead of writing xterm continuously.
 - Unix process launch uses the system account's login interactive shell (with `$SHELL` only as a fallback) and process group cleanup. Preserve `-l -i -c` and `setsid` unless replacing the full contract.
 - File browser APIs must resolve all relative paths inside project root and reject path traversal. Copy/move take two project IDs and resolve each side against its own root; they never overwrite (auto-rename via `filetree.UniqueName`).
 - `internal/git` shells out to the system `git` for local operations only. No `fetch`/`pull`/`push`, every command has a timeout, branch names are validated before reaching git, and git's own stderr is surfaced verbatim.

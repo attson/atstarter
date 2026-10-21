@@ -3,8 +3,11 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
+	"time"
 
+	"atstarter/internal/runner"
 	"atstarter/internal/store"
 )
 
@@ -148,6 +151,33 @@ func TestDefaultConfigPathHonorsEnvOverride(t *testing.T) {
 
 	if got := defaultConfigPath(); got != want {
 		t.Fatalf("defaultConfigPath = %q, want %q", got, want)
+	}
+}
+
+func TestGetStatusesReturnsOneSnapshotForAllRunIDs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell command is unix-specific")
+	}
+	app := newTestApp(t)
+	app.runner.SetEmitter(func(runner.LogLine) {})
+	if err := app.runner.Start(runner.Spec{
+		ID: "running", Command: "sh", Args: []string{"-c", "sleep 5"}, Dir: t.TempDir(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(app.runner.StopAll)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for app.runner.Status("running").State != runner.StatusRunning && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	got := app.GetStatuses([]string{"running", "unknown"})
+	if got["running"].State != runner.StatusRunning {
+		t.Fatalf("running state = %q, want %q", got["running"].State, runner.StatusRunning)
+	}
+	if got["unknown"].State != runner.StatusStopped {
+		t.Fatalf("unknown state = %q, want %q", got["unknown"].State, runner.StatusStopped)
 	}
 }
 

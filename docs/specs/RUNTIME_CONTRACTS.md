@@ -17,13 +17,18 @@ runner.Start(runner.Spec{ID, Command, Args, Dir, Env, Shell})
 
 ```go
 // Wails-facing runtime events
-log:<runID>       {stream,text}
+logs:batch        {lines:[{id,stream,text}]}
 status:<runID>    {state,pid,exitCode}
 update:state      UpdateState
 docker:available  docker.Info
 docker:state      []docker.ContainerState
 fs:dir-changed    string // changed relative directory
 ```
+
+`GetStatuses(runIDs)` returns one RunID-keyed status snapshot. Visible pages use it for initial,
+periodic, and visibility-restored refreshes; hidden pages do not poll. `logs:batch` preserves emitter
+receive order, flushes within 75 ms or at 200 lines, and uses a bounded queue. `GetLogs` remains the
+authoritative per-RunID ring-buffer snapshot used to restore hidden or inactive terminals.
 
 ```go
 // Project git branch surface (local operations only)

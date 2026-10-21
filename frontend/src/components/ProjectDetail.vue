@@ -150,7 +150,7 @@ function chooseCommand(command) {
       <button class="tab" :class="{ active: detailTab === 'files' }" @click="detailTab = 'files'">文件</button>
     </div>
     <div class="detail-tab-body">
-      <LogPanel v-show="detailTab === 'logs'" :projectId="selectedRunId" :status="status" />
+      <LogPanel v-show="detailTab === 'logs'" :projectId="selectedRunId" :status="status" :active="detailTab === 'logs'" />
       <FileBrowser v-if="detailTab === 'files'" :projectId="project.id" />
     </div>
   </section>

@@ -5,6 +5,7 @@ import {
   GetLogs,
   GetProjectBranch,
   GetStatus,
+  GetStatuses,
   ListGroups,
   ListProjects,
   ProjectFileMeta,
@@ -42,6 +43,12 @@ test('mock Wails app starts with visible running projects and seeded logs', asyn
   assert.equal((await GetStatus('atlas-api:go')).State, 'running')
   assert.equal((await GetStatus('atlas-worker:go')).State, 'running')
   assert.match((await GetLogs('atlas-api:go')).join('\n'), /listening on http:\/\/localhost:8080/)
+})
+
+test('mock Wails app returns statuses in one RunID-keyed snapshot', async () => {
+  const statuses = await GetStatuses(['atlas-api:go', 'missing:default'])
+  assert.equal(statuses['atlas-api:go'].State, 'running')
+  assert.equal(statuses['missing:default'].State, 'stopped')
 })
 
 test('mock Wails app returns branch names for project headers', async () => {

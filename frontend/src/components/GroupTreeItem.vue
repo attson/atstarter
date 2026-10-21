@@ -232,7 +232,7 @@ const members = computed(() => {
 
 .member-dot.running {
   background: var(--accent-strong);
-  animation: pulse-ring 2s ease-in-out infinite;
+  box-shadow: 0 0 0 2.5px var(--success-soft), 0 0 6px var(--success-glow-a);
 }
 
 .member-dot.bad {

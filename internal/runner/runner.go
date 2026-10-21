@@ -34,9 +34,9 @@ type Spec struct {
 
 // LogLine 是一行输出,带来源项目与流类型。
 type LogLine struct {
-	ID     string
-	Stream string // "stdout" 或 "stderr"
-	Text   string
+	ID     string `json:"id"`
+	Stream string `json:"stream"` // "stdout" 或 "stderr"
+	Text   string `json:"text"`
 }
 
 // Status 是对外暴露的状态快照。
@@ -254,6 +254,21 @@ func (r *Runner) Status(id string) Status {
 		return m.status
 	}
 	return Status{State: StatusStopped}
+}
+
+// Statuses 返回多个 RunID 在同一把锁下取得的状态快照。
+func (r *Runner) Statuses(ids []string) map[string]Status {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	statuses := make(map[string]Status, len(ids))
+	for _, id := range ids {
+		if m, ok := r.procs[id]; ok {
+			statuses[id] = m.status
+		} else {
+			statuses[id] = Status{State: StatusStopped}
+		}
+	}
+	return statuses
 }
 
 // RunningCount 返回当前处于 running 状态的受管进程数。并发安全。

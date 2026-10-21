@@ -74,6 +74,10 @@ export function GetStatus(arg1) {
   return window['go']['main']['App']['GetStatus'](arg1);
 }
 
+export function GetStatuses(arg1) {
+  return window['go']['main']['App']['GetStatuses'](arg1);
+}
+
 export function GetWorkspaces() {
   return window['go']['main']['App']['GetWorkspaces']();
 }

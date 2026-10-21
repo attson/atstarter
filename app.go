@@ -35,6 +35,7 @@ type App struct {
 	lastDockerSnapshot string // 上次快照的序列化,用于 diff
 	watcher            *filetree.Watcher
 	control            *controlServer
+	logBatcher         *logBatcher
 }
 
 type CommandInput struct {
@@ -125,11 +126,10 @@ func defaultConfigPath() string {
 // startup 由 Wails 在启动时调用,保存 ctx 并接好日志事件转发。
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	a.runner.SetEmitter(func(l runner.LogLine) {
-		runtime.EventsEmit(a.ctx, "log:"+l.ID, map[string]string{
-			"stream": l.Stream, "text": l.Text,
-		})
+	a.logBatcher = newLogBatcher(75*time.Millisecond, 200, func(batch LogBatch) {
+		runtime.EventsEmit(a.ctx, "logs:batch", batch)
 	})
+	a.runner.SetEmitter(a.logBatcher.Add)
 	a.runner.SetStatusListener(func(id string, st runner.Status) {
 		runtime.EventsEmit(a.ctx, "status:"+id, map[string]interface{}{
 			"state": string(st.State), "pid": st.PID, "exitCode": st.ExitCode,
@@ -163,6 +163,9 @@ func (a *App) shutdown(ctx context.Context) {
 		a.watcher.Close()
 	}
 	a.runner.StopAll()
+	if a.logBatcher != nil {
+		a.logBatcher.Close()
+	}
 }
 
 // beforeClose 由 Wails 在窗口关闭前调用。macOS 的窗口关闭由
@@ -798,6 +801,11 @@ func (a *App) GetStatus(id string) runner.Status {
 	return a.runner.Status(id)
 }
 
+// GetStatuses 返回多个 RunID 的运行时状态快照,减少前端跨 Wails 桥调用次数。
+func (a *App) GetStatuses(ids []string) map[string]runner.Status {
+	return a.runner.Statuses(ids)
+}
+
 // GetLogs 返回项目日志缓冲快照。
 func (a *App) GetLogs(id string) []string {
 	return a.runner.Logs(id)
@@ -1067,7 +1075,7 @@ func (a *App) configuredShell() (string, error) {
 	return strings.TrimSpace(cfg.Settings.Shell), nil
 }
 
-// FollowContainerLogs 起一个 docker logs -f 长驻进程,日志走 log:<runID>。
+// FollowContainerLogs 起一个 docker logs -f 长驻进程,日志走 logs:batch。
 func (a *App) FollowContainerLogs(id string) error {
 	shell, err := a.configuredShell()
 	if err != nil {
