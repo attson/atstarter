@@ -5,13 +5,18 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 import { GetLogs, ClearLogs } from '../../wailsjs/go/main/App'
-import { EventsOn, EventsOff, ClipboardSetText, BrowserOpenURL } from '../../wailsjs/runtime/runtime'
+import { EventsOn, ClipboardSetText, BrowserOpenURL } from '../../wailsjs/runtime/runtime'
 import { useTheme } from '../composables/useTheme'
 import { normalizeAppSettings, terminalFontFamily } from '../appSettings.js'
+import { logLinesForRun, terminalChunk } from '../logBatches.js'
 
 const SCROLLBACK = 1000
 
-const props = defineProps({ projectId: String, status: Object })
+const props = defineProps({
+  projectId: String,
+  status: Object,
+  active: { type: Boolean, default: true },
+})
 const { resolvedTheme } = useTheme()
 const appSettings = inject('appSettings', ref(normalizeAppSettings()))
 const terminalSettings = computed(() => normalizeAppSettings(appSettings.value))
@@ -39,8 +44,12 @@ let term = null
 let fitAddon = null
 let resizeObserver = null
 let themeObserver = null
-let currentEvent = ''
 let loadToken = 0
+let reloading = false
+let needsReload = false
+let cancelLogBatch = () => {}
+
+const logBatchEvent = 'logs:batch'
 
 function documentTheme() {
   if (typeof document === 'undefined') return resolvedTheme.value
@@ -66,10 +75,11 @@ function readThemeColors() {
   }
 }
 
-// 后端日志按行、末尾无换行;writeln 自动补 \r\n,ANSI 由 xterm 解析上色。
-function writeLine(text) {
-  if (!term) return
-  term.writeln(text)
+// 后端日志按行、末尾无换行;一个批次合并成一次 xterm write。
+function writeLines(lines) {
+  const chunk = terminalChunk(lines)
+  if (!term || !chunk) return
+  term.write(chunk)
   if (empty.value) empty.value = false
 }
 
@@ -80,15 +90,42 @@ async function load(id) {
   if (!id) return
   const hist = await GetLogs(id)
   if (token !== loadToken || !term) return // 被更晚的切换取代
-  for (const line of hist || []) writeLine(line)
+  writeLines((hist || []).map((text) => ({ text })))
 }
 
-function subscribe(id) {
-  if (currentEvent) EventsOff(currentEvent)
-  currentEvent = ''
-  if (!id) return
-  currentEvent = 'log:' + id
-  EventsOn(currentEvent, (p) => writeLine(p.text))
+function isVisible() {
+  return props.active && !document.hidden
+}
+
+function onLogBatch(batch) {
+  const lines = logLinesForRun(batch, props.projectId)
+  if (!lines.length) return
+  if (!isVisible() || reloading) {
+    needsReload = true
+    return
+  }
+  writeLines(lines)
+}
+
+async function reloadVisibleLogs() {
+  if (!isVisible() || reloading) return
+  reloading = true
+  try {
+    do {
+      needsReload = false
+      await load(props.projectId)
+    } while (needsReload && isVisible())
+  } finally {
+    reloading = false
+  }
+}
+
+function onVisibilityChange() {
+  if (document.hidden) {
+    needsReload = true
+    return
+  }
+  reloadVisibleLogs()
 }
 
 // ── 右键菜单 ─────────────────────────────────────────
@@ -170,9 +207,19 @@ function onKeydown(e) {
 }
 
 watch(() => props.projectId, async (id) => {
-  await load(id)
-  subscribe(id)
+  needsReload = true
+  await reloadVisibleLogs()
   await nextTick()
+  if (fitAddon) fitAddon.fit()
+})
+
+watch(() => props.active, async (active) => {
+  if (!active) {
+    needsReload = true
+    return
+  }
+  await nextTick()
+  await reloadVisibleLogs()
   if (fitAddon) fitAddon.fit()
 })
 
@@ -221,17 +268,20 @@ onMounted(() => {
 
   window.addEventListener('pointerdown', onGlobalPointer, true)
   window.addEventListener('keydown', onKeydown)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  cancelLogBatch = EventsOn(logBatchEvent, onLogBatch)
 
-  load(props.projectId).then(() => { if (fitAddon) fitAddon.fit() })
-  subscribe(props.projectId)
+  needsReload = true
+  reloadVisibleLogs().then(() => { if (fitAddon) fitAddon.fit() })
 })
 
 onUnmounted(() => {
-  if (currentEvent) EventsOff(currentEvent)
+  cancelLogBatch()
   if (resizeObserver) resizeObserver.disconnect()
   if (themeObserver) themeObserver.disconnect()
   window.removeEventListener('pointerdown', onGlobalPointer, true)
   window.removeEventListener('keydown', onKeydown)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   if (toastTimer) clearTimeout(toastTimer)
   if (term) term.dispose()
   term = null

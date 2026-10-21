@@ -60,19 +60,6 @@ html {
     border-color var(--dur-base) var(--ease);
 }
 
-@keyframes pulse-ring {
-  0%, 100% {
-    box-shadow:
-      0 0 0 2.5px var(--success-soft),
-      0 0 6px var(--success-glow-a);
-  }
-  50% {
-    box-shadow:
-      0 0 0 5px var(--success-soft),
-      0 0 10px var(--success-glow-b);
-  }
-}
-
 .dlg-fade-enter-active { transition: opacity var(--dur-base) var(--ease); }
 .dlg-fade-leave-active { transition: opacity var(--dur-fast) var(--ease); }
 .dlg-fade-enter-from,

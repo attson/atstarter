@@ -57,7 +57,9 @@ The home page demo uses `frontend/src/App.vue` in embedded mode:
 ### Behavior Rules
 
 - Return cloned data from list/read methods so UI actions cannot mutate fixtures by accident.
-- Emit `status:<runID>` and `log:<runID>` through `mockWailsRuntime.mjs` when start/stop actions run.
+- Emit `status:<runID>` and `logs:batch` through `mockWailsRuntime.mjs` when start/stop actions run.
+- Mirror the `GetStatuses(runIDs)` binding and return a RunID-keyed snapshot with Go-shaped status
+  fields.
 - Preserve Go-shaped polling status keys such as `State`, `PID`, and `ExitCode`, and lower-case event
   payload keys such as `state`, `pid`, and `exitCode`.
 - Keep file APIs project-scoped and synthetic. Mock file paths should look realistic but remain fake.

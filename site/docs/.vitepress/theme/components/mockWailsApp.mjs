@@ -264,7 +264,7 @@ function setRunStatus(runId, status) {
 function appendLog(runId, text) {
   const next = [...(logs.get(runId) || []), text]
   logs.set(runId, next)
-  EventsEmit('log:' + runId, { text })
+  EventsEmit('logs:batch', { lines: [{ id: runId, stream: 'stdout', text }] })
 }
 
 function idleUpdateState(extra = {}) {
@@ -345,6 +345,13 @@ export async function CreateProjectBranch(_projectId, name) {
 export async function GetStatus(runId) {
   ensureRun(runId)
   return clone(statuses.get(runId))
+}
+
+export async function GetStatuses(runIds) {
+  return Object.fromEntries((runIds || []).map((runId) => {
+    ensureRun(runId)
+    return [runId, clone(statuses.get(runId))]
+  }))
 }
 
 export async function GetLogs(runId) {

@@ -21,7 +21,7 @@ import ContextMenu from './components/ui/ContextMenu.vue'
 import { FolderPlus, Radar, Plus, RefreshCw, Pin, PinOff, Play, Square, Trash2, FolderOpen, Settings2 } from 'lucide-vue-next'
 import {
   ListProjects, AddProject, StartProjectCommand, StopProjectCommand,
-  GetStatus, UpdateProjectCommands, ListGroups, SaveGroup, RemoveGroup,
+  GetStatus, GetStatuses, UpdateProjectCommands, ListGroups, SaveGroup, RemoveGroup,
   StartGroup, StopGroup, GetWorkspaces, SetWorkspaces, ScanWorkspaces, AddScanned,
   UpdateProject, ResetProjects, RemoveProject, ListMissingProjectIDs,
   StartProject, StopProject, OpenProjectPath, SetProjectPinned, ReorderPinnedProjects,
@@ -32,6 +32,7 @@ import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 import { inferWorkspaceRoots } from './workspaceRoots'
 import { applyDetectionOption } from './projectDetection.js'
 import { normalizeAppSettings } from './appSettings.js'
+import { startVisibleStatusPolling } from './statusPolling.js'
 
 const projects = ref([])
 const groups = ref([])
@@ -309,14 +310,18 @@ async function onRemoveSelectedProject() {
 const selectedIsMissing = computed(() => selectedId.value && missingIds.value.has(selectedId.value))
 
 async function pollStatuses() {
-  const next = {}
+  if (document.hidden) return
+  const runIds = []
   for (const p of projects.value) {
     for (const cmd of commandsFor(p)) {
-      const runId = runIdForCommand(p.id, cmd.id)
-      next[runId] = await GetStatus(runId)
+      runIds.push(runIdForCommand(p.id, cmd.id))
     }
   }
-  statuses.value = next
+  try {
+    statuses.value = (await GetStatuses(runIds)) || {}
+  } catch (e) {
+    console.error('刷新运行状态失败:', e)
+  }
 }
 
 async function onAddProject(dir) {
@@ -428,15 +433,15 @@ async function onAddToGroup(payload) {
   await refresh()
 }
 
-let timer
+let stopStatusPolling = () => {}
 onMounted(async () => {
   await Promise.all([refresh(), loadAppSettings()])
   await pollStatuses()
   await checkDocker()
-  timer = setInterval(pollStatuses, 1500)
+  stopStatusPolling = startVisibleStatusPolling(pollStatuses)
 })
 onUnmounted(() => {
-  clearInterval(timer)
+  stopStatusPolling()
   statusSubs.forEach((ev) => EventsOff(ev))
 })
 </script>

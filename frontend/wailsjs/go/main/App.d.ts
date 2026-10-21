@@ -43,6 +43,8 @@ export function GetProjectBranch(arg1:string):Promise<string>;
 
 export function GetStatus(arg1:string):Promise<runner.Status>;
 
+export function GetStatuses(arg1:Array<string>):Promise<Record<string, runner.Status>>;
+
 export function GetWorkspaces():Promise<Array<string>>;
 
 export function ListComposeServices(arg1:string):Promise<Array<docker.ComposeService>>;

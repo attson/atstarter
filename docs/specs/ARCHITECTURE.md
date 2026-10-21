@@ -73,7 +73,7 @@ scanner.Scan(root)
   -> app.StartProjectCommand(projectID, commandID)
   -> runner.Spec{ID, Command, Args, Dir, Env}
   -> runner.Start
-  -> log:<runID> and status:<runID> events
+  -> bounded logs:batch and status:<runID> events
 ```
 
 Docker compose projects share the project tree but do not use `runner.Spec` for lifecycle commands.
@@ -127,7 +127,7 @@ Release asset filenames may keep the `AT-Starter` prefix. MCP/plugin configurati
 
 | Event | Payload | Producer | Consumer |
 |-------|---------|----------|----------|
-| `log:<runID>` | `{stream,text}` | runner/app | `LogPanel`, Docker log followers |
+| `logs:batch` | `{lines:[{id,stream,text}]}` | runner/app | `LogPanel`, Docker log followers |
 | `status:<runID>` | `{state,pid,exitCode}` | runner/app | project and command status maps |
 | `update:state` | update state object | updater/app | `UpdateBanner` |
 | `docker:available` | `{available,version,reason}` | docker poller | Docker UI |
@@ -136,6 +136,11 @@ Release asset filenames may keep the `AT-Starter` prefix. MCP/plugin configurati
 
 Frontend status maps use Go-shaped keys from polling (`State`, `PID`, `ExitCode`) and normalize
 event payloads from lower-case keys.
+
+The frontend fetches initial and corrective status snapshots through one
+`GetStatuses(runIDs)` binding call. Periodic status polling runs only while the document is visible.
+Runner log callbacks enter a bounded batcher that emits at most every 75 ms or earlier at 200 lines.
+Hidden or inactive log terminals skip xterm writes and rebuild from `GetLogs(runID)` when visible.
 
 ## 6. Configuration
 
