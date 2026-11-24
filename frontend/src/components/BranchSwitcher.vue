@@ -86,18 +86,23 @@ function close() {
   query.value = ''
 }
 
-async function runCheckout(action) {
+async function runCheckout(projectId, action) {
   if (busy.value) return
   busy.value = true
   error.value = ''
   try {
-    data.value = await action()
-    close()
-    emit('changed', data.value)
+    const result = await action()
+    if (props.project?.id === projectId) {
+      data.value = result
+      close()
+    }
+    emit('changed', { ...result, projectId })
   } catch (err) {
     // git 自己的错误消息最准确("Your local changes ... would be overwritten"),
     // 原样展示,不要包装成"切换失败"。
-    error.value = err?.message || '切换分支失败'
+    if (props.project?.id === projectId) {
+      error.value = err?.message || '切换分支失败'
+    }
   } finally {
     busy.value = false
   }
@@ -108,14 +113,18 @@ function checkout(name) {
     close()
     return
   }
-  void runCheckout(() => CheckoutProjectBranch(props.project.id, name))
+  const projectId = props.project?.id
+  if (!projectId) return
+  void runCheckout(projectId, () => CheckoutProjectBranch(projectId, name))
 }
 
 function createBranch() {
   const name = trimmedQuery.value
   if (!showCreate.value) return
+  const projectId = props.project?.id
+  if (!projectId) return
   // 起点留空 = 从当前 HEAD 开新分支,和 `git checkout -b` 的默认一致。
-  void runCheckout(() => CreateProjectBranch(props.project.id, name, ''))
+  void runCheckout(projectId, () => CreateProjectBranch(projectId, name, ''))
 }
 
 function onSearchKey(e) {
