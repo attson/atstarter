@@ -50,6 +50,8 @@ const editingGroup = ref(null)
 const statusFilter = ref(null) // null | 'running' | 'exited'
 const rescanning = ref(false)
 const missingIds = ref(new Set()) // 项目 Path 已消失(如 worktree 删除),前端据此显示"missing"标记并给出快捷移除入口
+const branchUpdate = ref(null)
+let branchUpdateRevision = 0
 
 const activeTab = ref('projects') // 'projects' | 'containers'
 const dockerAvailable = ref(true)
@@ -110,6 +112,12 @@ async function onConfirmAccept() {
 function toggleStatusFilter(kind) {
   if (activeTab.value !== 'projects') return
   statusFilter.value = statusFilter.value === kind ? null : kind
+}
+
+function onBranchChanged(update) {
+  if (!update?.projectId) return
+  branchUpdateRevision += 1
+  branchUpdate.value = { ...update, revision: branchUpdateRevision }
 }
 
 async function onCheckUpdates() {
@@ -497,6 +505,7 @@ onUnmounted(() => {
       <template v-if="activeTab === 'projects'">
         <ProjectList :projects="projects" :groups="groups" :selectedId="selectedId" :selectedGroupId="selectedGroupId"
           :statuses="projectStatuses" :statusFilter="statusFilter" :rescanning="rescanning" :missingIds="missingIds"
+          :branch-update="branchUpdate"
           @select="selectProject" @select-group="selectGroup"
           @select-command="selectCommand" @add="showAddProject = true" @scan="showScan = true"
           @rescan="onRescanProjects" @reset="onConfirmResetProjects"
@@ -509,7 +518,8 @@ onUnmounted(() => {
         <ProjectDetail v-else :project="selected" :status="selectedStatus"
           :selectedCommandId="selectedCommandId" :missing="selectedIsMissing" @command-change="setSelectedCommand"
           @start="onStart" @stop="onStop" @restart="onRestart" @edit="showEdit = true"
-          @add-to-group="showAddToGroup = true" @switch-type="onSwitchDetection" @remove="onRemoveSelectedProject" />
+          @add-to-group="showAddToGroup = true" @switch-type="onSwitchDetection" @remove="onRemoveSelectedProject"
+          @branch-changed="onBranchChanged" />
       </template>
       <ContainerPanel v-else ref="containerPanelRef" :projects="projects" @confirm-remove="onConfirmRemove" @summary="onContainerSummary" />
     </main>

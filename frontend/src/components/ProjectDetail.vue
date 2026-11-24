@@ -12,7 +12,7 @@ import { typeLabel } from '../typeLabel.js'
 import { hasDetectionSwitch } from '../projectDetection.js'
 
 const props = defineProps({ project: Object, status: Object, selectedCommandId: String, missing: { type: Boolean, default: false } })
-const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group', 'switch-type', 'remove'])
+const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group', 'switch-type', 'remove', 'branch-changed'])
 const commandMenuOpen = ref(false)
 const detailTab = ref('logs') // 'logs' | 'files'
 watch(() => props.project?.id, () => { detailTab.value = 'logs' })
@@ -59,6 +59,11 @@ function chooseCommand(command) {
   emit('command-change', command.id)
   commandMenuOpen.value = false
 }
+
+function onBranchChanged(data) {
+  if (!data?.projectId) return
+  emit('branch-changed', { projectId: data.projectId, branch: data.branch || '' })
+}
 </script>
 
 <template>
@@ -70,7 +75,7 @@ function chooseCommand(command) {
           <AppPill :variant="pillVariant" :dot="state === 'running'">{{ state }}</AppPill>
           <DetectionSwitch v-if="hasDetectionSwitch(project)" :project="project" @switch="emit('switch-type', $event)" />
           <AppPill v-else variant="neutral">{{ typeLabel(project.detectedType) }}</AppPill>
-          <BranchSwitcher :project="project" :running="state === 'running'" />
+          <BranchSwitcher :project="project" :running="state === 'running'" @changed="onBranchChanged" />
           <AppPill v-if="missing" variant="error" title="项目路径已不存在">missing</AppPill>
         </div>
         <div class="path" :title="project.path">{{ project.path }}</div>
