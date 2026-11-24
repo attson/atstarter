@@ -3,6 +3,7 @@ import { ChevronRight, ChevronDown } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
 import ProjectCardContent from './ProjectCardContent.vue'
 import { typeLabel } from '../typeLabel.js'
+import { DEFAULT_PROJECT_CARD_FIELDS } from '../projectNavigation.js'
 
 const props = defineProps({
   node: Object,
@@ -13,6 +14,7 @@ const props = defineProps({
   missingIds: { type: Set, default: () => new Set() },
   viewMode: { type: String, default: 'list' },
   branches: { type: Object, default: () => ({}) },
+  cardFields: { type: Object, default: () => DEFAULT_PROJECT_CARD_FIELDS },
 })
 const emit = defineEmits(['select', 'toggle', 'context-menu'])
 
@@ -65,6 +67,7 @@ function onContextMenu(node, event) {
         :missingIds="missingIds"
         :viewMode="viewMode"
         :branches="branches"
+        :card-fields="cardFields"
         @select="emit('select', $event)"
         @toggle="emit('toggle', $event)"
         @context-menu="emit('context-menu', $event)"
@@ -106,6 +109,7 @@ function onContextMenu(node, event) {
         :branch-entry="branches[node.project.id]"
         :count="node.count"
         :missing="isMissing(node)"
+        :fields="cardFields"
       />
     </div>
     <div v-if="hasChildren(node) && isExpanded(node)" class="children">
@@ -120,6 +124,7 @@ function onContextMenu(node, event) {
         :missingIds="missingIds"
         :viewMode="viewMode"
         :branches="branches"
+        :card-fields="cardFields"
         @select="emit('select', $event)"
         @toggle="emit('toggle', $event)"
         @context-menu="emit('context-menu', $event)"
@@ -221,7 +226,6 @@ function onContextMenu(node, event) {
 
 .project-row.card-view {
   align-items: flex-start;
-  min-height: 88px;
   margin: var(--space-3) 0;
   padding-top: var(--space-4);
   padding-bottom: var(--space-4);

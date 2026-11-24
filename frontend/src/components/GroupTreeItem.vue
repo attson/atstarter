@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { ChevronDown, ChevronRight, FolderKanban } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
 import ProjectCardContent from './ProjectCardContent.vue'
+import { DEFAULT_PROJECT_CARD_FIELDS } from '../projectNavigation.js'
 
 const props = defineProps({
   group: Object,
@@ -12,6 +13,7 @@ const props = defineProps({
   expanded: Boolean,
   viewMode: { type: String, default: 'list' },
   branches: { type: Object, default: () => ({}) },
+  cardFields: { type: Object, default: () => DEFAULT_PROJECT_CARD_FIELDS },
 })
 const emit = defineEmits(['select', 'toggle', 'select-command'])
 
@@ -96,6 +98,7 @@ const members = computed(() => {
           :status="member.status"
           :branch-entry="branches[member.project.id]"
           :command-name="member.command.name"
+          :fields="cardFields"
         />
       </button>
     </div>
@@ -244,7 +247,6 @@ const members = computed(() => {
 .member-row.card-view {
   display: flex;
   align-items: flex-start;
-  min-height: 92px;
   margin: var(--space-3) 0;
   padding: var(--space-4);
   border: 1px solid var(--border);

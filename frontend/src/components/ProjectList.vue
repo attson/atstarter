@@ -6,12 +6,15 @@ import { GetProjectBranch } from '../../wailsjs/go/main/App'
 import {
   advanceBranchRevision,
   applyBranchEntry,
-  loadProjectBranches,
+  loadVisibleProjectBranches,
+  readProjectCardFields,
   readProjectListView,
+  writeProjectCardFields,
   writeProjectListView,
 } from '../projectNavigation.js'
 import ProjectTreeNode from './ProjectTreeNode.vue'
 import GroupTreeItem from './GroupTreeItem.vue'
+import ProjectCardFieldMenu from './ProjectCardFieldMenu.vue'
 import AppIcon from './ui/AppIcon.vue'
 import AppButton from './ui/AppButton.vue'
 
@@ -33,6 +36,8 @@ const query = ref('')
 const expandedDirs = ref({})
 const expandedGroups = ref({})
 const viewMode = ref(readProjectListView(storage))
+const cardFields = ref(readProjectCardFields(storage))
+const cardFieldMenu = ref(null)
 const branches = ref({})
 let branchLoadToken = 0
 let branchRevisions = {}
@@ -81,11 +86,30 @@ function toggleGroup(id) {
 }
 
 function setViewMode(mode) {
+  cardFieldMenu.value = null
   viewMode.value = writeProjectListView(storage, mode)
 }
 
+function openCardFieldMenu(event) {
+  cardFieldMenu.value = { x: event.clientX, y: event.clientY }
+}
+
+function toggleCardField(field) {
+  cardFields.value = writeProjectCardFields(storage, {
+    ...cardFields.value,
+    [field]: !cardFields.value[field],
+  })
+  if (field !== 'branch') return
+  branchLoadToken += 1
+  if (!cardFields.value.branch) {
+    branches.value = {}
+    return
+  }
+  if (viewMode.value === 'card') void refreshBranches(props.projects || [])
+}
+
 async function refreshBranches(projects) {
-  if (viewMode.value !== 'card') return
+  if (viewMode.value !== 'card' || !cardFields.value.branch) return
   const token = ++branchLoadToken
   const loading = {}
   for (const project of projects || []) {
@@ -95,10 +119,16 @@ async function refreshBranches(projects) {
     (projects || []).filter((project) => project?.id).map((project) => [project.id, branchRevisions[project.id] || 0]),
   )
   branches.value = loading
-  await loadProjectBranches(projects, GetProjectBranch, (id, entry) => {
-    if (token !== branchLoadToken) return
-    branches.value = applyBranchEntry(branches.value, branchRevisions, id, entry, revisionsAtStart[id])
-  })
+  await loadVisibleProjectBranches(
+    projects,
+    viewMode.value,
+    cardFields.value,
+    GetProjectBranch,
+    (id, entry) => {
+      branches.value = applyBranchEntry(branches.value, branchRevisions, id, entry, revisionsAtStart[id])
+    },
+    () => token === branchLoadToken && viewMode.value === 'card' && cardFields.value.branch,
+  )
 }
 
 watch(() => props.projects, () => {
@@ -110,7 +140,7 @@ watch([() => props.projects, viewMode], ([projects]) => {
 }, { immediate: true })
 
 watch(() => props.branchUpdate, (update) => {
-  if (!update?.projectId || viewMode.value !== 'card') return
+  if (!update?.projectId || viewMode.value !== 'card' || !cardFields.value.branch) return
   branchRevisions = advanceBranchRevision(branchRevisions, update.projectId)
   branches.value = applyBranchEntry(
     branches.value,
@@ -168,15 +198,24 @@ watch(() => props.branchUpdate, (update) => {
           class="view-button"
           :class="{ active: viewMode === 'card' }"
           type="button"
-          title="卡片视图"
-          aria-label="卡片视图"
+          title="卡片视图；右键配置字段"
+          aria-label="卡片视图；右键配置字段"
           :aria-pressed="viewMode === 'card'"
           data-test="project-view-card"
           @click="setViewMode('card')"
+          @contextmenu.prevent.stop="openCardFieldMenu"
         >
           <AppIcon :icon="LayoutGrid" :size="13" />
         </button>
       </div>
+      <ProjectCardFieldMenu
+        v-if="cardFieldMenu"
+        :x="cardFieldMenu.x"
+        :y="cardFieldMenu.y"
+        :fields="cardFields"
+        @toggle="toggleCardField"
+        @close="cardFieldMenu = null"
+      />
     </div>
     <div class="tree-scroll">
       <div v-if="pinned.length" class="pinned-section">
@@ -199,6 +238,7 @@ watch(() => props.branchUpdate, (update) => {
             :missingIds="missingIds"
             :viewMode="viewMode"
             :branches="branches"
+            :card-fields="cardFields"
             @select="emit('select', $event)"
             @toggle="toggleDir"
             @context-menu="emit('context-menu', $event)"
@@ -217,6 +257,7 @@ watch(() => props.branchUpdate, (update) => {
           :expanded="expandedGroups[`group:${g.id}`] !== false"
           :viewMode="viewMode"
           :branches="branches"
+          :card-fields="cardFields"
           @select="emit('select-group', $event)"
           @toggle="toggleGroup"
           @select-command="emit('select-command', $event)"
@@ -233,6 +274,7 @@ watch(() => props.branchUpdate, (update) => {
         :missingIds="missingIds"
         :viewMode="viewMode"
         :branches="branches"
+        :card-fields="cardFields"
         @select="emit('select', $event)"
         @toggle="toggleDir"
         @context-menu="emit('context-menu', $event)"
