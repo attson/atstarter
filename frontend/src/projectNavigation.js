@@ -1,5 +1,43 @@
 export const PROJECT_LIST_VIEW_KEY = 'projectList.viewMode'
 export const DEFAULT_PROJECT_LIST_VIEW = 'list'
+export const PROJECT_CARD_FIELDS_KEY = 'projectList.cardFields'
+export const DEFAULT_PROJECT_CARD_FIELDS = Object.freeze({
+  type: true,
+  branch: true,
+  path: true,
+  command: true,
+})
+
+export function normalizeProjectCardFields(value) {
+  const source = value && typeof value === 'object' ? value : {}
+  return Object.fromEntries(
+    Object.keys(DEFAULT_PROJECT_CARD_FIELDS).map((key) => [
+      key,
+      typeof source[key] === 'boolean' ? source[key] : true,
+    ]),
+  )
+}
+
+export function readProjectCardFields(storage) {
+  if (!storage) return normalizeProjectCardFields(null)
+  try {
+    return normalizeProjectCardFields(JSON.parse(storage.getItem(PROJECT_CARD_FIELDS_KEY)))
+  } catch {
+    return normalizeProjectCardFields(null)
+  }
+}
+
+export function writeProjectCardFields(storage, value) {
+  const next = normalizeProjectCardFields(value)
+  if (storage) {
+    try {
+      storage.setItem(PROJECT_CARD_FIELDS_KEY, JSON.stringify(next))
+    } catch {
+      // A display preference must not break project navigation.
+    }
+  }
+  return next
+}
 
 export function normalizeProjectListView(value) {
   return value === 'card' ? 'card' : DEFAULT_PROJECT_LIST_VIEW
@@ -42,7 +80,13 @@ export function applyBranchEntry(entries, revisions, projectId, entry, expectedR
   return { ...entries, [projectId]: entry }
 }
 
-export async function loadProjectBranches(projects, getBranch, onEntry = () => {}, concurrency = 4) {
+export async function loadProjectBranches(
+  projects,
+  getBranch,
+  onEntry = () => {},
+  concurrency = 4,
+  shouldContinue = () => true,
+) {
   const unique = []
   const seen = new Set()
   for (const project of projects || []) {
@@ -57,6 +101,7 @@ export async function loadProjectBranches(projects, getBranch, onEntry = () => {
 
   async function worker() {
     while (cursor < unique.length) {
+      if (!shouldContinue()) return
       const project = unique[cursor]
       cursor += 1
       let entry
@@ -73,4 +118,25 @@ export async function loadProjectBranches(projects, getBranch, onEntry = () => {
 
   await Promise.all(Array.from({ length: limit }, () => worker()))
   return entries
+}
+
+export async function loadVisibleProjectBranches(
+  projects,
+  viewMode,
+  fields,
+  getBranch,
+  onEntry = () => {},
+  isCurrent = () => true,
+  concurrency = 4,
+) {
+  if (viewMode !== 'card' || fields?.branch !== true) return {}
+  return loadProjectBranches(
+    projects,
+    getBranch,
+    (id, entry) => {
+      if (isCurrent()) onEntry(id, entry)
+    },
+    concurrency,
+    isCurrent,
+  )
 }

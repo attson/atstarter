@@ -18,9 +18,27 @@ test('project navigation exposes persistent list and card view controls', () => 
   assert.match(projectList, /writeProjectListView/)
 })
 
+test('card view icon opens a persistent field menu on right click', () => {
+  const fieldMenu = read('./components/ProjectCardFieldMenu.vue')
+
+  assert.match(projectList, /readProjectCardFields/)
+  assert.match(projectList, /writeProjectCardFields/)
+  assert.match(projectList, /data-test="project-view-card"[\s\S]*@contextmenu\.prevent\.stop="openCardFieldMenu"/)
+  assert.match(projectList, /title="卡片视图；右键配置字段"/)
+  assert.match(projectList, /aria-label="卡片视图；右键配置字段"/)
+  assert.match(projectList, /<ProjectCardFieldMenu[\s\S]*:fields="cardFields"[\s\S]*@toggle="toggleCardField"/)
+  assert.match(fieldMenu, /data-test="project-card-field-menu"/)
+  assert.match(fieldMenu, /type="checkbox"/)
+  assert.match(fieldMenu, /type="checkbox" checked disabled[\s\S]*项目名与运行状态/)
+  assert.match(fieldMenu, /document\.addEventListener\('mousedown'/)
+  assert.match(fieldMenu, /event\.key === 'Escape'/)
+  assert.match(fieldMenu, /@change="emit\('toggle', option\.key\)"/)
+  assert.doesNotMatch(fieldMenu, /@change="[^"]*close/)
+})
+
 test('card view loads branch metadata without changing list view branch work', () => {
   assert.match(projectList, /GetProjectBranch/)
-  assert.match(projectList, /loadProjectBranches/)
+  assert.match(projectList, /loadVisibleProjectBranches/)
   assert.match(projectList, /viewMode\.value !== 'card'/)
 })
 
@@ -38,6 +56,23 @@ test('tree and group project cards share the full metadata component', () => {
   assert.match(card, /data-test="project-card-path"/)
   assert.match(card, /:title="project\.name"/)
   assert.match(card, /:title="project\.path"/)
+})
+
+test('one card field preference controls every project card metadata row', () => {
+  const card = read('./components/ProjectCardContent.vue')
+
+  assert.match(projectList, /:card-fields="cardFields"/)
+  assert.match(projectNode, /cardFields: \{ type: Object/)
+  assert.match(projectNode, /:card-fields="cardFields"/)
+  assert.match(groupItem, /cardFields: \{ type: Object/)
+  assert.match(groupItem, /:fields="cardFields"/)
+  assert.match(card, /fields: \{ type: Object/)
+  assert.match(card, /v-else-if="fields\.type"/)
+  assert.match(card, /v-if="fields\.branch"[\s\S]*data-test="project-card-branch"/)
+  assert.match(card, /v-if="commandName && fields\.command"/)
+  assert.match(card, /v-if="fields\.path"[\s\S]*data-test="project-card-path"/)
+  assert.match(card, /class="project-name"/)
+  assert.match(card, /\['status-dot', statusClass\]/)
 })
 
 test('successful branch switches flow back to the matching navigation card', () => {

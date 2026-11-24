@@ -73,16 +73,25 @@ Applicable to `ProjectList.vue`, `ProjectTreeNode.vue`, and `GroupTreeItem.vue`.
 2. List mode keeps the compact existing rows and does not read Git branch metadata. Card mode uses the
    shared `ProjectCardContent.vue` for pinned, regular tree, worktree, and group-member project nodes;
    group members also retain their selected Launch Command name.
-3. Cards show run status, project name, detected type, current branch, and shortened path. Empty branch
-   values display `无分支信息`; rejected reads display `分支读取失败`. These states must not block
-   navigation.
-4. Card mode reads branches through `GetProjectBranch(project.path)`, caches display state by Project ID,
-   and limits reads to four concurrent calls. Refresh on entering card mode and when the project
-   collection changes; do not poll or perform network Git operations.
-5. A successful detail-view branch switch updates the matching card immediately. The event must carry
+3. Right-clicking the card-view icon opens the shared checkable field menu without changing the current
+   view. Project name, run status, missing state, and child count stay visible; detected type, branch,
+   shortened path, and Launch Command are independently optional. The menu stays open while toggling and
+   closes on outside click, `Escape`, or a view switch.
+4. Optional card fields are stored as booleans under `projectList.cardFields`; all four default to visible.
+   Missing or invalid fields independently normalize to visible, unknown fields are ignored, and storage
+   failures keep the current in-memory choice without blocking navigation. One preference applies to
+   pinned, regular tree, worktree, and group-member cards; a card without a Launch Command name renders no
+   empty command row.
+5. Card mode reads branches through `GetProjectBranch(project.path)` only while the branch field is
+   visible, caches display state by Project ID, and limits reads to four concurrent calls. Refresh on
+   entering card mode, when the project collection changes, and when the branch field is re-enabled.
+   Hiding the field stops queued reads from starting and ignores results from reads already in flight. Do
+   not poll or perform network Git operations. Empty branch values display `无分支信息`; rejected reads
+   display `分支读取失败`, and neither state blocks navigation.
+6. A successful detail-view branch switch updates the matching card immediately. The event must carry
    the Project ID captured when the switch started, and an older in-flight branch read must not
    overwrite the switched value.
-6. Project name, branch, path, and group command remain single-line and ellipsized in the 300px sidebar;
+7. Project name, branch, path, and group command remain single-line and ellipsized in the 300px sidebar;
    each full value is available through `title`, and cards must not introduce horizontal overflow.
 
 Reference implementation: `frontend/src/projectNavigation.js`,

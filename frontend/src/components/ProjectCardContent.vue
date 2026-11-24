@@ -4,6 +4,7 @@ import { Folder, GitBranch, Terminal } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
 import { displayPath } from '../projectTree.js'
 import { typeLabel } from '../typeLabel.js'
+import { DEFAULT_PROJECT_CARD_FIELDS } from '../projectNavigation.js'
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -12,6 +13,7 @@ const props = defineProps({
   commandName: { type: String, default: '' },
   count: { type: Number, default: 0 },
   missing: { type: Boolean, default: false },
+  fields: { type: Object, default: () => DEFAULT_PROJECT_CARD_FIELDS },
 })
 
 const statusClass = computed(() => {
@@ -37,10 +39,11 @@ const shortPath = computed(() => displayPath(props.project.path))
       <span :class="['status-dot', statusClass]" />
       <span class="project-name" :title="project.name">{{ project.name }}</span>
       <span v-if="missing" class="meta-pill missing-pill">missing</span>
-      <span v-else class="meta-pill">{{ typeLabel(project.detectedType) }}</span>
+      <span v-else-if="fields.type" class="meta-pill">{{ typeLabel(project.detectedType) }}</span>
       <span v-if="count" class="meta-pill">{{ count }}</span>
     </span>
     <span
+      v-if="fields.branch"
       class="card-meta branch-meta"
       :class="{ loading: !branchEntry || branchEntry.state === 'loading', error: branchEntry?.state === 'error' }"
       :title="branchTitle"
@@ -49,11 +52,11 @@ const shortPath = computed(() => displayPath(props.project.path))
       <AppIcon :icon="GitBranch" :size="11" />
       <span>{{ branchLabel }}</span>
     </span>
-    <span v-if="commandName" class="card-meta" :title="commandName">
+    <span v-if="commandName && fields.command" class="card-meta" :title="commandName">
       <AppIcon :icon="Terminal" :size="11" />
       <span>{{ commandName }}</span>
     </span>
-    <span class="card-meta" :title="project.path" data-test="project-card-path">
+    <span v-if="fields.path" class="card-meta" :title="project.path" data-test="project-card-path">
       <AppIcon :icon="Folder" :size="11" />
       <span>{{ shortPath }}</span>
     </span>

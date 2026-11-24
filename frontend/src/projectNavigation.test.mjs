@@ -3,11 +3,17 @@ import assert from 'node:assert/strict'
 import {
   advanceBranchRevision,
   applyBranchEntry,
+  DEFAULT_PROJECT_CARD_FIELDS,
   DEFAULT_PROJECT_LIST_VIEW,
+  PROJECT_CARD_FIELDS_KEY,
   PROJECT_LIST_VIEW_KEY,
   loadProjectBranches,
+  loadVisibleProjectBranches,
+  normalizeProjectCardFields,
   normalizeProjectListView,
+  readProjectCardFields,
   readProjectListView,
+  writeProjectCardFields,
   writeProjectListView,
 } from './projectNavigation.js'
 
@@ -40,6 +46,50 @@ test('project list view storage failures fall back without breaking navigation',
 
   assert.equal(readProjectListView(broken), 'list')
   assert.equal(writeProjectListView(broken, 'card'), 'card')
+})
+
+test('project card fields persist valid booleans and default each invalid field to visible', () => {
+  const storage = memoryStorage({
+    [PROJECT_CARD_FIELDS_KEY]: JSON.stringify({ type: false, branch: true, path: 'no', extra: false }),
+  })
+
+  assert.deepEqual(DEFAULT_PROJECT_CARD_FIELDS, {
+    type: true,
+    branch: true,
+    path: true,
+    command: true,
+  })
+  assert.deepEqual(readProjectCardFields(storage), {
+    type: false,
+    branch: true,
+    path: true,
+    command: true,
+  })
+  assert.deepEqual(normalizeProjectCardFields(null), DEFAULT_PROJECT_CARD_FIELDS)
+
+  const next = writeProjectCardFields(storage, {
+    type: false,
+    branch: false,
+    path: true,
+    command: false,
+  })
+  assert.deepEqual(next, { type: false, branch: false, path: true, command: false })
+  assert.equal(storage.getItem(PROJECT_CARD_FIELDS_KEY), JSON.stringify(next))
+})
+
+test('project card field storage failures fall back without breaking navigation', () => {
+  const broken = {
+    getItem() { throw new Error('blocked') },
+    setItem() { throw new Error('blocked') },
+  }
+  const malformed = memoryStorage({ [PROJECT_CARD_FIELDS_KEY]: '{' })
+
+  assert.deepEqual(readProjectCardFields(broken), DEFAULT_PROJECT_CARD_FIELDS)
+  assert.deepEqual(readProjectCardFields(malformed), DEFAULT_PROJECT_CARD_FIELDS)
+  assert.deepEqual(
+    writeProjectCardFields(broken, { type: false, branch: false, path: false, command: false }),
+    { type: false, branch: false, path: false, command: false },
+  )
 })
 
 test('branch loading limits concurrency and isolates project failures', async () => {
@@ -80,6 +130,59 @@ test('branch loading de-duplicates repeated project nodes by project id', async 
 
   assert.equal(calls, 1)
   assert.deepEqual(entries, { shared: { state: 'ready', branch: 'main' } })
+})
+
+test('branch reads run only for a visible branch field and ignore results hidden in flight', async () => {
+  const projects = [
+    { id: 'p1', path: '/workspace/p1' },
+    { id: 'p2', path: '/workspace/p2' },
+  ]
+  let calls = 0
+  const published = []
+  const getBranch = async () => {
+    calls += 1
+    return 'main'
+  }
+
+  await loadVisibleProjectBranches(projects, 'list', { branch: true }, getBranch)
+  await loadVisibleProjectBranches(projects, 'card', { branch: false }, getBranch)
+  assert.equal(calls, 0)
+
+  let resolveBranch
+  let visible = true
+  const pending = loadVisibleProjectBranches(
+    projects,
+    'card',
+    { branch: true },
+    (path) => {
+      calls += 1
+      if (path.endsWith('/p2')) return 'feature/queued'
+      return new Promise((resolve) => { resolveBranch = resolve })
+    },
+    (id, entry) => published.push([id, entry]),
+    () => visible,
+    1,
+  )
+  await Promise.resolve()
+  visible = false
+  resolveBranch('feature/old')
+  await pending
+
+  assert.equal(calls, 1)
+  assert.deepEqual(published, [])
+
+  await loadVisibleProjectBranches(
+    projects,
+    'card',
+    { branch: true },
+    getBranch,
+    (id, entry) => published.push([id, entry]),
+  )
+  assert.equal(calls, 3)
+  assert.deepEqual(published, [
+    ['p1', { state: 'ready', branch: 'main' }],
+    ['p2', { state: 'ready', branch: 'main' }],
+  ])
 })
 
 test('a branch switch prevents an older branch read from overwriting the card', () => {
