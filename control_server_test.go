@@ -138,6 +138,19 @@ func TestRunCLIProjectListUsesControlServer(t *testing.T) {
 	}
 }
 
+func TestCLIHelpUsesOnlyRootyardCommand(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := runCLIWithIO([]string{"help"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit = %d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `rootyard cli`) {
+		t.Fatalf("help = %s, want rootyard cli usage", stdout.String())
+	}
+	if strings.Contains(strings.ToLower(stdout.String()), "atstarter") {
+		t.Fatalf("help contains legacy command: %s", stdout.String())
+	}
+}
+
 func TestRunCLIScanAddsDetectedProjects(t *testing.T) {
 	app := newTestApp(t)
 	root := t.TempDir()

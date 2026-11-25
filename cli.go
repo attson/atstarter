@@ -612,7 +612,7 @@ func writeCLIError(w io.Writer, err error) {
 func controlError(err error) *control.Error {
 	var appErr control.AppNotRunningError
 	if errors.As(err, &appErr) {
-		return &control.Error{Code: "app_not_running", Message: appErr.Error(), Hint: "run: atstarter cli app start --wait"}
+		return &control.Error{Code: "app_not_running", Message: appErr.Error(), Hint: "run: rootyard cli app start --wait"}
 	}
 	var remote control.RemoteError
 	if errors.As(err, &remote) {
@@ -636,12 +636,12 @@ func newCLIFlagSet(name string) *flag.FlagSet {
 }
 
 func usageError(message string) error {
-	return control.RemoteError{Code: "usage", Message: message, Hint: "run: atstarter cli help"}
+	return control.RemoteError{Code: "usage", Message: message, Hint: "run: rootyard cli help"}
 }
 
 func cliUsage() map[string]interface{} {
 	return map[string]interface{}{
-		"usage": "atstarter cli [--config path] <resource> <command> [args]",
+		"usage": "rootyard cli [--config path] <resource> <command> [args]",
 		"commands": []string{
 			"app ping",
 			"app start --wait",
