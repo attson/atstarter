@@ -45,7 +45,14 @@ test('vitepress aliases Wails bindings to site mock modules for the real app dem
 test('vitepress uses the product icon for the published site tab', () => {
   assert.match(configSource, /head:\s*\[/)
   assert.match(configSource, /rel:\s*['"]icon/)
-  assert.match(configSource, /href:\s*['"]\/atstarter\/atstarter-icon\.svg/)
+  assert.match(configSource, /href:\s*['"]\/rootyard\/rootyard-icon\.svg/)
+})
+
+test('site uses the Rootyard Pages base and repository links', () => {
+  assert.match(configSource, /base:\s*['"]\/rootyard\/['"]/)
+  assert.match(configSource, /github\.com\/attson\/rootyard/)
+  const legacySlug = ['at', 'starter'].join('')
+  assert.doesNotMatch(configSource.toLowerCase(), new RegExp(`${legacySlug}|at-${'starter'}`))
 })
 
 test('hero action button text remains visible over the custom brand gradient', () => {

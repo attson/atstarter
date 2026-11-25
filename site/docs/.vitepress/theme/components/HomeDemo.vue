@@ -10,7 +10,7 @@ useTheme().init()
 </script>
 
 <template>
-  <section class="home-demo reveal" aria-label="AT Starter mock workspace">
+  <section class="home-demo reveal" aria-label="Rootyard mock workspace">
     <FrontendApp embedded />
   </section>
 </template>

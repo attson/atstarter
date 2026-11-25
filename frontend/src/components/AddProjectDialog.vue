@@ -32,7 +32,7 @@ function save() {
       <Transition name="dlg-pop" appear>
         <div class="dialog">
           <h3>添加项目</h3>
-          <label>项目目录<input v-model="path" placeholder="/home/attson/GolandProjects/atstarter" /></label>
+          <label>项目目录<input v-model="path" placeholder="/home/attson/GolandProjects/rootyard" /></label>
           <div class="inline-actions">
             <AppButton variant="secondary" @click="pickDir">
               <template #icon><AppIcon :icon="FolderOpen" :size="14" /></template>

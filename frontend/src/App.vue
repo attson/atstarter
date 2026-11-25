@@ -450,7 +450,7 @@ onUnmounted(() => {
   <div class="app-shell" :class="{ 'app-shell-embedded': props.embedded }">
     <UpdateBanner ref="updateBannerRef" />
     <header class="topbar">
-      <div class="brand">AT Starter</div>
+      <div class="brand">Rootyard</div>
       <div class="summary">
         <span class="summary-count">{{ summaryTotalLabel }}</span>
         <AppPill

@@ -73,9 +73,9 @@ const projects = [
     commands: [{ id: 'go', name: 'go', command: 'go', args: ['run', './cmd/app'], cwd: '', env: {}, isDefault: true }],
   },
   {
-    id: 'atstarter-site',
-    name: 'atstarter',
-    path: '/Users/demo/workspaces/atstarter',
+    id: 'rootyard-site',
+    name: 'rootyard',
+    path: '/Users/demo/workspaces/rootyard',
     detectedType: 'node',
     command: 'npm',
     args: ['run', 'docs:dev'],
@@ -114,13 +114,13 @@ let groups = [
   {
     id: 'team-manage',
     name: 'Docs And Tools',
-    items: [{ projectId: 'atstarter-site', commandId: 'docs' }],
+    items: [{ projectId: 'rootyard-site', commandId: 'docs' }],
   },
 ]
 
 const statuses = new Map()
 const logs = new Map()
-const branches = new Map(projects.map((project) => [project.path, project.id === 'atstarter-site' ? 'main' : 'master']))
+const branches = new Map(projects.map((project) => [project.path, project.id === 'rootyard-site' ? 'main' : 'master']))
 const FILES = new Map([
   ['cmd/main.go', `package main
 
@@ -139,7 +139,7 @@ func main() {
 `],
   ['README.md', `# Atlas API
 
-Synthetic project used by the AT Starter site demo.
+Synthetic project used by the Rootyard site demo.
 
 - API: http://localhost:8080
 - Health: /health
@@ -243,9 +243,9 @@ seedRun('atlas-worker:go', { State: 'running', PID: 4202, ExitCode: 0 }, [
   '[worker] queue connected: local-jobs',
   '[worker] processed job sync-catalog in 42ms',
 ])
-seedRun('atstarter-site:docs', { State: 'running', PID: 4210, ExitCode: 0 }, [
-  '[runner] atstarter -> npm run docs:dev',
-  '[vitepress] dev server running at http://localhost:5174/atstarter/',
+seedRun('rootyard-site:docs', { State: 'running', PID: 4210, ExitCode: 0 }, [
+  '[runner] rootyard -> npm run docs:dev',
+  '[vitepress] dev server running at http://localhost:5174/rootyard/',
 ])
 seedRun('northwind-reports:go', { State: 'exited', PID: 0, ExitCode: 0 }, [
   '[runner] northwind-reports -> go test ./...',
@@ -278,7 +278,7 @@ function idleUpdateState(extra = {}) {
     downloadPct: 0,
     ready: false,
     error: '',
-    assetUrl: 'https://github.com/example/atstarter/releases/tag/v0.5.13',
+    assetUrl: 'https://github.com/example/rootyard/releases/tag/v0.5.13',
     assetSize: 0,
     canInstall: false,
     lastCheckAt: Date.now(),
@@ -568,7 +568,7 @@ export async function ListProjectDir(projectId, relPath = '') {
 function fileContent(path) {
   return FILES.get(path) || `# ${path || 'project'}
 
-Synthetic file content for the AT Starter site demo.
+Synthetic file content for the Rootyard site demo.
 `
 }
 

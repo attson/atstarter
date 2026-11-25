@@ -1,5 +1,5 @@
 /*
- * 把 atterm fileExplorer 组件用的 --ed-* 变量映射到 atstarter 的语义令牌,
+ * 把 atterm fileExplorer 组件用的 --ed-* 变量映射到 rootyard 的语义令牌,
  * 让文件浏览器颜色与 App 一致,并自动跟随 App 的明暗主题(令牌本身随
  * html[data-theme] 切换,这里不用区分 dark/light)。
  * 作用域:.fe-scope(FileBrowser 根),避免污染全局。

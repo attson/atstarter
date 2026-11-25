@@ -1,13 +1,13 @@
 ---
 layout: home
 hero:
-  name: AT Starter
-  text: 本地项目快速启动器
-  tagline: 一处托管启动/停止多个项目,查看实时日志。读取本地目录代码,自动识别项目类型,也可通过 CLI/MCP 交给 AI 操作。
+  name: Rootyard
+  text: 本地项目工作台
+  tagline: Your local project workspace
   actions:
     - theme: brand
       text: 下载最新版
-      link: https://github.com/attson/atstarter/releases/latest
+      link: https://github.com/attson/rootyard/releases/latest
     - theme: alt
       text: 使用文档
       link: /guide/
@@ -41,7 +41,7 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
 
 ## 功能截图
 
-<p class="section-sub reveal">看看 AT Starter 实际长什么样。</p>
+<p class="section-sub reveal">看看 Rootyard 实际长什么样。</p>
 
 <div class="shot reveal">
   <div class="shot-text">
@@ -50,7 +50,7 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
   </div>
   <div class="win-frame">
     <div class="win-bar"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span></div>
-    <img src="/shot-overview.png" alt="AT Starter 主界面:项目树 + 实时日志" loading="lazy" />
+    <img src="/shot-overview.png" alt="Rootyard 主界面:项目树 + 实时日志" loading="lazy" />
   </div>
 </div>
 
@@ -61,7 +61,7 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
   </div>
   <div class="win-frame">
     <div class="win-bar"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span></div>
-    <img src="/shot-files.png" alt="AT Starter 文件浏览器:文件树 + 代码预览" loading="lazy" />
+    <img src="/shot-files.png" alt="Rootyard 文件浏览器:文件树 + 代码预览" loading="lazy" />
   </div>
 </div>
 
@@ -72,7 +72,7 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
   </div>
   <div class="win-frame">
     <div class="win-bar"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span></div>
-    <img src="/shot-group.png" alt="AT Starter 启动分组详情:一键 Start / Stop 整组" loading="lazy" />
+    <img src="/shot-group.png" alt="Rootyard 启动分组详情:一键 Start / Stop 整组" loading="lazy" />
   </div>
 </div>
 
@@ -83,7 +83,7 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
   </div>
   <div class="win-frame">
     <div class="win-bar"><span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span></div>
-    <img src="/shot-dark.png" alt="AT Starter 暗色主题下的主界面与日志" loading="lazy" />
+    <img src="/shot-dark.png" alt="Rootyard 暗色主题下的主界面与日志" loading="lazy" />
   </div>
 </div>
 
@@ -147,15 +147,15 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
 <div class="scenarios">
   <div class="scenario-card reveal">
     <p class="pain">想让 AI 扫描项目、建分组、启动服务并读日志</p>
-    <p class="solve">通过 <code>atstarter mcp</code> 暴露本地工具,AI 调用的仍是桌面 App 的运行态。</p>
+    <p class="solve">通过 <code>rootyard mcp</code> 暴露本地工具,AI 调用的仍是桌面 App 的运行态。</p>
   </div>
   <div class="scenario-card reveal">
     <p class="pain">需要在脚本或终端里复用页面上的启动能力</p>
-    <p class="solve"><code>atstarter cli</code> 输出固定 JSON,支持 scan、project、group、Docker、compose 和 logs。</p>
+    <p class="solve"><code>rootyard cli</code> 输出固定 JSON,支持 scan、project、group、Docker、compose 和 logs。</p>
   </div>
   <div class="scenario-card reveal">
     <p class="pain">桌面 App 还没启动,AI 无法操作</p>
-    <p class="solve"><code>atstarter cli app start --wait</code> 可启动桌面进程并等待控制服务就绪。</p>
+    <p class="solve"><code>rootyard cli app start --wait</code> 可启动桌面进程并等待控制服务就绪。</p>
   </div>
 </div>
 
@@ -170,21 +170,21 @@ import HomeDemo from './.vitepress/theme/components/HomeDemo.vue'
 ## 下载
 
 <div class="downloads">
-  <a class="download-card reveal" href="https://github.com/attson/atstarter/releases/latest" target="_blank" rel="noreferrer">
+  <a class="download-card reveal" href="https://github.com/attson/rootyard/releases/latest" target="_blank" rel="noreferrer">
     <div class="os">macOS</div>
     <div class="os-sub">.dmg（内含 .pkg）/ .zip · Intel / Apple Silicon</div>
   </a>
-  <a class="download-card reveal" href="https://github.com/attson/atstarter/releases/latest" target="_blank" rel="noreferrer">
+  <a class="download-card reveal" href="https://github.com/attson/rootyard/releases/latest" target="_blank" rel="noreferrer">
     <div class="os">Linux</div>
     <div class="os-sub">.deb / .tar.gz · amd64 / arm64</div>
   </a>
-  <a class="download-card reveal" href="https://github.com/attson/atstarter/releases/latest" target="_blank" rel="noreferrer">
+  <a class="download-card reveal" href="https://github.com/attson/rootyard/releases/latest" target="_blank" rel="noreferrer">
     <div class="os">Windows</div>
     <div class="os-sub">NSIS .exe / .zip · amd64</div>
   </a>
 </div>
 
-<p class="download-note">AT Starter 支持 macOS / Linux / Windows,均前往 <a href="https://github.com/attson/atstarter/releases/latest" target="_blank" rel="noreferrer">GitHub Releases</a> 下载最新版。</p>
+<p class="download-note">Rootyard 支持 macOS / Linux / Windows,均前往 <a href="https://github.com/attson/rootyard/releases/latest" target="_blank" rel="noreferrer">GitHub Releases</a> 下载最新版。</p>
 
 </section>
 </div>
