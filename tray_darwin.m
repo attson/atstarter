@@ -8,13 +8,13 @@ extern void darwinTrayToggle(void);
 extern void darwinTrayStopAll(void);
 extern void darwinTrayQuit(void);
 
-@interface ATStarterTrayController : NSObject
+@interface RootyardTrayController : NSObject
 @property(strong) NSStatusItem *statusItem;
 @property(strong) NSMenuItem *runningItem;
 @property(strong) NSMenuItem *toggleItem;
 @end
 
-@implementation ATStarterTrayController
+@implementation RootyardTrayController
 
 - (NSImage *)dockIconImageFromImage:(NSImage *)sourceImage {
 	NSImage *dockImage = [[NSImage alloc] initWithSize:NSMakeSize(1024, 1024)];
@@ -37,7 +37,7 @@ extern void darwinTrayQuit(void);
 	[notifications addObserver:self selector:@selector(handleApplicationDidUnhide:) name:NSApplicationDidUnhideNotification object:NSApp];
 
 	self.statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSSquareStatusItemLength];
-	self.statusItem.button.toolTip = @"AT Starter";
+	self.statusItem.button.toolTip = @"Rootyard";
 	if (iconData != nil) {
 		NSImage *appIcon = [[NSImage alloc] initWithData:iconData];
 		if (appIcon != nil) {
@@ -50,10 +50,10 @@ extern void darwinTrayQuit(void);
 		self.statusItem.button.image = image;
 		self.statusItem.button.imagePosition = NSImageOnly;
 	} else {
-		self.statusItem.button.title = @"AT";
+		self.statusItem.button.title = @"RY";
 	}
 
-	NSMenu *menu = [[NSMenu alloc] initWithTitle:@"AT Starter"];
+	NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Rootyard"];
 	menu.autoenablesItems = NO;
 
 	self.runningItem = [[NSMenuItem alloc] initWithTitle:@"运行中: 0 个" action:nil keyEquivalent:@""];
@@ -100,7 +100,7 @@ extern void darwinTrayQuit(void);
 
 - (void)updateRunning:(int)n {
 	self.runningItem.title = [NSString stringWithFormat:@"运行中: %d 个", n];
-	self.statusItem.button.toolTip = [NSString stringWithFormat:@"AT Starter - %d 个运行中", n];
+	self.statusItem.button.toolTip = [NSString stringWithFormat:@"Rootyard - %d 个运行中", n];
 }
 
 - (void)updateVisible:(BOOL)visible {
@@ -109,9 +109,9 @@ extern void darwinTrayQuit(void);
 
 @end
 
-static ATStarterTrayController *trayController = nil;
+static RootyardTrayController *trayController = nil;
 
-void atstarter_start_tray(const char *iconBytes, int length) {
+void rootyard_start_tray(const char *iconBytes, int length) {
 	NSData *iconData = nil;
 	if (iconBytes != NULL && length > 0) {
 		iconData = [NSData dataWithBytes:iconBytes length:(NSUInteger)length];
@@ -119,14 +119,14 @@ void atstarter_start_tray(const char *iconBytes, int length) {
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (trayController == nil) {
-			trayController = [[ATStarterTrayController alloc] init];
+			trayController = [[RootyardTrayController alloc] init];
 			[trayController setupWithIconData:iconData];
 		}
 		darwinTrayReady();
 	});
 }
 
-void atstarter_update_running(int n) {
+void rootyard_update_running(int n) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (trayController != nil) {
 			[trayController updateRunning:n];
@@ -134,7 +134,7 @@ void atstarter_update_running(int n) {
 	});
 }
 
-void atstarter_update_visible(bool visible) {
+void rootyard_update_visible(bool visible) {
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (trayController != nil) {
 			[trayController updateVisible:visible];

@@ -45,7 +45,7 @@ test-race:
 	go test -race ./internal/runner/
 
 clean:
-	rm -rf build/bin/atstarter build/bin/atstarter.app build/bin/atstarter.exe \
-	  "build/bin/AT Starter" "build/bin/AT Starter.app" "build/bin/AT Starter.exe" \
-	  build/bin/AT-Starter-*.tar.gz build/bin/AT-Starter-*.zip \
-	  build/bin/AT-Starter_*.dmg build/bin/AT-Starter_*.deb build/bin/AT-Starter_*_amd64.exe
+	rm -rf build/bin/rootyard build/bin/rootyard.app build/bin/rootyard.exe \
+	  "build/bin/Rootyard" "build/bin/Rootyard.app" "build/bin/Rootyard.exe" \
+	  build/bin/Rootyard-*.tar.gz build/bin/Rootyard-*.zip \
+	  build/bin/Rootyard_*.dmg build/bin/Rootyard_*.deb build/bin/Rootyard_*_amd64.exe

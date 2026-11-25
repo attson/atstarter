@@ -60,8 +60,8 @@ function Assert-Equal {
 
 if ($SelfTest) {
   Assert-Equal (Update-PathValue "C:\Windows;C:\Tools" add "c:\tools\") "C:\Windows;C:\Tools" "add must be idempotent"
-  Assert-Equal (Update-PathValue "C:\Windows" add "C:\AT Starter") "C:\Windows;C:\AT Starter" "add must append the directory"
-  Assert-Equal (Update-PathValue "C:\AT Starter;C:\AT Starter\bin;C:\Windows" remove "c:\at starter\") "C:\AT Starter\bin;C:\Windows" "remove must match only the exact directory"
+  Assert-Equal (Update-PathValue "C:\Windows" add "C:\Rootyard") "C:\Windows;C:\Rootyard" "add must append the directory"
+  Assert-Equal (Update-PathValue "C:\Rootyard;C:\Rootyard\bin;C:\Windows" remove "c:\rootyard\") "C:\Rootyard\bin;C:\Windows" "remove must match only the exact directory"
   Write-Host "update-path self-test passed"
   exit 0
 }
