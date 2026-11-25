@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"atstarter/internal/runner"
+	"rootyard/internal/runner"
 )
 
 func TestLogBatcherFlushesInOrderAtSizeLimit(t *testing.T) {

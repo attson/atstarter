@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"atstarter/internal/control"
+	"rootyard/internal/control"
 )
 
 type mcpRequest struct {

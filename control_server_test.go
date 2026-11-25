@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"atstarter/internal/control"
-	"atstarter/internal/store"
+	"rootyard/internal/control"
+	"rootyard/internal/store"
 )
 
 func TestResolveProjectFromRejectsAmbiguousNames(t *testing.T) {

@@ -129,7 +129,7 @@ func (c Client) Call(method string, params interface{}, out interface{}) error {
 
 type AppNotRunningError struct{}
 
-func (AppNotRunningError) Error() string { return "atstarter desktop app is not running" }
+func (AppNotRunningError) Error() string { return "rootyard desktop app is not running" }
 
 type RemoteError struct {
 	Code    string

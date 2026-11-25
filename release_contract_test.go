@@ -13,6 +13,7 @@ func TestWailsNamingSeparatesProductAndCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	var config struct {
+		Name           string `json:"name"`
 		OutputFilename string `json:"outputfilename"`
 		Info           struct {
 			ProductName string `json:"productName"`
@@ -21,11 +22,14 @@ func TestWailsNamingSeparatesProductAndCommand(t *testing.T) {
 	if err := json.Unmarshal(raw, &config); err != nil {
 		t.Fatal(err)
 	}
-	if config.OutputFilename != "atstarter" {
-		t.Errorf("outputfilename = %q, want canonical command name atstarter", config.OutputFilename)
+	if config.Name != "rootyard" {
+		t.Errorf("name = %q, want rootyard", config.Name)
 	}
-	if config.Info.ProductName != "AT Starter" {
-		t.Errorf("productName = %q, want desktop display name AT Starter", config.Info.ProductName)
+	if config.OutputFilename != "rootyard" {
+		t.Errorf("outputfilename = %q, want rootyard", config.OutputFilename)
+	}
+	if config.Info.ProductName != "Rootyard" {
+		t.Errorf("productName = %q, want Rootyard", config.Info.ProductName)
 	}
 }
 

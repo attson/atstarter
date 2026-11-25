@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"atstarter/internal/cmdparse"
-	"atstarter/internal/detector"
-	"atstarter/internal/store"
+	"rootyard/internal/cmdparse"
+	"rootyard/internal/detector"
+	"rootyard/internal/store"
 )
 
 // Scan 扫描每个 root 的直接子目录。识别为 unknown 的也会列出(命令留空)。

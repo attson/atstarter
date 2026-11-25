@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"atstarter/internal/docker"
+	"rootyard/internal/docker"
 )
 
 func fakeDockerApp(t *testing.T, routes map[string]docker.ExecResult) *App {
