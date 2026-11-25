@@ -6,6 +6,7 @@ node_modules/
 .idea/
 frontend/package.json.md5
 .playwright-mcp/
+.worktrees/
 *-verify.png
 .dev
 .dev.control.json
