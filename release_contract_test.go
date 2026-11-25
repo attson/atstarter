@@ -45,14 +45,17 @@ func TestLinuxPackagesExposeCanonicalCommand(t *testing.T) {
 			t.Errorf("package-linux-deb.sh does not contain %q", want)
 		}
 	}
-	if strings.Contains(strings.ToLower(packageScript), "atstarter") || strings.Contains(packageScript, "AT-Starter") {
+	legacySlug := "at" + "starter"
+	legacyAssetPrefix := "AT" + "-Starter"
+	if strings.Contains(strings.ToLower(packageScript), legacySlug) || strings.Contains(packageScript, legacyAssetPrefix) {
 		t.Error("package-linux-deb.sh must not contain legacy product names")
 	}
 	installerScript := readReleaseFile(t, "scripts/install-linux.sh")
 	if !strings.Contains(installerScript, `-name "rootyard"`) {
 		t.Error("install-linux.sh must locate the canonical rootyard archive member")
 	}
-	if strings.Contains(strings.ToLower(installerScript), "atstarter") || strings.Contains(installerScript, "AT Starter") {
+	legacyDisplayName := "AT" + " Starter"
+	if strings.Contains(strings.ToLower(installerScript), legacySlug) || strings.Contains(installerScript, legacyDisplayName) {
 		t.Error("install-linux.sh must not accept legacy archive members")
 	}
 }

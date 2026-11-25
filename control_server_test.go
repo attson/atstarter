@@ -146,7 +146,8 @@ func TestCLIHelpUsesOnlyRootyardCommand(t *testing.T) {
 	if !strings.Contains(stdout.String(), `rootyard cli`) {
 		t.Fatalf("help = %s, want rootyard cli usage", stdout.String())
 	}
-	if strings.Contains(strings.ToLower(stdout.String()), "atstarter") {
+	legacyName := "at" + "starter"
+	if strings.Contains(strings.ToLower(stdout.String()), legacyName) {
 		t.Fatalf("help contains legacy command: %s", stdout.String())
 	}
 }

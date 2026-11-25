@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Land Dark (Linear-style) + Light (shadcn-style) themes on atstarter, tokenize colors/spacing/motion, refresh typography and density, and swap emoji/character icons for lucide — without touching the Go backend, Wails bindings, or the three-panel layout structure.
+**Goal:** Land Dark (Linear-style) + Light (shadcn-style) themes on rootyard, tokenize colors/spacing/motion, refresh typography and density, and swap emoji/character icons for lucide — without touching the Go backend, Wails bindings, or the three-panel layout structure.
 
 **Architecture:** Introduce CSS custom-property tokens layered as `tokens.css` (structure) + `theme.dark.css` / `theme.light.css` (color overrides scoped by `<html data-theme>`). Add 3 primitive Vue components (`AppButton`, `AppPill`, `AppIcon`) and a `useTheme` composable. Migrate the 12 existing components to consume tokens + primitives + lucide icons.
 
@@ -352,7 +352,7 @@ Expected: FAIL — module not found or exports missing.
 ```js
 import { ref, computed, watchEffect } from 'vue'
 
-const STORAGE_KEY = 'atstarter.theme'
+const STORAGE_KEY = 'rootyard.theme'
 const VALID = new Set(['system', 'dark', 'light'])
 const CYCLE = { system: 'dark', dark: 'light', light: 'system' }
 
@@ -450,7 +450,7 @@ Expected on first launch (fresh localStorage):
 
 Then in Chrome DevTools console (via WebKit inspector) run:
 ```
-localStorage.setItem('atstarter.theme', 'light')
+localStorage.setItem('rootyard.theme', 'light')
 location.reload()
 ```
 Expected: app forces light. Repeat with `'dark'` and `'system'` values.
@@ -768,7 +768,7 @@ Find the `<template>` block and replace **only** the `<header class="topbar">…
 
 ```vue
 <header class="topbar">
-  <div class="brand">atstarter</div>
+  <div class="brand">rootyard</div>
   <div class="summary">
     <span class="summary-count">{{ projects.length }} projects</span>
     <AppPill variant="running" dot>{{ runningCount }} running</AppPill>
@@ -2935,7 +2935,7 @@ function save() {
       <Transition name="dlg-pop" appear>
         <div class="dialog" v-if="show">
           <h3>添加项目</h3>
-          <label>项目目录<input v-model="path" placeholder="/home/attson/GolandProjects/atstarter" /></label>
+          <label>项目目录<input v-model="path" placeholder="/home/attson/GolandProjects/rootyard" /></label>
           <div class="inline-actions">
             <AppButton variant="secondary" @click="pickDir">
               <template #icon><AppIcon :icon="FolderOpen" :size="14" /></template>

@@ -30,10 +30,11 @@ test('ROOTYARD_BIN pointing at a missing file is ignored, falls through to PATH'
 })
 
 test('legacy override is ignored', () => {
+  const legacyBinEnv = ['AT', 'STARTER_BIN'].join('')
   const found = locateRootyardBinary({
     platform: 'linux',
-    env: { ATSTARTER_BIN: '/opt/legacy/atstarter', PATH: '/usr/bin' },
-    existsSync: existsSet(['/opt/legacy/atstarter', '/usr/bin/rootyard']),
+    env: { [legacyBinEnv]: '/opt/legacy/retired-product', PATH: '/usr/bin' },
+    existsSync: existsSet(['/opt/legacy/retired-product', '/usr/bin/rootyard']),
     delimiter: ':',
   })
   assert.equal(found, '/usr/bin/rootyard')

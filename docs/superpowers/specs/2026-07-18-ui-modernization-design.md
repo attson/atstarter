@@ -1,8 +1,8 @@
-# atstarter UI 现代化改造 · 设计文档
+# rootyard UI 现代化改造 · 设计文档
 
 > 日期：2026-07-18
 > 状态：设计已确认，待实现
-> 背景 spec：[2026-07-16-atstarter-design.md](2026-07-16-atstarter-design.md)
+> 背景 spec：[2026-07-16-rootyard-design.md](2026-07-16-rootyard-design.md)
 
 ## 1. 背景与目标
 
@@ -202,12 +202,12 @@ Props: `variant`（`running` | `exited` | `error` | `stopped` | `neutral`）、`
 
 ### 7.2 行为
 
-- 初始化：读 `localStorage.getItem('atstarter.theme')`；无值时 fallback `'system'`
+- 初始化：读 `localStorage.getItem('rootyard.theme')`；无值时 fallback `'system'`
 - 应用主题：在 `<html>` 上写 `data-theme`
   - `system` → 读 `window.matchMedia('(prefers-color-scheme: dark)').matches` 决定
   - `dark` / `light` → 直接写
 - 监听：只在 `theme === 'system'` 时监听 `matchMedia` change，其他状态解绑
-- 持久化：cycleTheme 后 `localStorage.setItem('atstarter.theme', theme.value)`
+- 持久化：cycleTheme 后 `localStorage.setItem('rootyard.theme', theme.value)`
 - 过渡：在 `<html>` 上加 `transition: background-color var(--dur-base) var(--ease), color var(--dur-base) var(--ease);`
 
 ## 8. 布局 / 密度调整

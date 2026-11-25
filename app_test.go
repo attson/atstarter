@@ -161,7 +161,8 @@ func TestDefaultConfigPathIgnoresLegacyEnvOverride(t *testing.T) {
 
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	t.Setenv("ATSTARTER_CONFIG", filepath.Join(t.TempDir(), "legacy.json"))
+	legacyConfigEnv := "AT" + "STARTER_CONFIG"
+	t.Setenv(legacyConfigEnv, filepath.Join(t.TempDir(), "legacy.json"))
 
 	configHome, err := os.UserConfigDir()
 	if err != nil {

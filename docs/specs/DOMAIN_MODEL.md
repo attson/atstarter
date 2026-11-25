@@ -1,13 +1,13 @@
-# atstarter Domain Model Spec
+# Rootyard Domain Model Spec
 
 ## Document Goal
 
-This file fixes the vocabulary and aggregate boundaries used by atstarter. Code changes, UI labels, and
+This file fixes the vocabulary and aggregate boundaries used by Rootyard. Code changes, UI labels, and
 AI-generated plans must use these terms consistently.
 
 ## 1. Problem Domain
 
-atstarter manages local project launchability: it turns filesystem directories into persisted launch
+Rootyard manages local project launchability: it turns filesystem directories into persisted launch
 targets and runtime processes while keeping Docker, files, logs, groups, and updates in one desktop app.
 
 ## 2. Terminology

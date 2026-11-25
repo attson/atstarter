@@ -1,4 +1,4 @@
-# atstarter — 本地项目快速启动器 设计文档
+# rootyard — 本地项目快速启动器 设计文档
 
 > 日期:2026-07-16
 > 状态:设计已确认,待实现
@@ -23,7 +23,7 @@
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Wails App (atstarter)                        │
+│  Wails App (rootyard)                        │
 │                                               │
 │  ┌──────────────┐      ┌───────────────────┐ │
 │  │  前端 (Vue3)  │◄────►│  Go 后端           │ │
@@ -37,7 +37,7 @@
                               │
                     ┌─────────┴─────────┐
                     ▼                   ▼
-            ~/.config/atstarter/   子进程 (pnpm/go...)
+            ~/.config/rootyard/   子进程 (pnpm/go...)
               config.json
 ```
 
@@ -45,7 +45,7 @@
 
 - **Detector(识别器)**:输入项目目录路径,输出识别结果(项目类型 + 建议启动命令)。内置固定规则表。纯函数式,只读文件系统、无副作用 → 最易测。
 - **Scanner(扫描器)**:输入若干工作区根目录,遍历直接子目录,对每个调用 Detector,输出候选项目列表。
-- **Store(配置存储)**:读写 `~/.config/atstarter/config.json`,管理项目列表(增删改查)。
+- **Store(配置存储)**:读写 `~/.config/rootyard/config.json`,管理项目列表(增删改查)。
 - **Runner(进程管理)**:启动/停止子进程,捕获 stdout/stderr 流,管理进程状态和子进程树清理。唯一持有运行时状态的模块。
 
 前后端通信:Wails **方法绑定**(前端调 Go 方法)+ **事件推送**(Go 主动推日志/状态变化)。
@@ -54,9 +54,9 @@
 
 配置文件路径遵循各平台标准配置目录:
 
-- Linux:`~/.config/atstarter/config.json`
-- macOS:`~/Library/Application Support/atstarter/config.json`
-- Windows:`%AppData%\atstarter\config.json`
+- Linux:`~/.config/rootyard/config.json`
+- macOS:`~/Library/Application Support/rootyard/config.json`
+- Windows:`%AppData%\rootyard\config.json`
 
 ```json
 {

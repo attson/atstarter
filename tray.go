@@ -60,7 +60,7 @@ func useNativeHideOnClose() bool {
 func trayOnReady() {
 	systray.SetIcon(trayIcon)
 	systray.SetTitle("")
-	systray.SetTooltip("AT Starter")
+	systray.SetTooltip("Rootyard")
 
 	// 菜单项指针会被其他 goroutine 读取(miRunning/miToggle),因此对它们的
 	// 写入、点击回调绑定与 trayReady 置位统一在 trayMu 下完成,以此对 updateTrayRunning
@@ -141,7 +141,7 @@ func updateTrayRunning(n int) {
 		return
 	}
 	miRunning.SetTitle(fmt.Sprintf("运行中: %d 个", n))
-	systray.SetTooltip(fmt.Sprintf("AT Starter — %d 个运行中", n))
+	systray.SetTooltip(fmt.Sprintf("Rootyard — %d 个运行中", n))
 }
 
 // isTrayReady 报告托盘是否已成功初始化。

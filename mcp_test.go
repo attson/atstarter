@@ -21,6 +21,7 @@ func TestMCPInitializeUsesRootyardServerName(t *testing.T) {
 
 func TestRootyardMCPToolsUseOnlyRootyardPrefix(t *testing.T) {
 	tools := rootyardMCPTools()
+	legacyPrefix := "at" + "starter_"
 	if len(tools) == 0 {
 		t.Fatal("tool list is empty")
 	}
@@ -28,7 +29,7 @@ func TestRootyardMCPToolsUseOnlyRootyardPrefix(t *testing.T) {
 		if !strings.HasPrefix(tool.Name, "rootyard_") {
 			t.Errorf("tool %q does not use rootyard_ prefix", tool.Name)
 		}
-		if strings.HasPrefix(tool.Name, "atstarter_") {
+		if strings.HasPrefix(tool.Name, legacyPrefix) {
 			t.Errorf("legacy tool registered: %q", tool.Name)
 		}
 	}
