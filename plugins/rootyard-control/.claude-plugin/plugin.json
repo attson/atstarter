@@ -1,0 +1,29 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "rootyard-control",
+  "version": "0.1.0",
+  "description": "Control the local Rootyard desktop app through MCP and JSON CLI commands.",
+  "author": {
+    "name": "Rootyard"
+  },
+  "homepage": "https://github.com/attson/rootyard",
+  "repository": "https://github.com/attson/rootyard",
+  "license": "MIT",
+  "keywords": [
+    "rootyard",
+    "mcp",
+    "desktop",
+    "launcher",
+    "docker",
+    "compose"
+  ],
+  "skills": [
+    "./skills/use-rootyard"
+  ],
+  "mcpServers": {
+    "rootyard": {
+      "command": "rootyard",
+      "args": ["mcp"]
+    }
+  }
+}

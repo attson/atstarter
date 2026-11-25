@@ -1,20 +1,20 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "atstarter",
-  "description": "AI integrations for controlling the local atstarter desktop app.",
+  "name": "rootyard",
+  "description": "AI integrations for controlling the local Rootyard desktop app.",
   "owner": {
-    "name": "atstarter"
+    "name": "Rootyard"
   },
   "plugins": [
     {
-      "name": "atstarter-control",
-      "description": "Control projects, launch groups, Docker, compose, and logs through the local atstarter desktop app.",
+      "name": "rootyard-control",
+      "description": "Control projects, launch groups, Docker, compose, and logs through the local Rootyard desktop app.",
       "author": {
-        "name": "atstarter"
+        "name": "Rootyard"
       },
       "category": "development",
-      "source": "./plugins/atstarter-control",
-      "homepage": "https://github.com/attson/atstarter"
+      "source": "./plugins/rootyard-control",
+      "homepage": "https://github.com/attson/rootyard"
     }
   ]
 }

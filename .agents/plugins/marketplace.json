@@ -1,14 +1,14 @@
 {
-  "name": "atstarter",
+  "name": "rootyard",
   "interface": {
-    "displayName": "atstarter"
+    "displayName": "Rootyard"
   },
   "plugins": [
     {
-      "name": "atstarter-control",
+      "name": "rootyard-control",
       "source": {
         "source": "local",
-        "path": "./plugins/atstarter-control"
+        "path": "./plugins/rootyard-control"
       },
       "policy": {
         "installation": "AVAILABLE",
