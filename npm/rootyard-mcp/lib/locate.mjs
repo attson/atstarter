@@ -1,9 +1,9 @@
 import { existsSync as nodeExistsSync } from 'node:fs'
 import { delimiter as nodeDelimiter, posix, win32 } from 'node:path'
 
-// binaryName returns the platform-specific atstarter executable name.
+// binaryName returns the platform-specific rootyard executable name.
 function binaryName(platform) {
-  return platform === 'win32' ? 'atstarter.exe' : 'atstarter'
+  return platform === 'win32' ? 'rootyard.exe' : 'rootyard'
 }
 
 // joinFor picks the join flavour matching the target platform, so path
@@ -19,8 +19,8 @@ function knownLocations(platform, env) {
   const join = joinFor(platform)
   if (platform === 'darwin') {
     return [
-      '/usr/local/bin/atstarter',
-      '/Applications/AT Starter.app/Contents/MacOS/atstarter',
+      '/usr/local/bin/rootyard',
+      '/Applications/Rootyard.app/Contents/MacOS/rootyard',
     ]
   }
   if (platform === 'win32') {
@@ -28,26 +28,26 @@ function knownLocations(platform, env) {
     const candidates = []
     for (const dir of dirs) {
       if (!dir) continue
-      candidates.push(join(dir, 'AT Starter', name))
+      candidates.push(join(dir, 'Rootyard', name))
     }
     return candidates
   }
   // linux and other unix
-  const candidates = ['/usr/bin/atstarter', '/usr/local/bin/atstarter']
+  const candidates = ['/usr/bin/rootyard', '/usr/local/bin/rootyard']
   if (env.HOME) {
-    candidates.push(join(env.HOME, '.local', 'bin', 'atstarter'))
+    candidates.push(join(env.HOME, '.local', 'bin', 'rootyard'))
   }
   return candidates
 }
 
-// locateAtstarterBinary finds the installed atstarter binary without downloading
-// anything. Resolution order: ATSTARTER_BIN override, then PATH, then the known
+// locateRootyardBinary finds the installed rootyard binary without downloading
+// anything. Resolution order: ROOTYARD_BIN override, then PATH, then the known
 // per-platform install locations (fallback for portable packages or terminals
 // whose PATH has not refreshed). Returns an absolute path or null.
 //
 // existsSync and delimiter are injectable so the resolution logic stays a pure,
 // testable function.
-export function locateAtstarterBinary({
+export function locateRootyardBinary({
   platform = process.platform,
   env = process.env,
   existsSync = nodeExistsSync,
@@ -56,7 +56,7 @@ export function locateAtstarterBinary({
   const name = binaryName(platform)
   const join = joinFor(platform)
 
-  const override = env.ATSTARTER_BIN
+  const override = env.ROOTYARD_BIN
   if (override && existsSync(override)) {
     return override
   }
