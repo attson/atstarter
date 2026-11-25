@@ -9,12 +9,12 @@ import (
 )
 
 func TestInstallMacOSPackageDMGRunsInstallerBeforeRelaunch(t *testing.T) {
-	dmg := filepath.Join(t.TempDir(), "AT-Starter.dmg")
+	dmg := filepath.Join(t.TempDir(), "Rootyard.dmg")
 	if err := os.WriteFile(dmg, []byte("dmg"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	mount := t.TempDir()
-	pkg := filepath.Join(mount, "AT Starter.pkg")
+	pkg := filepath.Join(mount, "Rootyard.pkg")
 	if err := os.WriteFile(pkg, []byte("pkg"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestInstallMacOSPackageDMGRunsInstallerBeforeRelaunch(t *testing.T) {
 		"attach:" + dmg,
 		"install:" + pkg,
 		"detach:" + mount,
-		"relaunch:/Applications/AT Starter.app",
+		"relaunch:/Applications/Rootyard.app",
 	}
 	if !reflect.DeepEqual(calls, want) {
 		t.Fatalf("calls = %#v, want %#v", calls, want)
@@ -54,12 +54,12 @@ func TestInstallMacOSPackageDMGRunsInstallerBeforeRelaunch(t *testing.T) {
 }
 
 func TestInstallMacOSPackageDMGDetachesAndDoesNotRelaunchAfterInstallFailure(t *testing.T) {
-	dmg := filepath.Join(t.TempDir(), "AT-Starter.dmg")
+	dmg := filepath.Join(t.TempDir(), "Rootyard.dmg")
 	if err := os.WriteFile(dmg, []byte("dmg"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	mount := t.TempDir()
-	if err := os.WriteFile(filepath.Join(mount, "AT Starter.pkg"), []byte("pkg"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(mount, "Rootyard.pkg"), []byte("pkg"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -88,7 +88,7 @@ func TestInstallMacOSPackageDMGDetachesAndDoesNotRelaunchAfterInstallFailure(t *
 }
 
 func TestMacOSPackageInstallerArgsPassPackagePathAsAppleScriptArgument(t *testing.T) {
-	pkg := "/Volumes/AT Starter/AT Starter.pkg"
+	pkg := "/Volumes/Rootyard/Rootyard.pkg"
 	got := macOSPackageInstallerArgs(pkg)
 	want := []string{
 		"-e", "on run argv",
@@ -102,12 +102,12 @@ func TestMacOSPackageInstallerArgsPassPackagePathAsAppleScriptArgument(t *testin
 }
 
 func TestInstallMacOSPackageDMGReportsDetachFailure(t *testing.T) {
-	dmg := filepath.Join(t.TempDir(), "AT-Starter.dmg")
+	dmg := filepath.Join(t.TempDir(), "Rootyard.dmg")
 	if err := os.WriteFile(dmg, []byte("dmg"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	mount := t.TempDir()
-	if err := os.WriteFile(filepath.Join(mount, "AT Starter.pkg"), []byte("pkg"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(mount, "Rootyard.pkg"), []byte("pkg"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

@@ -41,7 +41,7 @@ var installScripts embed.FS
 // GitHub repo the updater polls. Kept in-code (not a build var) so the
 // origin is auditable and does not depend on env at runtime.
 const updateRepoOwner = "attson"
-const updateRepoName = "atstarter"
+const updateRepoName = "rootyard"
 
 // downloadMirrors 是一组 GitHub releases 下载加速镜像前缀(国内直连 github.com
 // 常极慢甚至卡住)。每个前缀直接拼在完整 github.com URL 之前,形如
@@ -426,7 +426,7 @@ func runInstallScript(asset, target, execPath string) error {
 	if err != nil {
 		return fmt.Errorf("embed missing %s: %w", name, err)
 	}
-	tmpDir, err := os.MkdirTemp("", "atstarter-install-*")
+	tmpDir, err := os.MkdirTemp("", "rootyard-install-*")
 	if err != nil {
 		return err
 	}
@@ -517,7 +517,7 @@ func (u *updater) download(ctx context.Context, assetURL string, expectedSize in
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(cacheRoot, "atstarter", "updates")
+	dir := filepath.Join(cacheRoot, "rootyard", "updates")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"atstarter/internal/runner"
-	"atstarter/internal/store"
+	"rootyard/internal/runner"
+	"rootyard/internal/store"
 )
 
 func newTestApp(t *testing.T) *App {
@@ -145,10 +145,30 @@ func TestSaveAppSettingsRejectsInvalidShell(t *testing.T) {
 	}
 }
 
-func TestDefaultConfigPathHonorsEnvOverride(t *testing.T) {
+func TestDefaultConfigPathHonorsRootyardEnvOverride(t *testing.T) {
 	want := filepath.Join(t.TempDir(), "custom.json")
-	t.Setenv("ATSTARTER_CONFIG", want)
+	t.Setenv("ROOTYARD_CONFIG", want)
 
+	if got := defaultConfigPath(); got != want {
+		t.Fatalf("defaultConfigPath = %q, want %q", got, want)
+	}
+}
+
+func TestDefaultConfigPathIgnoresLegacyEnvOverride(t *testing.T) {
+	oldVersion := Version
+	Version = "v1.2.3"
+	t.Cleanup(func() { Version = oldVersion })
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	legacyConfigEnv := "AT" + "STARTER_CONFIG"
+	t.Setenv(legacyConfigEnv, filepath.Join(t.TempDir(), "legacy.json"))
+
+	configHome, err := os.UserConfigDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(configHome, "rootyard", "config.json")
 	if got := defaultConfigPath(); got != want {
 		t.Fatalf("defaultConfigPath = %q, want %q", got, want)
 	}
@@ -205,7 +225,7 @@ func TestNewAppUsesUserConfigOutsideDev(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, ".dev")); !os.IsNotExist(err) {
 		t.Fatalf("expected no .dev config outside dev, stat err = %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(userConfigDir, "atstarter", "config.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(userConfigDir, "rootyard", "config.json")); err != nil {
 		t.Fatalf("expected user config outside dev: %v", err)
 	}
 }

@@ -8,7 +8,7 @@ assets, and Pages deployment checks.
 
 ## 1. Site Responsibilities
 
-The site lives under `site/docs` and is published to GitHub Pages at `/atstarter/`.
+The site lives under `site/docs` and is published to GitHub Pages at `/rootyard/`.
 
 | Area | File | Responsibility |
 |------|------|----------------|
@@ -90,8 +90,8 @@ embedded frontend writes `data-theme`.
 
 ### Asset Rules
 
-- The site favicon is `site/docs/public/atstarter-icon.svg` and must be referenced with the Pages base:
-  `/atstarter/atstarter-icon.svg`.
+- The site favicon is `site/docs/public/rootyard-icon.svg` and must be referenced with the Pages base:
+  `/rootyard/rootyard-icon.svg`.
 - Screenshots in `site/docs/public/shot-*.png` should show current product UI, not outdated mockups.
 - Screenshot names should be stable when content is refreshed so Markdown references do not churn.
 - Public images must not reveal private project paths, tokens, logs, hostnames, or user data.
@@ -127,7 +127,7 @@ dependencies. Vite aliases must resolve:
 
 - Do not make the site depend on a running local backend.
 - Do not push real local config or user data into mock fixtures.
-- Do not hardcode a VitePress base other than `/atstarter/` for GitHub Pages.
+- Do not hardcode a VitePress base other than `/rootyard/` for GitHub Pages.
 - Do not remove the route-aware theme bridge while the embedded frontend can write `html[data-theme]`.
 - Do not let CodeMirror or Vue resolve to duplicate incompatible package instances in the site build.
 

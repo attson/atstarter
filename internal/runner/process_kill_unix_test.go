@@ -275,7 +275,7 @@ func TestStartReappliesEnvOverridesAfterLoginShellMutatesPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("SHELL", fakeShell)
-	t.Setenv("ATSTARTER_TEST_BASE_PATH", "/usr/bin:/bin")
+	t.Setenv("ROOTYARD_TEST_BASE_PATH", "/usr/bin:/bin")
 
 	r := New(1000)
 	lines := make(chan LogLine, 10)
@@ -286,7 +286,7 @@ func TestStartReappliesEnvOverridesAfterLoginShellMutatesPath(t *testing.T) {
 		Command: "tool",
 		Dir:     root,
 		Env: map[string]string{
-			"PATH": wantBin + ":$ATSTARTER_TEST_BASE_PATH",
+			"PATH": wantBin + ":$ROOTYARD_TEST_BASE_PATH",
 		},
 	}
 	if err := r.Start(spec); err != nil {

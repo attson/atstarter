@@ -1,10 +1,10 @@
 {
-  "name": "@attson/atstarter-mcp",
+  "name": "@attson/rootyard-mcp",
   "version": "0.1.0",
-  "description": "npx launcher for the AT Starter MCP server. Locates the locally installed atstarter binary and runs `atstarter mcp`.",
+  "description": "npx launcher for the Rootyard MCP server. Locates the locally installed rootyard binary and runs `rootyard mcp`.",
   "type": "module",
   "bin": {
-    "atstarter-mcp": "./bin/atstarter-mcp.mjs"
+    "rootyard-mcp": "./bin/rootyard-mcp.mjs"
   },
   "exports": {
     "./locate": "./lib/locate.mjs"
@@ -21,7 +21,7 @@
     "test": "node --test"
   },
   "keywords": [
-    "atstarter",
+    "rootyard",
     "mcp",
     "npx",
     "launcher",
@@ -29,12 +29,12 @@
     "docker",
     "compose"
   ],
-  "homepage": "https://github.com/attson/atstarter",
+  "homepage": "https://github.com/attson/rootyard",
   "repository": {
     "type": "git",
-    "url": "https://github.com/attson/atstarter.git",
-    "directory": "npm/atstarter-mcp"
+    "url": "https://github.com/attson/rootyard.git",
+    "directory": "npm/rootyard-mcp"
   },
   "license": "MIT",
-  "author": "atstarter"
+  "author": "rootyard"
 }

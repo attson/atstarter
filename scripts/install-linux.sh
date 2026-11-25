@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install a new atstarter linux build. Invoked by the running app right
+# Install a new rootyard linux build. Invoked by the running app right
 # before it exits. Arguments:
 #   $1 asset path (validated .tar.gz on disk)
 #   $2 target binary path (absolute; typically the running binary)
@@ -10,7 +10,7 @@ asset="$1"
 target="$2"
 exec_path="$3"
 
-log() { echo "[atstarter-install] $*" >&2; }
+log() { echo "[rootyard-install] $*" >&2; }
 
 test -f "$asset" || { log "asset missing: $asset"; exit 1; }
 
@@ -19,12 +19,12 @@ trap 'rm -rf "$tmp"' EXIT
 
 tar -xzf "$asset" -C "$tmp"
 
-# Tarball contains a single binary named "atstarter".
+# Tarball contains a single binary named "rootyard".
 src=""
 while IFS= read -r -d '' candidate; do
   src="$candidate"
   break
-done < <(find "$tmp" -maxdepth 2 -type f -name "atstarter" -print0)
+done < <(find "$tmp" -maxdepth 2 -type f -name "rootyard" -print0)
 
 test -n "$src" || { log "no binary found in tarball"; exit 1; }
 chmod +x "$src"

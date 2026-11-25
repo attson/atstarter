@@ -8,9 +8,9 @@ package main
 
 #include <stdbool.h>
 
-void atstarter_start_tray(const char *iconBytes, int length);
-void atstarter_update_running(int n);
-void atstarter_update_visible(bool visible);
+void rootyard_start_tray(const char *iconBytes, int length);
+void rootyard_update_running(int n);
+void rootyard_update_visible(bool visible);
 */
 import "C"
 
@@ -34,10 +34,10 @@ var (
 func startTray(a *App) {
 	trayApp = a
 	if len(trayIcon) == 0 {
-		C.atstarter_start_tray((*C.char)(nil), 0)
+		C.rootyard_start_tray((*C.char)(nil), 0)
 		return
 	}
-	C.atstarter_start_tray((*C.char)(unsafe.Pointer(&trayIcon[0])), C.int(len(trayIcon)))
+	C.rootyard_start_tray((*C.char)(unsafe.Pointer(&trayIcon[0])), C.int(len(trayIcon)))
 }
 
 func traySupported() bool {
@@ -111,13 +111,13 @@ func setTrayWindowVisible(v bool) {
 }
 
 func refreshToggleLabelLocked() {
-	C.atstarter_update_visible(C.bool(trayVisible))
+	C.rootyard_update_visible(C.bool(trayVisible))
 }
 
 func updateTrayRunning(n int) {
 	trayMu.Lock()
 	defer trayMu.Unlock()
-	C.atstarter_update_running(C.int(n))
+	C.rootyard_update_running(C.int(n))
 }
 
 func isTrayReady() bool {

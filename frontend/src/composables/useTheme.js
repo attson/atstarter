@@ -1,6 +1,6 @@
 import { ref, computed, watchEffect } from 'vue'
 
-const STORAGE_KEY = 'atstarter.theme'
+export const THEME_STORAGE_KEY = 'rootyard.theme'
 const VALID = new Set(['system', 'dark', 'light'])
 const CYCLE = { system: 'dark', dark: 'light', light: 'system' }
 
@@ -16,7 +16,7 @@ export function nextTheme(theme) {
 
 function loadTheme() {
   try {
-    const value = localStorage.getItem(STORAGE_KEY)
+    const value = localStorage.getItem(THEME_STORAGE_KEY)
     return VALID.has(value) ? value : 'system'
   } catch {
     return 'system'
@@ -24,7 +24,7 @@ function loadTheme() {
 }
 
 function saveTheme(value) {
-  try { localStorage.setItem(STORAGE_KEY, value) } catch {}
+  try { localStorage.setItem(THEME_STORAGE_KEY, value) } catch {}
 }
 
 const theme = ref(loadTheme())

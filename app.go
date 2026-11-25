@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"atstarter/internal/cmdparse"
-	"atstarter/internal/detector"
-	"atstarter/internal/docker"
-	"atstarter/internal/filetree"
-	"atstarter/internal/git"
-	"atstarter/internal/runner"
-	"atstarter/internal/scanner"
-	"atstarter/internal/store"
+	"rootyard/internal/cmdparse"
+	"rootyard/internal/detector"
+	"rootyard/internal/docker"
+	"rootyard/internal/filetree"
+	"rootyard/internal/git"
+	"rootyard/internal/runner"
+	"rootyard/internal/scanner"
+	"rootyard/internal/store"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -106,7 +106,7 @@ func NewAppWithConfig(cfgPath string) *App {
 
 // defaultConfigPath 返回配置文件路径。dev 构建使用项目目录下的 .dev 隔离本地数据。
 func defaultConfigPath() string {
-	if override := os.Getenv("ATSTARTER_CONFIG"); override != "" {
+	if override := os.Getenv("ROOTYARD_CONFIG"); override != "" {
 		return override
 	}
 	if Version == "dev" {
@@ -120,7 +120,7 @@ func defaultConfigPath() string {
 	if err != nil {
 		dir = "."
 	}
-	return filepath.Join(dir, "atstarter", "config.json")
+	return filepath.Join(dir, "rootyard", "config.json")
 }
 
 // startup 由 Wails 在启动时调用,保存 ctx 并接好日志事件转发。

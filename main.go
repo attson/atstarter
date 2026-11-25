@@ -40,9 +40,9 @@ func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
-	title := "AT Starter"
+	title := "Rootyard"
 	if Version != "dev" {
-		title = "AT Starter " + Version
+		title = "Rootyard " + Version
 	}
 
 	// Create application with options

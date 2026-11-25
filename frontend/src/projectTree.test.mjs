@@ -12,8 +12,8 @@ const projects = [
   },
   {
     id: 'starter',
-    name: 'atstarter',
-    path: '/home/attson/GolandProjects/atstarter',
+    name: 'rootyard',
+    path: '/home/attson/GolandProjects/rootyard',
     command: 'wails',
     args: ['dev', '-tags', 'webkit2_41'],
     detectedType: 'wails',

@@ -9,7 +9,7 @@ import './custom.css'
 // 之外的导航栏(.VPNav)做首页专属适配;离开首页(进 /guide/)时立即移除,
 // 文档页导航栏恢复默认。明暗色由 VitePress 的主题状态和 CSS 变量决定。
 // 判定首页用 DOM 探测 .VPHome 是否存在(VitePress 仅在 home layout 渲染它),
-// 避免 route.path 因 base 前缀(/atstarter/)导致的字符串比较不稳。DOM 操作
+// 避免 route.path 因 base 前缀(/rootyard/)导致的字符串比较不稳。DOM 操作
 // 延后到 onMounted(浏览器)执行,保持 SSR 安全;route 仅用于触发路由切换重扫。
 function useHomeBodyClass(route) {
   if (typeof window === 'undefined') return

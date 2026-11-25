@@ -1,4 +1,4 @@
-// Package store 负责 atstarter 配置(工作区 + 项目列表)的持久化。
+// Package store 负责 rootyard 配置(工作区 + 项目列表)的持久化。
 package store
 
 import (

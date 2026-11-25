@@ -148,7 +148,7 @@ Applicable to release checks and installs.
    finds its PKG, runs `/usr/sbin/installer` with authorization, and reports mount/install/detach
    failures before quitting.
 6. Relaunch the installed executable only after installation succeeds. The macOS PKG installs both
-   `/Applications/AT Starter.app` and `/usr/local/bin/atstarter`; its DMG does not expose a drag-copy
+   `/Applications/Rootyard.app` and `/usr/local/bin/rootyard`; its DMG does not expose a drag-copy
    App bundle.
 
 Reference implementation: `updater.go`, `install_darwin.go`, `install_macos_package.go`,
@@ -271,6 +271,6 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 
 ### 2026-08-18 Separate the product display name from the automation command
 
-Keep `AT Starter` as the desktop display name and `atstarter` as the cross-platform CLI/MCP command.
+Keep `Rootyard` as the desktop display name and `rootyard` as the cross-platform CLI/MCP command.
 The macOS DMG carries a PKG because drag-copy installation cannot create the PATH entry; versions
 using the old DMG layout require one manual install to cross this packaging change.

@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "atstarter": {
-      "command": "atstarter",
+    "rootyard": {
+      "command": "rootyard",
       "args": ["mcp"]
     }
   }

@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { resolveTheme, nextTheme } from './useTheme.js'
+import { THEME_STORAGE_KEY, resolveTheme, nextTheme } from './useTheme.js'
+
+test('theme preference uses the Rootyard storage namespace', () => {
+  assert.equal(THEME_STORAGE_KEY, 'rootyard.theme')
+})
 
 test('resolveTheme: system + prefers dark → dark', () => {
   assert.equal(resolveTheme('system', true), 'dark')

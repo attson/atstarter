@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"atstarter/internal/control"
-	"atstarter/internal/store"
+	"rootyard/internal/control"
+	"rootyard/internal/store"
 )
 
 func TestResolveProjectFromRejectsAmbiguousNames(t *testing.T) {
@@ -135,6 +135,20 @@ func TestRunCLIProjectListUsesControlServer(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `"ok":true`) || !strings.Contains(stdout.String(), `"api"`) {
 		t.Fatalf("stdout = %s", stdout.String())
+	}
+}
+
+func TestCLIHelpUsesOnlyRootyardCommand(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := runCLIWithIO([]string{"help"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit = %d stderr=%s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `rootyard cli`) {
+		t.Fatalf("help = %s, want rootyard cli usage", stdout.String())
+	}
+	legacyName := "at" + "starter"
+	if strings.Contains(strings.ToLower(stdout.String()), legacyName) {
+		t.Fatalf("help contains legacy command: %s", stdout.String())
 	}
 }
 

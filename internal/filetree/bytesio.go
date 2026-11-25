@@ -98,7 +98,7 @@ func WriteFileBytes(root, relPath string, data []byte, expectedModTime int64, cr
 	}
 
 	dir := filepath.Dir(full)
-	tmp, err := os.CreateTemp(dir, ".atstarter-tmp-*")
+	tmp, err := os.CreateTemp(dir, ".rootyard-tmp-*")
 	if err != nil {
 		return 0, err
 	}

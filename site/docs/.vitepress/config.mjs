@@ -1,15 +1,15 @@
 import { defineConfig } from 'vitepress'
 import { fileURLToPath } from 'node:url'
 
-// 项目页部署在 https://attson.github.io/atstarter/,base 必须与仓库名一致,
+// 项目页部署在 https://attson.github.io/rootyard/,base 必须与仓库名一致,
 // 否则静态资源 404。
 export default defineConfig({
-  base: '/atstarter/',
+  base: '/rootyard/',
   lang: 'zh-CN',
-  title: 'AT Starter',
-  description: '本地项目快速启动器(Wails v2 + Vue3 桌面 App)',
+  title: 'Rootyard',
+  description: 'Your local project workspace',
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/atstarter/atstarter-icon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/rootyard/rootyard-icon.svg' }],
   ],
   vite: {
     resolve: {
@@ -47,7 +47,7 @@ export default defineConfig({
       { text: '使用文档', link: '/guide/' },
       { text: 'AI/CLI', link: '/guide/ai-cli' },
       { text: 'FAQ', link: '/guide/faq' },
-      { text: '下载', link: 'https://github.com/attson/atstarter/releases/latest' },
+      { text: '下载', link: 'https://github.com/attson/rootyard/releases/latest' },
     ],
     sidebar: {
       '/guide/': [
@@ -62,7 +62,7 @@ export default defineConfig({
       ],
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/attson/atstarter' },
+      { icon: 'github', link: 'https://github.com/attson/rootyard' },
     ],
     search: { provider: 'local' },
   },

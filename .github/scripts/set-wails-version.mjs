@@ -16,6 +16,6 @@ if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
 
 const data = JSON.parse(readFileSync(file, 'utf8'))
 data.info ??= {}
-data.info.productName ??= 'atstarter'
+data.info.productName ??= 'Rootyard'
 data.info.productVersion = version
 writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`)

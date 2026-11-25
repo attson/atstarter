@@ -1,4 +1,4 @@
-# Install a new atstarter windows build. Invoked by the running app right
+# Install a new rootyard windows build. Invoked by the running app right
 # before it exits. Arguments (positional):
 #   -Asset  <path>  validated NSIS .exe on disk
 #   -Target <path>  target install directory (ignored — the NSIS installer
@@ -11,7 +11,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-function log($msg) { Write-Host "[atstarter-install] $msg" }
+function log($msg) { Write-Host "[rootyard-install] $msg" }
 
 if (-not (Test-Path -LiteralPath $Asset)) {
   log "asset missing: $Asset"; exit 1

@@ -19,8 +19,8 @@ func platformInstall(asset, target, execPath string) error {
 }
 
 // installDarwin mounts the release DMG and runs the PKG inside it. The PKG is
-// responsible for replacing /Applications/AT Starter.app and installing the
-// /usr/local/bin/atstarter symlink as one privileged operation.
+// responsible for replacing /Applications/Rootyard.app and installing the
+// /usr/local/bin/rootyard symlink as one privileged operation.
 func installDarwin(dmgPath, _ string) error {
 	return installMacOSPackageDMG(dmgPath, macOSPackageInstallOps{
 		attach:   hdiutilAttach,
@@ -34,7 +34,7 @@ func installDarwin(dmgPath, _ string) error {
 // 输出格式类似:
 //
 //	/dev/disk4              GUID_partition_scheme
-//	/dev/disk4s1            Apple_HFS                       /Volumes/AT-Starter 0.5.5
+//	/dev/disk4s1            Apple_HFS                       /Volumes/Rootyard 0.5.5
 //
 // 我们扫描每一行,把最后一个 tab-separated 字段是 /Volumes/... 的记为 mount point。
 // 不用 `awk 'END{print $NF}'` 那种"最后一行末字段"的启发式 —— DMG 若含 EULA 或多

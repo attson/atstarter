@@ -4,10 +4,10 @@ import "testing"
 
 func TestNormalizeProjectName(t *testing.T) {
 	cases := map[string]string{
-		"MyApp":               "myapp",
-		"AtStarter_Case-Test": "atstarter_case-test",
-		"my.app":              "myapp",
-		"web app":             "webapp",
+		"MyApp":              "myapp",
+		"Rootyard_Case-Test": "rootyard_case-test",
+		"my.app":             "myapp",
+		"web app":            "webapp",
 	}
 	for in, want := range cases {
 		if got := NormalizeProjectName(in); got != want {

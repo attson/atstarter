@@ -1,4 +1,4 @@
-// fsBridge:把 atterm FileTree 需要的文件系统接口,适配到 atstarter 的 wails 绑定。
+// fsBridge:把 atterm FileTree 需要的文件系统接口,适配到 rootyard 的 wails 绑定。
 // 路径体系:相对项目根的 relPath,空串 "" = 根,统一 "/" 分隔(与后端 filetree 约定一致)。
 import {
   ListProjectDir,

@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"atstarter/internal/control"
-	"atstarter/internal/runner"
-	"atstarter/internal/scanner"
-	"atstarter/internal/store"
+	"rootyard/internal/control"
+	"rootyard/internal/runner"
+	"rootyard/internal/scanner"
+	"rootyard/internal/store"
 )
 
 type controlServer struct {

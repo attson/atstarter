@@ -116,12 +116,12 @@ func TestStartMissingBinaryYieldsError(t *testing.T) {
 }
 
 func TestBuildEnvExpandsConfiguredValuesFromProcessEnvironment(t *testing.T) {
-	t.Setenv("ATSTARTER_TEST_PATH", "/usr/bin:/bin")
-	t.Setenv("ATSTARTER_TEST_HOME", "/home/tester")
+	t.Setenv("ROOTYARD_TEST_PATH", "/usr/bin:/bin")
+	t.Setenv("ROOTYARD_TEST_HOME", "/home/tester")
 
 	env := buildEnv(map[string]string{
-		"PATH":    "/opt/go/bin:$ATSTARTER_TEST_PATH",
-		"GOCACHE": "${ATSTARTER_TEST_HOME}/.cache/go-build",
+		"PATH":    "/opt/go/bin:$ROOTYARD_TEST_PATH",
+		"GOCACHE": "${ROOTYARD_TEST_HOME}/.cache/go-build",
 		"LITERAL": "plain",
 	})
 

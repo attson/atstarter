@@ -1,8 +1,8 @@
-# atstarter Architecture Spec
+# Rootyard Architecture Spec
 
 ## Document Goal
 
-This file is the high-level architecture map for atstarter. Keep detailed domain rules in
+This file is the high-level architecture map for Rootyard. Keep detailed domain rules in
 `DOMAIN_MODEL.md`, runtime contracts in `RUNTIME_CONTRACTS.md`, frontend interaction/style rules in
 `FRONTEND_STYLE.md`, file browser rules in `FILE_BROWSER.md`, and public site rules in `SITE.md`.
 
@@ -11,9 +11,9 @@ Process drafts under `docs/superpowers/` are not formal specs. Long-lived projec
 
 ## 1. System Overview
 
-atstarter is a local desktop project launcher. It turns local directories into managed launch targets:
-detect project type, store launch commands, start or stop child processes, show logs, manage
-Docker/compose, browse project files, and self-update from GitHub Releases.
+Rootyard is a local project workspace. It turns local directories into managed projects: detect
+project type, store launch commands, start or stop child processes, show logs, manage Docker/compose,
+browse project files, inspect local Git state, expose AI controls, and self-update from GitHub Releases.
 
 ```text
 Wails desktop process
@@ -37,7 +37,7 @@ public site: VitePress
   site/docs
     home page embeds frontend/src/App.vue with mock Wails bindings
     guide pages document user workflows and troubleshooting
-    Pages build publishes under /atstarter/
+    Pages build publishes under /rootyard/
 ```
 
 The app is intentionally local-first. Configuration is a JSON file under the platform config
@@ -59,7 +59,7 @@ directory. There is no server-side state.
 | `app.go` | Compose modules and expose Wails methods/events | Binding layer only |
 | `control_server.go` | Expose selected App operations on localhost for CLI/MCP | Desktop process remains source of truth |
 | `cli.go` | Parse AI/script-friendly commands and print JSON envelopes | Client of control server |
-| `mcp.go` | Expose `atstarter_*` MCP tools over stdio | Wrapper around control client |
+| `mcp.go` | Expose `rootyard_*` MCP tools over stdio | Wrapper around control client |
 | `updater.go` | Check/download/verify/install releases | Network and installer state |
 | `tray.go` | Tray menu, close-to-tray, running count, exit gate | Desktop integration |
 
@@ -97,8 +97,8 @@ Frontend imports generated bindings from `frontend/wailsjs/go/main/App` and runt
 ## 4.1 Local Control Surface
 
 The desktop process starts a localhost-only control server during Wails startup and writes
-`<config path>.control.json` with URL, bearer token, PID, and version. `atstarter cli` and
-`atstarter mcp` read that file and call the desktop process. They must not create an independent
+`<config path>.control.json` with URL, bearer token, PID, and version. `rootyard cli` and
+`rootyard mcp` read that file and call the desktop process. They must not create an independent
 runner, Docker poller, or store writer.
 
 The control surface exposes the same behavioral surface as the UI for workspace scanning, project
@@ -107,21 +107,21 @@ services, and logs. CLI output is a JSON envelope:
 
 ```json
 {"ok":true,"data":{}}
-{"ok":false,"error":{"code":"app_not_running","message":"atstarter desktop app is not running","hint":"run: atstarter cli app start --wait"}}
+{"ok":false,"error":{"code":"app_not_running","message":"rootyard desktop app is not running","hint":"run: rootyard cli app start --wait"}}
 ```
 
-`atstarter cli app start --wait` may launch the desktop binary when no control server is reachable.
+`rootyard cli app start --wait` may launch the desktop binary when no control server is reachable.
 All other commands require the desktop process to be running.
 
 ## 4.2 Product And Command Naming
 
-`AT Starter` is the user-facing product name used for window titles, application bundles, shortcuts,
-and installer UI. `atstarter` is the canonical automation command on every platform
-(`atstarter.exe` on Windows). Formal installers must make that command available to a newly opened
+`Rootyard` is the user-facing product name used for window titles, application bundles, shortcuts,
+and installer UI. `rootyard` is the canonical automation command on every platform
+(`rootyard.exe` on Windows). Formal installers must make that command available to a newly opened
 terminal; portable tar/zip archives do not modify PATH.
 
-Release asset filenames may keep the `AT-Starter` prefix. MCP/plugin configuration must execute
-`atstarter mcp` directly rather than depend on a platform shell or a display-name executable.
+Release asset filenames use the `Rootyard-` or `Rootyard_` prefix. MCP/plugin configuration must execute
+`rootyard mcp` directly rather than depend on a platform shell or a display-name executable.
 
 ## 5. Runtime Events
 
@@ -143,6 +143,9 @@ Runner log callbacks enter a bounded batcher that emits at most every 75 ms or e
 Hidden or inactive log terminals skip xterm writes and rebuild from `GetLogs(runID)` when visible.
 
 ## 6. Configuration
+
+The default config path is `<UserConfigDir>/rootyard/config.json`. `ROOTYARD_CONFIG` overrides the
+entire path. Rootyard does not probe or migrate configuration under a previous product identity.
 
 The config file shape is:
 

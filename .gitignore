@@ -2,10 +2,11 @@ build/bin/
 frontend/dist/
 frontend/node_modules/
 node_modules/
-/atstarter
+/rootyard
 .idea/
 frontend/package.json.md5
 .playwright-mcp/
+.worktrees/
 *-verify.png
 .dev
 .dev.control.json

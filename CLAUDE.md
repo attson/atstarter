@@ -6,7 +6,7 @@ This file provides guidance to AI coding agents working in this repository.
 
 ## Project Overview
 
-atstarter is a local project launcher desktop app built with Wails v2, Go, and Vue 3. It scans local workspaces, detects project types, stores project launch commands, starts/stops projects, shows logs, manages Docker/compose, provides a file browser/editor, and self-updates from GitHub Releases.
+Rootyard is a local project workspace built with Wails v2, Go, and Vue 3. It scans local workspaces, detects project types, stores project launch commands, starts/stops projects, shows logs, manages Docker/compose, provides file and Git tools, exposes CLI/MCP controls, and self-updates from GitHub Releases.
 
 ## Required Commands
 
@@ -95,5 +95,5 @@ frontend/src/           Vue3 app, custom UI components, theme tokens, file explo
 
 - Do not push directly to `main`. Use feature branch -> GitHub PR -> green CI -> merge -> tag from `main`.
 - Release by annotated `v*` tag on `main`; CI builds Linux/macOS/Windows assets, signs checksums, and publishes GitHub Release.
-- Keep `AT Starter` as the product display name and `atstarter` (`atstarter.exe` on Windows) as the
+- Keep `Rootyard` as the product display name and `rootyard` (`rootyard.exe` on Windows) as the
   installed CLI/MCP command. Formal installers must expose the command in a new terminal.

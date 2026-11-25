@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"atstarter/internal/filetree"
+	"rootyard/internal/filetree"
 )
 
 const projectFSURLPrefix = "/projectfs/"

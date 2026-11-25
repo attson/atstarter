@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"atstarter/internal/control"
+	"rootyard/internal/control"
 )
 
 type mcpRequest struct {
@@ -81,10 +81,10 @@ func (s *mcpServer) handle(req mcpRequest) mcpResponse {
 		return mcpResponse{JSONRPC: "2.0", ID: id, Result: map[string]interface{}{
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]interface{}{"tools": map[string]interface{}{}},
-			"serverInfo":      map[string]interface{}{"name": "atstarter", "version": Version},
+			"serverInfo":      map[string]interface{}{"name": "rootyard", "version": Version},
 		}}
 	case "tools/list":
-		return mcpResponse{JSONRPC: "2.0", ID: id, Result: map[string]interface{}{"tools": atstarterMCPTools()}}
+		return mcpResponse{JSONRPC: "2.0", ID: id, Result: map[string]interface{}{"tools": rootyardMCPTools()}}
 	case "tools/call":
 		var params struct {
 			Name      string                 `json:"name"`
@@ -104,47 +104,47 @@ func (s *mcpServer) callTool(name string, args map[string]interface{}) map[strin
 	var data interface{}
 	var err error
 	switch name {
-	case "atstarter_app_ping":
+	case "rootyard_app_ping":
 		data, err = callControl(s.client, "app.ping", nil)
-	case "atstarter_app_start":
+	case "rootyard_app_start":
 		data, err = mcpAppStart(s.client, durationArg(args, "timeout", 20*time.Second))
-	case "atstarter_scan":
+	case "rootyard_scan":
 		data, err = callControl(s.client, "workspace.scan", targetParams{Roots: stringSliceArg(args, "roots"), Add: boolArg(args, "add")})
-	case "atstarter_project_add":
+	case "rootyard_project_add":
 		data, err = callControl(s.client, "project.add", targetParams{Path: stringArg(args, "path")})
-	case "atstarter_project_list":
+	case "rootyard_project_list":
 		data, err = callControl(s.client, "project.list", nil)
-	case "atstarter_project_commands":
+	case "rootyard_project_commands":
 		data, err = callControl(s.client, "project.commands", targetParams{Project: stringArg(args, "project")})
-	case "atstarter_project_detection_options":
+	case "rootyard_project_detection_options":
 		data, err = callControl(s.client, "project.detection.options", targetParams{Project: stringArg(args, "project")})
-	case "atstarter_project_switch_type":
+	case "rootyard_project_switch_type":
 		data, err = callControl(s.client, "project.detection.switch", targetParams{Project: stringArg(args, "project"), Type: stringArg(args, "type")})
-	case "atstarter_project_start", "atstarter_project_stop", "atstarter_project_restart", "atstarter_project_status", "atstarter_project_logs":
+	case "rootyard_project_start", "rootyard_project_stop", "rootyard_project_restart", "rootyard_project_status", "rootyard_project_logs":
 		data, err = s.callProjectTool(name, args)
-	case "atstarter_group_list":
+	case "rootyard_group_list":
 		data, err = callControl(s.client, "group.list", nil)
-	case "atstarter_group_create":
+	case "rootyard_group_create":
 		data, err = callControl(s.client, "group.save", targetParams{Name: stringArg(args, "name"), Items: itemListArg(args, "items")})
-	case "atstarter_group_update":
+	case "rootyard_group_update":
 		data, err = callControl(s.client, "group.save", targetParams{Group: stringArg(args, "group"), Name: stringArg(args, "name"), Items: itemListArg(args, "items")})
-	case "atstarter_group_remove":
+	case "rootyard_group_remove":
 		data, err = callControl(s.client, "group.remove", targetParams{Group: stringArg(args, "group")})
-	case "atstarter_group_add_item":
+	case "rootyard_group_add_item":
 		data, err = callControl(s.client, "group.add_item", targetParams{Group: stringArg(args, "group"), Items: []itemParams{{Project: stringArg(args, "project"), Command: stringArg(args, "command")}}})
-	case "atstarter_group_remove_item":
+	case "rootyard_group_remove_item":
 		data, err = callControl(s.client, "group.remove_item", targetParams{Group: stringArg(args, "group"), Items: []itemParams{{Project: stringArg(args, "project"), Command: stringArg(args, "command")}}})
-	case "atstarter_group_start":
+	case "rootyard_group_start":
 		data, err = callControl(s.client, "group.start", targetParams{Group: stringArg(args, "group")})
-	case "atstarter_group_stop":
+	case "rootyard_group_stop":
 		data, err = callControl(s.client, "group.stop", targetParams{Group: stringArg(args, "group")})
-	case "atstarter_docker_info":
+	case "rootyard_docker_info":
 		data, err = callControl(s.client, "docker.info", nil)
-	case "atstarter_container_list":
+	case "rootyard_container_list":
 		data, err = callControl(s.client, "container.list", nil)
-	case "atstarter_container_start", "atstarter_container_stop", "atstarter_container_restart", "atstarter_container_logs":
+	case "rootyard_container_start", "rootyard_container_stop", "rootyard_container_restart", "rootyard_container_logs":
 		data, err = s.callContainerTool(name, args)
-	case "atstarter_compose_services", "atstarter_compose_up", "atstarter_compose_stop", "atstarter_compose_restart", "atstarter_compose_down", "atstarter_compose_logs":
+	case "rootyard_compose_services", "rootyard_compose_up", "rootyard_compose_stop", "rootyard_compose_restart", "rootyard_compose_down", "rootyard_compose_logs":
 		data, err = s.callComposeTool(name, args)
 	default:
 		err = control.RemoteError{Code: "unknown_tool", Message: "unknown MCP tool: " + name}
@@ -155,16 +155,16 @@ func (s *mcpServer) callTool(name string, args map[string]interface{}) map[strin
 func (s *mcpServer) callProjectTool(name string, args map[string]interface{}) (interface{}, error) {
 	params := targetParams{Project: stringArg(args, "project"), Command: stringArg(args, "command"), Tail: intArg(args, "tail")}
 	switch name {
-	case "atstarter_project_start":
+	case "rootyard_project_start":
 		return callControl(s.client, "project.start", params)
-	case "atstarter_project_stop":
+	case "rootyard_project_stop":
 		return callControl(s.client, "project.stop", params)
-	case "atstarter_project_restart":
+	case "rootyard_project_restart":
 		if _, err := callControl(s.client, "project.stop", params); err != nil {
 			return nil, err
 		}
 		return callControl(s.client, "project.start", params)
-	case "atstarter_project_status":
+	case "rootyard_project_status":
 		return callControl(s.client, "project.status", params)
 	default:
 		return callControl(s.client, "project.logs", params)
@@ -174,11 +174,11 @@ func (s *mcpServer) callProjectTool(name string, args map[string]interface{}) (i
 func (s *mcpServer) callContainerTool(name string, args map[string]interface{}) (interface{}, error) {
 	params := targetParams{ID: stringArg(args, "id"), Tail: intArg(args, "tail")}
 	switch name {
-	case "atstarter_container_start":
+	case "rootyard_container_start":
 		return callControl(s.client, "container.start", params)
-	case "atstarter_container_stop":
+	case "rootyard_container_stop":
 		return callControl(s.client, "container.stop", params)
-	case "atstarter_container_restart":
+	case "rootyard_container_restart":
 		return callControl(s.client, "container.restart", params)
 	default:
 		if _, err := callControl(s.client, "container.logs.start", params); err != nil {
@@ -192,15 +192,15 @@ func (s *mcpServer) callContainerTool(name string, args map[string]interface{}) 
 func (s *mcpServer) callComposeTool(name string, args map[string]interface{}) (interface{}, error) {
 	params := targetParams{Project: stringArg(args, "project"), Service: stringArg(args, "service"), Tail: intArg(args, "tail")}
 	switch name {
-	case "atstarter_compose_services":
+	case "rootyard_compose_services":
 		return callControl(s.client, "compose.services", params)
-	case "atstarter_compose_up":
+	case "rootyard_compose_up":
 		return callControl(s.client, "compose.up", params)
-	case "atstarter_compose_stop":
+	case "rootyard_compose_stop":
 		return callControl(s.client, "compose.stop", params)
-	case "atstarter_compose_restart":
+	case "rootyard_compose_restart":
 		return callControl(s.client, "compose.restart", params)
-	case "atstarter_compose_down":
+	case "rootyard_compose_down":
 		return callControl(s.client, "compose.down", params)
 	default:
 		if _, err := callControl(s.client, "compose.logs.start", params); err != nil {
@@ -226,41 +226,41 @@ func mcpAppStart(client control.Client, timeout time.Duration) (interface{}, err
 	return map[string]interface{}{"started": true, "pid": pid, "app": data}, nil
 }
 
-func atstarterMCPTools() []mcpTool {
+func rootyardMCPTools() []mcpTool {
 	return []mcpTool{
-		toolNoArgs("atstarter_app_ping", "Check whether the atstarter desktop app control service is running."),
-		toolWithSchema("atstarter_app_start", "Start the atstarter desktop app if it is not running.", objectSchema(map[string]interface{}{"timeout": stringProp("Go duration such as 20s.")}, nil)),
-		toolWithSchema("atstarter_scan", "Scan workspace roots and optionally add detected projects.", objectSchema(map[string]interface{}{"roots": arrayProp("Workspace roots.", stringProp("Workspace root path.")), "add": boolProp("Add detected non-unknown projects.")}, []string{"roots"})),
-		toolWithSchema("atstarter_project_add", "Add one project directory.", objectSchema(map[string]interface{}{"path": stringProp("Project directory path.")}, []string{"path"})),
-		toolNoArgs("atstarter_project_list", "List configured projects and launch commands."),
-		toolWithSchema("atstarter_project_commands", "List launch commands for one project.", projectSchema()),
-		toolWithSchema("atstarter_project_detection_options", "List available detection types for a project.", projectSchema()),
-		toolWithSchema("atstarter_project_switch_type", "Switch a project between compose and ordinary command detection modes.", objectSchema(map[string]interface{}{"project": stringProp("Project id or name."), "type": stringProp("Detection type such as compose, go, node-pnpm.")}, []string{"project", "type"})),
-		toolWithSchema("atstarter_project_start", "Start a project launch command.", projectCommandSchema(false)),
-		toolWithSchema("atstarter_project_stop", "Stop a project launch command.", projectCommandSchema(false)),
-		toolWithSchema("atstarter_project_restart", "Restart a project launch command.", projectCommandSchema(false)),
-		toolWithSchema("atstarter_project_status", "Read project launch command runtime status.", projectCommandSchema(false)),
-		toolWithSchema("atstarter_project_logs", "Read buffered project logs.", projectCommandSchema(true)),
-		toolNoArgs("atstarter_group_list", "List launch groups."),
-		toolWithSchema("atstarter_group_create", "Create a launch group.", groupSaveSchema(false)),
-		toolWithSchema("atstarter_group_update", "Rename a launch group or replace its items.", groupSaveSchema(true)),
-		toolWithSchema("atstarter_group_remove", "Delete a launch group.", objectSchema(map[string]interface{}{"group": stringProp("Group id or name.")}, []string{"group"})),
-		toolWithSchema("atstarter_group_add_item", "Add one project command to a launch group.", groupItemSchema()),
-		toolWithSchema("atstarter_group_remove_item", "Remove one project command from a launch group.", groupItemSchema()),
-		toolWithSchema("atstarter_group_start", "Start a launch group.", objectSchema(map[string]interface{}{"group": stringProp("Group id or name.")}, []string{"group"})),
-		toolWithSchema("atstarter_group_stop", "Stop a launch group.", objectSchema(map[string]interface{}{"group": stringProp("Group id or name.")}, []string{"group"})),
-		toolNoArgs("atstarter_docker_info", "Check Docker availability."),
-		toolNoArgs("atstarter_container_list", "List Docker containers."),
-		toolWithSchema("atstarter_container_start", "Start a Docker container.", containerSchema(false)),
-		toolWithSchema("atstarter_container_stop", "Stop a Docker container.", containerSchema(false)),
-		toolWithSchema("atstarter_container_restart", "Restart a Docker container.", containerSchema(false)),
-		toolWithSchema("atstarter_container_logs", "Read buffered Docker container logs, starting log follow first.", containerSchema(true)),
-		toolWithSchema("atstarter_compose_services", "List Docker compose services for a project.", composeSchema(false)),
-		toolWithSchema("atstarter_compose_up", "Run docker compose up -d for a project or service.", composeSchema(false)),
-		toolWithSchema("atstarter_compose_stop", "Stop docker compose for a project or service.", composeSchema(false)),
-		toolWithSchema("atstarter_compose_restart", "Restart docker compose for a project or service.", composeSchema(false)),
-		toolWithSchema("atstarter_compose_down", "Run docker compose down for a project.", composeSchema(false)),
-		toolWithSchema("atstarter_compose_logs", "Read buffered compose logs, starting log follow first.", composeSchema(true)),
+		toolNoArgs("rootyard_app_ping", "Check whether the rootyard desktop app control service is running."),
+		toolWithSchema("rootyard_app_start", "Start the rootyard desktop app if it is not running.", objectSchema(map[string]interface{}{"timeout": stringProp("Go duration such as 20s.")}, nil)),
+		toolWithSchema("rootyard_scan", "Scan workspace roots and optionally add detected projects.", objectSchema(map[string]interface{}{"roots": arrayProp("Workspace roots.", stringProp("Workspace root path.")), "add": boolProp("Add detected non-unknown projects.")}, []string{"roots"})),
+		toolWithSchema("rootyard_project_add", "Add one project directory.", objectSchema(map[string]interface{}{"path": stringProp("Project directory path.")}, []string{"path"})),
+		toolNoArgs("rootyard_project_list", "List configured projects and launch commands."),
+		toolWithSchema("rootyard_project_commands", "List launch commands for one project.", projectSchema()),
+		toolWithSchema("rootyard_project_detection_options", "List available detection types for a project.", projectSchema()),
+		toolWithSchema("rootyard_project_switch_type", "Switch a project between compose and ordinary command detection modes.", objectSchema(map[string]interface{}{"project": stringProp("Project id or name."), "type": stringProp("Detection type such as compose, go, node-pnpm.")}, []string{"project", "type"})),
+		toolWithSchema("rootyard_project_start", "Start a project launch command.", projectCommandSchema(false)),
+		toolWithSchema("rootyard_project_stop", "Stop a project launch command.", projectCommandSchema(false)),
+		toolWithSchema("rootyard_project_restart", "Restart a project launch command.", projectCommandSchema(false)),
+		toolWithSchema("rootyard_project_status", "Read project launch command runtime status.", projectCommandSchema(false)),
+		toolWithSchema("rootyard_project_logs", "Read buffered project logs.", projectCommandSchema(true)),
+		toolNoArgs("rootyard_group_list", "List launch groups."),
+		toolWithSchema("rootyard_group_create", "Create a launch group.", groupSaveSchema(false)),
+		toolWithSchema("rootyard_group_update", "Rename a launch group or replace its items.", groupSaveSchema(true)),
+		toolWithSchema("rootyard_group_remove", "Delete a launch group.", objectSchema(map[string]interface{}{"group": stringProp("Group id or name.")}, []string{"group"})),
+		toolWithSchema("rootyard_group_add_item", "Add one project command to a launch group.", groupItemSchema()),
+		toolWithSchema("rootyard_group_remove_item", "Remove one project command from a launch group.", groupItemSchema()),
+		toolWithSchema("rootyard_group_start", "Start a launch group.", objectSchema(map[string]interface{}{"group": stringProp("Group id or name.")}, []string{"group"})),
+		toolWithSchema("rootyard_group_stop", "Stop a launch group.", objectSchema(map[string]interface{}{"group": stringProp("Group id or name.")}, []string{"group"})),
+		toolNoArgs("rootyard_docker_info", "Check Docker availability."),
+		toolNoArgs("rootyard_container_list", "List Docker containers."),
+		toolWithSchema("rootyard_container_start", "Start a Docker container.", containerSchema(false)),
+		toolWithSchema("rootyard_container_stop", "Stop a Docker container.", containerSchema(false)),
+		toolWithSchema("rootyard_container_restart", "Restart a Docker container.", containerSchema(false)),
+		toolWithSchema("rootyard_container_logs", "Read buffered Docker container logs, starting log follow first.", containerSchema(true)),
+		toolWithSchema("rootyard_compose_services", "List Docker compose services for a project.", composeSchema(false)),
+		toolWithSchema("rootyard_compose_up", "Run docker compose up -d for a project or service.", composeSchema(false)),
+		toolWithSchema("rootyard_compose_stop", "Stop docker compose for a project or service.", composeSchema(false)),
+		toolWithSchema("rootyard_compose_restart", "Restart docker compose for a project or service.", composeSchema(false)),
+		toolWithSchema("rootyard_compose_down", "Run docker compose down for a project.", composeSchema(false)),
+		toolWithSchema("rootyard_compose_logs", "Read buffered compose logs, starting log follow first.", composeSchema(true)),
 	}
 }
 

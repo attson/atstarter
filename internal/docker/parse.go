@@ -8,7 +8,7 @@ import (
 
 // NormalizeProjectName 把目录名规整为 docker compose 生成的 project 名。
 // docker compose 会将默认 project 名转小写并只保留 [a-z0-9_-],其余字符去掉。
-// 例:"AtStarter_Case-Test" → "atstarter_case-test","my.app" → "myapp"。
+// 例:"Rootyard_Case-Test" → "rootyard_case-test","my.app" → "myapp"。
 // 用于把本地目录名与容器上 com.docker.compose.project label 对齐比对。
 func NormalizeProjectName(dir string) string {
 	var b strings.Builder

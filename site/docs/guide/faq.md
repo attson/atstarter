@@ -2,7 +2,7 @@
 
 ## 启动项目提示 `command not found`(pnpm / nvm / go 等)
 
-AT Starter 的子进程经用户登录交互式 shell(`$SHELL -l -i -c`)启动,以拿到完整 PATH。
+Rootyard 的子进程经用户登录交互式 shell(`$SHELL -l -i -c`)启动,以拿到完整 PATH。
 若仍报错,确认对应工具在你的登录 shell(`.zshrc` / `.bash_profile` 等)里配置了 PATH。
 
 ## `go run` 启动后长时间无日志
@@ -19,24 +19,24 @@ AT Starter 的子进程经用户登录交互式 shell(`$SHELL -l -i -c`)启动,�
 CLI/MCP 调用的是桌面 App 内的本地控制服务。先启动桌面 App,或直接执行:
 
 ```bash
-atstarter cli app start --wait
+rootyard cli app start --wait
 ```
 
-如果使用的是开发配置或自定义配置,同时传入 `ATSTARTER_CONFIG` 或 `--config`。
+如果使用的是开发配置或自定义配置,同时传入 `ROOTYARD_CONFIG` 或 `--config`。
 
 ## MCP 工具没有出现
 
-确认 `atstarter` 二进制在 PATH 中,并重新安装本地插件:
+确认 `rootyard` 二进制在 PATH 中,并重新安装本地插件:
 
 ```bash
-codex plugin add atstarter-control@personal
+codex plugin add rootyard-control@personal
 ```
 
 重新安装后开新线程。Codex 需要新会话才能加载更新后的 skill 和 MCP 工具。
 
-## 安装后提示 `atstarter: command not found`
+## 安装后提示 `rootyard: command not found`
 
-请确认使用的是正式安装包:macOS 打开 DMG 后需要运行其中的 `AT Starter.pkg`,不能只
+请确认使用的是正式安装包:macOS 打开 DMG 后需要运行其中的 `Rootyard.pkg`,不能只
 拖出 App;Linux 使用 Deb;Windows 使用安装器并新开一个终端。tar/zip 便携包不会自动
 加入 PATH。
 

@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"atstarter/internal/runner"
+	"rootyard/internal/runner"
 )
 
 // LogBatch 是发送给前端的有界日志批次。

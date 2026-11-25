@@ -96,7 +96,7 @@ Section
     Pop $0
     Pop $1
     ${If} $0 != 0
-        DetailPrint "Failed to add AT Starter to PATH: $1"
+        DetailPrint "Failed to add Rootyard to PATH: $1"
         Abort
     ${EndIf}
     SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment"
@@ -121,7 +121,7 @@ Section "uninstall"
     Pop $0
     Pop $1
     ${If} $0 != 0
-        DetailPrint "Failed to remove AT Starter from PATH: $1"
+        DetailPrint "Failed to remove Rootyard from PATH: $1"
         Abort
     ${EndIf}
     SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment"

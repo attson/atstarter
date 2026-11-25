@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const macOSInstalledAppPath = "/Applications/AT Starter.app"
+const macOSInstalledAppPath = "/Applications/Rootyard.app"
 
 type macOSPackageInstallOps struct {
 	attach   func(string) (string, error)
