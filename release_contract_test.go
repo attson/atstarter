@@ -111,6 +111,27 @@ func TestMacOSBundleIdentifiersUseRootyard(t *testing.T) {
 	}
 }
 
+func TestReleaseWorkflowUsesRootyardIdentity(t *testing.T) {
+	workflow := readReleaseFile(t, ".github/workflows/build.yml")
+	for _, want := range []string{
+		`APP_ARTIFACT_NAME: 'Rootyard'`,
+		`secrets.ROOTYARD_UPDATE_VERIFY_PUBLIC_KEY`,
+		`ROOTYARD_UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.ROOTYARD_UPDATE_SIGNING_PRIVATE_KEY }}`,
+		`working-directory: npm/rootyard-mcp`,
+		`tar -czf "Rootyard-linux-${{ matrix.arch }}.tar.gz" rootyard`,
+		`7z a "Rootyard-windows-amd64.zip" "rootyard.exe"`,
+	} {
+		if !strings.Contains(workflow, want) {
+			t.Errorf("build.yml does not contain %q", want)
+		}
+	}
+
+	signingScript := readReleaseFile(t, ".github/scripts/sign-release-checksums.go")
+	if !strings.Contains(signingScript, `os.Getenv("ROOTYARD_UPDATE_SIGNING_PRIVATE_KEY")`) {
+		t.Error("signing script must read ROOTYARD_UPDATE_SIGNING_PRIVATE_KEY")
+	}
+}
+
 func readReleaseFile(t *testing.T, name string) string {
 	t.Helper()
 	raw, err := os.ReadFile(name)

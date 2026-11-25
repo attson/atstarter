@@ -1,6 +1,6 @@
 // Command sign-release-checksums walks the release artifact directory, writes
 // SHA256SUMS covering every regular file, then signs that file with the
-// Ed25519 private key in $ATSTARTER_UPDATE_SIGNING_PRIVATE_KEY (base64) and
+// Ed25519 private key in $ROOTYARD_UPDATE_SIGNING_PRIVATE_KEY (base64) and
 // drops SHA256SUMS.sig next to it. Both files are then attached to the
 // GitHub Release so clients can verify updates before installing.
 package main
@@ -24,9 +24,9 @@ func main() {
 	}
 	root := os.Args[1]
 
-	privB64 := strings.TrimSpace(os.Getenv("ATSTARTER_UPDATE_SIGNING_PRIVATE_KEY"))
+	privB64 := strings.TrimSpace(os.Getenv("ROOTYARD_UPDATE_SIGNING_PRIVATE_KEY"))
 	if privB64 == "" {
-		fmt.Fprintln(os.Stderr, "ATSTARTER_UPDATE_SIGNING_PRIVATE_KEY not set")
+		fmt.Fprintln(os.Stderr, "ROOTYARD_UPDATE_SIGNING_PRIVATE_KEY not set")
 		os.Exit(1)
 	}
 	priv, err := base64.StdEncoding.DecodeString(privB64)

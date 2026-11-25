@@ -84,7 +84,7 @@ func TestFetchFirstFallsBackToNextCandidate(t *testing.T) {
 // TestFetchTextUsesMirrors 验证 fetchText 对 github releases URL 会展开出多个候选
 // (镜像 + 原始),而非只打原始 URL。
 func TestFetchTextUsesMirrors(t *testing.T) {
-	raw := "https://github.com/attson/atstarter/releases/download/v0.3.3/SHA256SUMS"
+	raw := "https://github.com/attson/rootyard/releases/download/v0.6.0/SHA256SUMS"
 	cands := mirrorURLs(raw)
 	if len(cands) < 2 {
 		t.Fatalf("expected mirrors + original for a releases URL, got %d: %v", len(cands), cands)
@@ -136,7 +136,7 @@ func TestAssetPatternFor(t *testing.T) {
 
 func TestAssetPatternForMatchesReleasedMacOSDMGName(t *testing.T) {
 	pattern := assetPatternFor("darwin", "arm64")
-	name := "AT-Starter_0.4.3_arm64.dmg"
+	name := "Rootyard_0.6.0_arm64.dmg"
 	if !contains(name, pattern) {
 		t.Fatalf("macOS update pattern %q does not match release asset %q", pattern, name)
 	}
@@ -165,8 +165,8 @@ func TestMacOSReleaseDropsLegacyDMGAlias(t *testing.T) {
 func TestPickAssetMatchesPatternSubstring(t *testing.T) {
 	release := ghRelease{
 		Assets: []ghAsset{
-			{Name: "AT-Starter_0.1.3_amd64.deb", BrowserDownloadURL: "u1", Size: 1},
-			{Name: "AT-Starter-linux-amd64.tar.gz", BrowserDownloadURL: "u2", Size: 2},
+			{Name: "Rootyard_0.6.0_amd64.deb", BrowserDownloadURL: "u1", Size: 1},
+			{Name: "Rootyard-linux-amd64.tar.gz", BrowserDownloadURL: "u2", Size: 2},
 			{Name: "SHA256SUMS", BrowserDownloadURL: "u3", Size: 3},
 		},
 	}
@@ -191,7 +191,7 @@ func contains(s, sub string) bool {
 }
 
 func TestMirrorURLs(t *testing.T) {
-	raw := "https://github.com/attson/atstarter/releases/download/v0.3.2/AT-Starter-linux-amd64.tar.gz"
+	raw := "https://github.com/attson/rootyard/releases/download/v0.6.0/Rootyard-linux-amd64.tar.gz"
 
 	got := mirrorURLs(raw)
 
@@ -211,7 +211,7 @@ func TestMirrorURLs(t *testing.T) {
 			t.Errorf("candidate[%d] equals original URL but is not last; mirrors must differ", i)
 		}
 		// 每个镜像候选都应仍然包含原始 GitHub 路径(镜像是前缀改写,不丢失 owner/repo/tag/asset)。
-		if !contains(got[i], "attson/atstarter/releases/download/v0.3.2/AT-Starter-linux-amd64.tar.gz") {
+		if !contains(got[i], "attson/rootyard/releases/download/v0.6.0/Rootyard-linux-amd64.tar.gz") {
 			t.Errorf("mirror candidate[%d] = %q lost the github asset path", i, got[i])
 		}
 	}
