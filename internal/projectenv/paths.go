@@ -77,3 +77,31 @@ func canonicalPathWithoutIO(path string) (string, error) {
 	}
 	return normalizePath(abs), nil
 }
+
+func canonicalResolutionPath(path string) (string, error) {
+	canonical, err := canonicalPathWithoutIO(path)
+	if err != nil {
+		return "", err
+	}
+	if resolved, err := filepath.EvalSymlinks(canonical); err == nil {
+		return normalizePath(resolved), nil
+	}
+	existing := canonical
+	missing := []string{}
+	for {
+		parent := filepath.Dir(existing)
+		if parent == existing {
+			return canonical, nil
+		}
+		missing = append(missing, filepath.Base(existing))
+		existing = parent
+		resolved, resolveErr := filepath.EvalSymlinks(existing)
+		if resolveErr != nil {
+			continue
+		}
+		for index := len(missing) - 1; index >= 0; index-- {
+			resolved = filepath.Join(resolved, missing[index])
+		}
+		return normalizePath(resolved), nil
+	}
+}

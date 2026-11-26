@@ -6,7 +6,7 @@ func Resolve(cfg Config, repoPath string, session FieldMap) (ResolvedEnvironment
 	if err := ValidateConfig(cfg); err != nil {
 		return ResolvedEnvironment{}, err
 	}
-	repoPath, err := canonicalPathWithoutIO(repoPath)
+	repoPath, err := canonicalResolutionPath(repoPath)
 	if err != nil {
 		return ResolvedEnvironment{}, newError(ErrInvalidEnvironment, "invalid repository path", err.Error())
 	}
@@ -39,7 +39,7 @@ func Resolve(cfg Config, repoPath string, session FieldMap) (ResolvedEnvironment
 
 	matching := make([]Rule, 0, len(cfg.Rules))
 	for _, rule := range cfg.Rules {
-		rulePath, pathErr := canonicalPathWithoutIO(rule.Path)
+		rulePath, pathErr := canonicalResolutionPath(rule.Path)
 		if pathErr != nil {
 			return ResolvedEnvironment{}, newError(ErrInvalidEnvironment, "invalid directory rule path", pathErr.Error())
 		}
@@ -49,8 +49,8 @@ func Resolve(cfg Config, repoPath string, session FieldMap) (ResolvedEnvironment
 		}
 	}
 	sort.SliceStable(matching, func(i, j int) bool {
-		left, _ := canonicalPathWithoutIO(matching[i].Path)
-		right, _ := canonicalPathWithoutIO(matching[j].Path)
+		left, _ := canonicalResolutionPath(matching[i].Path)
+		right, _ := canonicalResolutionPath(matching[j].Path)
 		if len(left) == len(right) {
 			return left < right
 		}

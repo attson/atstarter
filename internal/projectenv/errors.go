@@ -24,6 +24,8 @@ const (
 	ErrApplyFailed               ErrorCode = "apply_failed"
 	ErrSigningKeyUnavailable     ErrorCode = "signing_key_unavailable"
 	ErrSigningProgramUnavailable ErrorCode = "signing_program_unavailable"
+	ErrPresetInUse               ErrorCode = "preset_in_use"
+	ErrRuleNotFound              ErrorCode = "rule_not_found"
 )
 
 type Error struct {
