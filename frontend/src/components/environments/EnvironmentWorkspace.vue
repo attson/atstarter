@@ -1,18 +1,23 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { FolderTree, GitBranch, LayoutDashboard, SlidersHorizontal } from 'lucide-vue-next'
 import AppIcon from '../ui/AppIcon.vue'
 import EnvironmentOverview from './EnvironmentOverview.vue'
 import EnvironmentPresetManager from './EnvironmentPresetManager.vue'
 import EnvironmentRuleManager from './EnvironmentRuleManager.vue'
+import EnvironmentRepositoryManager from './EnvironmentRepositoryManager.vue'
+import EnvironmentDiffPanel from './EnvironmentDiffPanel.vue'
 import {
+  ApplyEnvironmentPlans,
   CancelEnvironmentScan,
   CloneEnvironmentPreset,
   DeleteEnvironmentPreset,
   DeleteEnvironmentRule,
   GetEnvironmentDocument,
   GetEnvironmentState,
+  DoctorEnvironments,
   PickDirectoryFrom,
+  PlanEnvironmentRepositories,
   SaveEnvironmentDefaults,
   SaveEnvironmentPreset,
   SaveEnvironmentRule,
@@ -29,6 +34,11 @@ const error = ref('')
 const scanID = ref('')
 const scanProgress = ref({})
 const plans = ref([])
+const selectedRepositories = ref(new Set())
+const applyResults = ref([])
+const planning = ref(false)
+const applying = ref(false)
+const doctorIssues = ref([])
 
 const views = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -36,8 +46,6 @@ const views = [
   { id: 'rules', label: 'Directory Rules', icon: FolderTree },
   { id: 'repositories', label: 'Repositories', icon: GitBranch },
 ]
-
-const currentTitle = computed(() => views.find((view) => view.id === activeView.value)?.label || '')
 
 async function refreshEnvironmentData() {
   error.value = ''
@@ -122,6 +130,44 @@ function pickDirectory(path) {
   return PickDirectoryFrom(path || '')
 }
 
+async function previewRepositories(paths) {
+  planning.value = true
+  error.value = ''
+  applyResults.value = []
+  try {
+    plans.value = await PlanEnvironmentRepositories({ repositoryPaths: paths, ruleIds: [], session: {} }) || []
+  } catch (cause) {
+    error.value = String(cause)
+  } finally {
+    planning.value = false
+  }
+}
+
+async function applyDisplayedPlans(displayedPlans) {
+  applying.value = true
+  try {
+    applyResults.value = await ApplyEnvironmentPlans(displayedPlans) || []
+    await refreshEnvironmentData()
+  } catch (cause) {
+    error.value = String(cause)
+  } finally {
+    applying.value = false
+  }
+}
+
+async function doctorRepositories() {
+  try {
+    doctorIssues.value = await DoctorEnvironments({ repositoryPaths: [], ruleIds: [], session: {} }) || []
+  } catch (cause) {
+    error.value = String(cause)
+  }
+}
+
+function repreviewStale() {
+  const paths = plans.value.flatMap((plan) => (plan.aliases || plan.Aliases || []).map((alias) => alias.path || alias.Path)).filter(Boolean)
+  previewRepositories(paths)
+}
+
 function onScanProgress(payload) {
   if (!payload || payload.scanId !== scanID.value) return
   scanProgress.value = payload.progress || {}
@@ -194,9 +240,27 @@ onUnmounted(() => {
         :pick-directory="pickDirectory"
         :scan-rule="(id) => startScan([id])"
       />
-      <section v-else class="environment-placeholder">
-        <h1>{{ currentTitle }}</h1>
-      </section>
+      <div v-else-if="activeView === 'repositories'" class="repository-flow" :class="{ previewing: plans.length }">
+        <EnvironmentRepositoryManager
+          :state="state"
+          :rules="document.config.rules"
+          :selection="selectedRepositories"
+          :planning="planning"
+          :doctor-issues="doctorIssues"
+          @update:selection="selectedRepositories = $event"
+          @preview="previewRepositories"
+          @doctor="doctorRepositories"
+        />
+        <EnvironmentDiffPanel
+          v-if="plans.length"
+          :plans="plans"
+          :results="applyResults"
+          :applying="applying"
+          @apply="applyDisplayedPlans"
+          @close="plans = []; applyResults = []"
+          @repreview="repreviewStale"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -210,7 +274,8 @@ onUnmounted(() => {
 .environment-content { min-width: 0; min-height: 0; display: flex; overflow: hidden; }
 .environment-state-message { margin: auto; color: var(--text-muted); }
 .environment-state-message.error { color: var(--danger); }
-.environment-placeholder { width: 100%; padding: var(--space-9); }
-.environment-placeholder h1 { margin: 0; font-size: var(--fs-lg); letter-spacing: 0; }
+.repository-flow { width: 100%; min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+.repository-flow.previewing { grid-template-columns: minmax(420px, 1fr) minmax(400px, .9fr); }
+@media (max-width: 1100px) { .repository-flow.previewing { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(220px, .8fr) minmax(320px, 1.2fr); overflow: auto; } }
 @media (max-width: 760px) { .environment-workspace { grid-template-columns: 52px minmax(0, 1fr); } .environment-nav-item { grid-template-columns: 20px; justify-content: center; padding: 0; } .environment-nav-item span { display: none; } }
 </style>

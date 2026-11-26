@@ -58,7 +58,7 @@ const metrics = computed(() => [
 </template>
 
 <style scoped>
-.environment-overview { width: 100%; padding: var(--space-9); overflow: auto; }
+.environment-overview { width: 100%; box-sizing: border-box; padding: var(--space-9); overflow: auto; }
 .environment-view-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); padding-bottom: var(--space-8); border-bottom: 1px solid var(--border); }
 h1 { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); letter-spacing: 0; }
 .environment-metrics { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); border-bottom: 1px solid var(--border); }

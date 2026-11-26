@@ -529,18 +529,31 @@ func (s *Service) persistApplyResults(ctx context.Context, plans []ChangePlan, r
 		return
 	}
 	byID := make(map[string]int, len(state.Repositories))
+	byAlias := make(map[string]int, len(state.Repositories))
 	for index, repository := range state.Repositories {
 		key := repository.TargetID
 		if key == "" {
 			key = repository.ID
 		}
 		byID[key] = index
+		for _, alias := range repository.Aliases {
+			byAlias[alias.Path] = index
+		}
 	}
 	for index, result := range results {
 		recordIndex, exists := byID[result.Target.ID]
+		if !exists && index < len(plans) {
+			for _, alias := range plans[index].Aliases {
+				if recordIndex, exists = byAlias[alias.Path]; exists {
+					break
+				}
+			}
+			if !exists && plans[index].RepoPath != "" {
+				recordIndex, exists = byAlias[plans[index].RepoPath]
+			}
+		}
 		if !exists {
 			recordIndex = len(state.Repositories)
-			byID[result.Target.ID] = recordIndex
 			aliases := []RepositoryAlias{}
 			if index < len(plans) {
 				aliases = append(aliases, plans[index].Aliases...)
@@ -550,6 +563,7 @@ func (s *Service) persistApplyResults(ctx context.Context, plans []ChangePlan, r
 			}
 			state.Repositories = append(state.Repositories, RepositoryRecord{ID: result.Target.ID, TargetID: result.Target.ID, Aliases: aliases})
 		}
+		byID[result.Target.ID] = recordIndex
 		record := &state.Repositories[recordIndex]
 		record.TargetID = result.Target.ID
 		record.Fingerprint = result.Fingerprint

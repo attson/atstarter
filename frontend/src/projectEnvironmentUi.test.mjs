@@ -13,6 +13,13 @@ import {
   validatePresetDraft,
   validateRuleDraft,
   isEnvironmentStaleError,
+  filterEnvironmentRepositories,
+  selectAllRepositories,
+  dedupedTargetCount,
+  planChangeCount,
+  summarizeApplyResults,
+  stalePlanTargetIDs,
+  sharedTargetConflict,
 } from './projectEnvironmentUi.js'
 
 test('normalizes Go-shaped and missing environment document values', () => {
@@ -115,4 +122,51 @@ test('stale revision mapping accepts structured and Wails string errors', () => 
   assert.equal(isEnvironmentStaleError({ code: 'environment_stale' }), true)
   assert.equal(isEnvironmentStaleError(new Error('environment_stale: reload and retry')), true)
   assert.equal(isEnvironmentStaleError(new Error('permission denied')), false)
+})
+
+test('repository filters combine status rule and path search', () => {
+  const repositories = [
+    { id: 'one', status: 'pending', aliases: [{ path: '/work/api', ruleIds: ['work'] }] },
+    { id: 'two', status: 'consistent', aliases: [{ path: '/personal/site', ruleIds: ['personal'] }] },
+    { id: 'three', status: 'blocked', aliases: [{ path: '/work/web', ruleIds: ['work'] }] },
+  ]
+  assert.deepEqual(filterEnvironmentRepositories(repositories, { status: 'pending', ruleId: 'work', search: 'api' }).map((item) => item.id), ['one'])
+})
+
+test('select all excludes blocked rows and deduplicates targets', () => {
+  const repositories = [
+    { id: 'a', targetId: 'shared', status: 'pending' },
+    { id: 'b', targetId: 'shared', status: 'consistent' },
+    { id: 'c', targetId: 'blocked', status: 'blocked' },
+  ]
+  assert.deepEqual([...selectAllRepositories(repositories)], ['shared'])
+  assert.equal(dedupedTargetCount(repositories), 2)
+})
+
+test('plan change counts exclude unchanged and unmanaged operations', () => {
+  const plans = [{ changes: [
+    { operation: 'set' }, { operation: 'replace' }, { operation: 'unchanged' }, { operation: 'unmanaged' },
+  ] }]
+  assert.equal(planChangeCount(plans), 2)
+})
+
+test('apply result summary and stale targets preserve target identity', () => {
+  const results = [
+    { target: { id: 'a' }, status: 'success' },
+    { target: { id: 'b' }, status: 'stale' },
+    { target: { id: 'c' }, status: 'failed' },
+  ]
+  assert.deepEqual(summarizeApplyResults(results), { success: 1, unchanged: 0, stale: 1, blocked: 0, failed: 1, total: 3 })
+  assert.deepEqual(stalePlanTargetIDs(results), ['b'])
+})
+
+test('shared target conflict returns all aliases for display', () => {
+  const plan = {
+    aliases: [{ path: '/work/main' }, { path: '/work/linked' }],
+    blockers: [{ code: 'shared_target_conflict', detail: '/git/common' }],
+  }
+  assert.deepEqual(sharedTargetConflict(plan), {
+    target: '/git/common',
+    paths: ['/work/main', '/work/linked'],
+  })
 })

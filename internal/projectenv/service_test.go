@@ -235,6 +235,47 @@ func TestServiceApplyContinuesInOrderAndUpdatesState(t *testing.T) {
 	}
 }
 
+func TestServiceApplyUpdatesScannedRepositoryRecord(t *testing.T) {
+	root := t.TempDir()
+	repo := filepath.Join(root, "repo")
+	makeRepositoryMarker(t, repo, false)
+	adapter := &serviceAdapter{targets: map[string]Target{}}
+	service, _ := newTestEnvironmentService(t, adapter)
+	ctx := context.Background()
+	doc, err := service.GetDocument(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ruleName := "Root"
+	if _, err := service.SaveRule(ctx, SaveRuleRequest{
+		Revision: doc.Revision, Name: &ruleName, Path: stringPointer(root), Recursive: boolPointer(true),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	scan, err := service.Scan(ctx, ScanRequest{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scannedRepo := scan.Repositories[0].Path
+	adapter.targets[scannedRepo] = Target{Adapter: "test", ID: "common-dir", WorktreePath: scannedRepo}
+	plans, err := service.Plan(ctx, PlanRequest{RepositoryPaths: []string{scannedRepo}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.Apply(ctx, plans)
+	state, err := service.State(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Repositories) != 1 {
+		t.Fatalf("repositories = %+v", state.Repositories)
+	}
+	record := state.Repositories[0]
+	if record.ID != scannedRepo || record.TargetID != "common-dir" || record.LastApplyResult != string(ApplySuccess) {
+		t.Fatalf("repository = %+v", record)
+	}
+}
+
 func TestServiceHonorsCanceledContext(t *testing.T) {
 	service, _ := newTestEnvironmentService(t)
 	ctx, cancel := context.WithCancel(context.Background())

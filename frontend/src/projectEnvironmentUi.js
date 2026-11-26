@@ -167,3 +167,55 @@ export function isEnvironmentStaleError(error) {
   const code = error?.code ?? error?.Code ?? error?.error?.code
   return code === 'environment_stale' || String(error?.message || error || '').includes('environment_stale') || String(error?.message || error || '').includes('configuration changed')
 }
+
+export function filterEnvironmentRepositories(repositories, filters = {}) {
+  const search = String(filters.search || '').toLowerCase()
+  return (repositories || []).filter((repository) => {
+    if (filters.status && filters.status !== 'all' && repositoryStatus(repository) !== filters.status) return false
+    const aliases = valueFor(repository, 'aliases', 'Aliases', []) || []
+    if (filters.ruleId && !aliases.some((alias) => (valueFor(alias, 'ruleIds', 'RuleIDs', []) || []).includes(filters.ruleId))) return false
+    if (search) {
+      const haystack = [valueFor(repository, 'id', 'ID', ''), valueFor(repository, 'targetId', 'TargetID', ''), ...aliases.map((alias) => valueFor(alias, 'path', 'Path', ''))].join(' ').toLowerCase()
+      if (!haystack.includes(search)) return false
+    }
+    return true
+  })
+}
+
+export function selectAllRepositories(repositories) {
+  return new Set(selectableRepositoryIDs(repositories))
+}
+
+export function dedupedTargetCount(repositories) {
+  return new Set((repositories || []).map(repositoryID).filter(Boolean)).size
+}
+
+export function planChangeCount(plans) {
+  return (plans || []).flatMap((plan) => valueFor(plan, 'changes', 'Changes', []) || [])
+    .filter((change) => !['unchanged', 'unmanaged'].includes(valueFor(change, 'operation', 'Operation', ''))).length
+}
+
+export function summarizeApplyResults(results) {
+  const summary = { success: 0, unchanged: 0, stale: 0, blocked: 0, failed: 0, total: (results || []).length }
+  for (const result of results || []) {
+    const status = valueFor(result, 'status', 'Status', '')
+    if (Object.hasOwn(summary, status)) summary[status] += 1
+  }
+  return summary
+}
+
+export function stalePlanTargetIDs(results) {
+  return (results || [])
+    .filter((result) => valueFor(result, 'status', 'Status', '') === 'stale')
+    .map((result) => valueFor(valueFor(result, 'target', 'Target', {}), 'id', 'ID', ''))
+    .filter(Boolean)
+}
+
+export function sharedTargetConflict(plan) {
+  const blocker = (valueFor(plan, 'blockers', 'Blockers', []) || []).find((issue) => valueFor(issue, 'code', 'Code', '') === 'shared_target_conflict')
+  if (!blocker) return null
+  return {
+    target: valueFor(blocker, 'detail', 'Detail', ''),
+    paths: (valueFor(plan, 'aliases', 'Aliases', []) || []).map((alias) => valueFor(alias, 'path', 'Path', '')).filter(Boolean),
+  }
+}
