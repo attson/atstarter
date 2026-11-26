@@ -13,13 +13,15 @@ Process drafts under `docs/superpowers/` are not formal specs. Long-lived projec
 
 Rootyard is a local project workspace. It turns local directories into managed projects: detect
 project type, store launch commands, start or stop child processes, show logs, manage Docker/compose,
-browse project files, inspect local Git state, expose AI controls, and self-update from GitHub Releases.
+browse project files, inspect local Git state, centrally manage project Git environments, expose AI
+controls, and self-update from GitHub Releases.
 
 ```text
 Wails desktop process
   frontend: Vue 3 + Vite + custom CSS/theme tokens
     App.vue
     ProjectList / ProjectDetail / GroupDetail / ComposeDetail / ContainerPanel
+    EnvironmentWorkspace: overview / presets / directory rules / repositories
     FileBrowser and fileExplorer preview/editor components
       calls Wails bindings and subscribes to runtime events
 
@@ -30,6 +32,8 @@ Wails desktop process
     tray.go       system tray and close-to-tray behavior
     control_server.go  localhost-only control server for CLI/MCP
     cli.go        JSON CLI client for the desktop control server
+    env_cli.go    offline project-environment CLI
+    app_environments.go  Wails project-environment bindings and scan lifecycle
     mcp.go        stdio MCP server wrapping the same control server
     internal/     pure and stateful subsystem packages
 
@@ -55,10 +59,14 @@ directory. There is no server-side state.
 | `internal/docker` | Wrap docker/compose CLI, parse snapshots, aggregate service state | CLI facade, injectable exec |
 | `internal/filetree` | Project-scoped file listing, preview, edit, copy/move, trash, watch | Filesystem state within root |
 | `internal/git` | Project branch status, branch list, checkout / create branch | `git` CLI facade, local operations only |
+| `internal/projectenv` | Presets, directory rules, resolution, discovery, state, plans, batch apply | Wails-independent environment core |
+| `internal/projectenv/gitadapter` | Inspect, diagnose, plan, and atomically apply six local Git fields | System `git` facade; local operations only |
 | `internal/control` | Control state file and RPC client protocol for CLI/MCP | Runtime discovery, no business logic |
 | `app.go` | Compose modules and expose Wails methods/events | Binding layer only |
 | `control_server.go` | Expose selected App operations on localhost for CLI/MCP | Desktop process remains source of truth |
 | `cli.go` | Parse AI/script-friendly commands and print JSON envelopes | Client of control server |
+| `env_cli.go` | Parse `rootyard env` configuration, scan, diff, doctor, and apply commands | Direct consumer of project-environment service |
+| `app_environments.go` | Expose environment CRUD, resolution, scan, plan, doctor, and apply | Wails binding and cancellable scan manager |
 | `mcp.go` | Expose `rootyard_*` MCP tools over stdio | Wrapper around control client |
 | `updater.go` | Check/download/verify/install releases | Network and installer state |
 | `tray.go` | Tray menu, close-to-tray, running count, exit gate | Desktop integration |
@@ -80,11 +88,27 @@ Docker compose projects share the project tree but do not use `runner.Spec` for 
 Compose lifecycle is detached through docker CLI; compose logs still reuse runner with `compose:*`
 run IDs.
 
+Project environments use a separate data flow and do not require a launcher `Project`:
+
+```text
+environments.json
+  -> projectenv.Store -> Resolver -> Discovery / Service
+  -> gitadapter.Identify + Inspect -> immutable ChangePlan
+  -> explicit confirmation -> gitadapter.Apply
+  -> environment-state.json (rebuildable discovery/apply status)
+
+consumers: rootyard env (offline) | app_environments.go -> generated Wails bindings -> Vue workspace
+```
+
+Discovery, resolution, doctor, and planning are read-only toward repository configuration. Only an
+explicit apply may write a canonical Git local config.
+
 ## 4. Wails Binding Surface
 
-`app.go` exposes project, filetree, git, workspace, group, runtime, Docker, and compose methods. `updater.go`
-adds update methods. Changing exported method names, parameters, or return types requires regenerating
-bindings:
+`app.go` exposes project, filetree, git, workspace, group, runtime, Docker, and compose methods.
+`app_environments.go` adds project-environment methods for document/state access, preset and rule CRUD,
+resolution, cancellable scans, planning, doctor, and exact-plan application. `updater.go` adds update
+methods. Changing exported method names, parameters, or return types requires regenerating bindings:
 
 ```bash
 export GO=/home/attson/sdk/go1.24.13/bin/go
@@ -93,6 +117,10 @@ $($GO env GOPATH)/bin/wails generate module
 
 Frontend imports generated bindings from `frontend/wailsjs/go/main/App` and runtime event helpers from
 `frontend/wailsjs/runtime/runtime`.
+
+Environment scans emit `projectenv:scan-progress` with `{scanId,progress}` and
+`projectenv:scan-complete` with `{scanId,result,error?}`. The Vue workspace does not walk directories,
+invoke Git, or read environment files itself.
 
 ## 4.1 Local Control Surface
 
@@ -111,7 +139,11 @@ services, and logs. CLI output is a JSON envelope:
 ```
 
 `rootyard cli app start --wait` may launch the desktop binary when no control server is reachable.
-All other commands require the desktop process to be running.
+All other commands require the desktop process to be running. Top-level `rootyard env` is the narrow
+exception: project environments have no long-lived runtime owner, so it constructs the same
+`projectenv.Service` directly and works while the desktop process is stopped. Cross-process locks and
+revision checks coordinate it with the desktop. This exception does not extend to `rootyard cli` or
+`rootyard mcp` runtime operations.
 
 ## 4.2 Product And Command Naming
 
@@ -133,6 +165,8 @@ Release asset filenames use the `Rootyard-` or `Rootyard_` prefix. MCP/plugin co
 | `docker:available` | `{available,version,reason}` | docker poller | Docker UI |
 | `docker:state` | container snapshot | docker poller | project tree and container panel |
 | `fs:dir-changed` | relative directory string | filetree watcher/app | `FileBrowser` |
+| `projectenv:scan-progress` | `{scanId,progress}` | environment scan manager | `EnvironmentWorkspace` |
+| `projectenv:scan-complete` | `{scanId,result,error?}` | environment scan manager | `EnvironmentWorkspace` |
 
 Frontend status maps use Go-shaped keys from polling (`State`, `PID`, `ExitCode`) and normalize
 event payloads from lower-case keys.
@@ -165,12 +199,27 @@ The adjacent `<config>.control.json` file is runtime-only discovery state. It is
 permissions by the desktop process and removed on shutdown. It must not be treated as persisted
 configuration.
 
+Project-environment files are siblings of the resolved `config.json` path:
+
+| File | Authority | Contents |
+|------|-----------|----------|
+| `environments.json` | Authoritative | Global defaults, environment presets, and directory rules |
+| `environment-state.json` | Rebuildable | Scan records, repository aliases, fingerprints, blockers, and last apply results |
+
+`ROOTYARD_CONFIG` and `--config` relocate the sibling files with `config.json`; the launcher schema is
+unchanged. Config updates are strict, revision checked, lock protected, and atomically replaced.
+Invalid derived state is quarantined and rebuilt rather than influencing resolution.
+
 ## 7. Engineering Constraints
 
 - Local Go commands must use `/home/attson/sdk/go1.24.13/bin/go`; the system `go` is too old.
 - Wails dev/build on Ubuntu 24.04 must use `-tags webkit2_41`; Makefile targets already include it.
 - Linux tray builds require `libayatana-appindicator3-dev`.
 - Public site changes that touch the embedded home demo must follow `docs/specs/SITE.md`.
+- Project-environment core changes require focused `go test ./internal/projectenv/...`; concurrency,
+  locking, state, or apply changes also require `go test -race ./internal/projectenv/...`.
+- Environment frontend transformations belong in `projectEnvironmentUi.js` with `node:test` coverage;
+  Wails remains the only browser/backend boundary.
 - Do not push directly to `main`. Use feature branch, GitHub PR, green CI, merge, then tag release from
   `main`.
 - Commit messages must not include `Co-Authored-By`.

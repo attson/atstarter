@@ -3,7 +3,8 @@
 Your local project workspace.
 
 Rootyard 是面向 AI 开发时代的本地项目工作台。它在一处管理本地项目、启动命令、
-运行状态、日志、Docker、文件和 Git 状态，AI Agent 也可通过 CLI 或 MCP 操作同一套桌面运行态。
+运行状态、日志、Docker、文件、Git 状态和项目级 Git 环境，AI Agent 也可通过 CLI 或 MCP
+操作同一套桌面运行态。
 
 ---
 
@@ -35,6 +36,27 @@ rootyard cli project list
 rootyard cli project start <project> --command default
 rootyard mcp                                             # stdio MCP server
 ```
+
+项目环境使用显式工作流，保存规则不会修改任何仓库：
+
+```text
+创建 Environment Preset -> 配置 Directory Rule -> 扫描仓库
+-> 预览逐字段 Git 变更 -> 手动确认 -> 应用
+```
+
+桌面未启动时也可使用独立的离线命令：
+
+```bash
+rootyard env preset list
+rootyard env scan
+rootyard env diff /path/to/repository
+rootyard env apply /path/to/repository          # 交互确认
+rootyard env apply /path/to/repository --yes    # 自动化中的显式确认
+```
+
+Phase 1 只管理仓库本地的 `user.name`、`user.email`、`user.signingKey`、
+`commit.gpgSign`、`tag.gpgSign` 和 `gpg.format`。扫描、解析、诊断和预览均不会写 Git 配置；
+linked worktree 会按共享的 Git common directory 合并为一个应用目标。
 
 MCP 最省事的接法(任意客户端,无需 plugin marketplace):
 
