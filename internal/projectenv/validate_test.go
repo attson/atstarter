@@ -66,3 +66,40 @@ func TestValidateConfigAcceptsSupportedFieldValues(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestValidateConfigAcceptsSupportedCodexFieldValues(t *testing.T) {
+	cfg := Config{Version: 1, Defaults: LayerConfig{Codex: FieldMap{
+		"model":                  {Mode: ModeSet, Value: "custom-model"},
+		"model_reasoning_effort": {Mode: ModeSet, Value: "future-effort"},
+		"sandbox_mode":           {Mode: ModeSet, Value: "workspace-write"},
+		"approval_policy":        {Mode: ModeSet, Value: "granular"},
+		"web_search":             {Mode: ModeSet, Value: "indexed"},
+	}}}
+	if err := ValidateConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateConfigRejectsInvalidCodexFields(t *testing.T) {
+	tests := []struct {
+		name   string
+		key    string
+		intent FieldIntent
+	}{
+		{name: "unknown key", key: "mcp_servers", intent: FieldIntent{Mode: ModeSet, Value: "enabled"}},
+		{name: "blank model", key: "model", intent: FieldIntent{Mode: ModeSet, Value: "  "}},
+		{name: "blank reasoning", key: "model_reasoning_effort", intent: FieldIntent{Mode: ModeSet, Value: ""}},
+		{name: "invalid sandbox", key: "sandbox_mode", intent: FieldIntent{Mode: ModeSet, Value: "full"}},
+		{name: "invalid approval", key: "approval_policy", intent: FieldIntent{Mode: ModeSet, Value: "always"}},
+		{name: "boolean web search", key: "web_search", intent: FieldIntent{Mode: ModeSet, Value: "true"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Config{Version: 1, Defaults: LayerConfig{Codex: FieldMap{tt.key: tt.intent}}}
+			if err := ValidateConfig(cfg); !IsCode(err, ErrInvalidEnvironment) {
+				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+}

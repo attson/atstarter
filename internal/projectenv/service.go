@@ -14,6 +14,7 @@ type SaveDefaultsRequest struct {
 	Revision string   `json:"revision"`
 	PresetID *string  `json:"presetId,omitempty"`
 	Git      FieldMap `json:"git,omitempty"`
+	Codex    FieldMap `json:"codex,omitempty"`
 }
 
 type SavePresetRequest struct {
@@ -22,6 +23,7 @@ type SavePresetRequest struct {
 	Name        *string  `json:"name,omitempty"`
 	Description *string  `json:"description,omitempty"`
 	Git         FieldMap `json:"git,omitempty"`
+	Codex       FieldMap `json:"codex,omitempty"`
 }
 
 type ClonePresetRequest struct {
@@ -44,6 +46,7 @@ type SaveRuleRequest struct {
 	AutoDiscover *bool    `json:"autoDiscover,omitempty"`
 	PresetID     *string  `json:"presetId,omitempty"`
 	Git          FieldMap `json:"git,omitempty"`
+	Codex        FieldMap `json:"codex,omitempty"`
 }
 
 type DeleteRuleRequest struct {
@@ -57,20 +60,20 @@ type ScanRequest struct {
 }
 
 type ResolveRequest struct {
-	RepoPath string   `json:"repoPath"`
-	Session  FieldMap `json:"session,omitempty"`
+	RepoPath string            `json:"repoPath"`
+	Session  EnvironmentFields `json:"session,omitempty"`
 }
 
 type PlanRequest struct {
-	RepositoryPaths []string `json:"repositoryPaths,omitempty"`
-	RuleIDs         []string `json:"ruleIds,omitempty"`
-	Session         FieldMap `json:"session,omitempty"`
+	RepositoryPaths []string          `json:"repositoryPaths,omitempty"`
+	RuleIDs         []string          `json:"ruleIds,omitempty"`
+	Session         EnvironmentFields `json:"session,omitempty"`
 }
 
 type DoctorRequest struct {
-	RepositoryPaths []string `json:"repositoryPaths,omitempty"`
-	RuleIDs         []string `json:"ruleIds,omitempty"`
-	Session         FieldMap `json:"session,omitempty"`
+	RepositoryPaths []string          `json:"repositoryPaths,omitempty"`
+	RuleIDs         []string          `json:"ruleIds,omitempty"`
+	Session         EnvironmentFields `json:"session,omitempty"`
 }
 
 type Service struct {
@@ -107,6 +110,7 @@ func (s *Service) SaveDefaults(ctx context.Context, request SaveDefaultsRequest)
 			cfg.Defaults.PresetID = *request.PresetID
 		}
 		cfg.Defaults.Git = mergeFieldMap(cfg.Defaults.Git, request.Git)
+		cfg.Defaults.Codex = mergeFieldMap(cfg.Defaults.Codex, request.Codex)
 		return nil
 	})
 }
@@ -147,6 +151,7 @@ func (s *Service) ClonePreset(ctx context.Context, request ClonePresetRequest) (
 			clone.ID = id
 			clone.Name = request.Name
 			clone.Git = cloneFieldMap(preset.Git)
+			clone.Codex = cloneFieldMap(preset.Codex)
 			cfg.Presets = append(cfg.Presets, clone)
 			return nil
 		}
@@ -364,6 +369,7 @@ func applyPresetRequest(preset *Preset, request SavePresetRequest) {
 		preset.Description = *request.Description
 	}
 	preset.Git = mergeFieldMap(preset.Git, request.Git)
+	preset.Codex = mergeFieldMap(preset.Codex, request.Codex)
 }
 
 func applyRuleRequest(rule *Rule, request SaveRuleRequest) error {
@@ -387,6 +393,7 @@ func applyRuleRequest(rule *Rule, request SaveRuleRequest) error {
 		rule.PresetID = *request.PresetID
 	}
 	rule.Git = mergeFieldMap(rule.Git, request.Git)
+	rule.Codex = mergeFieldMap(rule.Codex, request.Codex)
 	return nil
 }
 

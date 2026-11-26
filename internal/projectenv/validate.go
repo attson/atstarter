@@ -21,6 +21,9 @@ func ValidateConfig(cfg Config) error {
 		if err := validateFields(preset.Git); err != nil {
 			return err
 		}
+		if err := validateCodexFields(preset.Codex); err != nil {
+			return err
+		}
 		presets[preset.ID] = preset
 	}
 
@@ -28,6 +31,9 @@ func ValidateConfig(cfg Config) error {
 		return err
 	}
 	if err := validateFields(cfg.Defaults.Git); err != nil {
+		return err
+	}
+	if err := validateCodexFields(cfg.Defaults.Codex); err != nil {
 		return err
 	}
 
@@ -53,6 +59,9 @@ func ValidateConfig(cfg Config) error {
 			return err
 		}
 		if err := validateFields(rule.Git); err != nil {
+			return err
+		}
+		if err := validateCodexFields(rule.Codex); err != nil {
 			return err
 		}
 	}
@@ -106,4 +115,55 @@ func validateFields(fields FieldMap) error {
 		}
 	}
 	return nil
+}
+
+func validateCodexFields(fields FieldMap) error {
+	supported := make(map[string]struct{}, len(SupportedCodexKeys))
+	for _, key := range SupportedCodexKeys {
+		supported[key] = struct{}{}
+	}
+	for key, intent := range fields {
+		if _, ok := supported[key]; !ok {
+			return newError(ErrInvalidEnvironment, "unsupported Codex environment field", key)
+		}
+		switch intent.Mode {
+		case ModeSet:
+			if strings.TrimSpace(intent.Value) == "" {
+				return newError(ErrInvalidEnvironment, "set field requires a value", key)
+			}
+		case ModeInherit, ModeClear:
+			if intent.Value != "" {
+				return newError(ErrInvalidEnvironment, "inherit and clear fields cannot contain a value", key)
+			}
+		default:
+			return newError(ErrInvalidEnvironment, "invalid field mode", key)
+		}
+		if intent.Mode != ModeSet {
+			continue
+		}
+		switch key {
+		case "sandbox_mode":
+			if !oneOf(intent.Value, "read-only", "workspace-write", "danger-full-access") {
+				return newError(ErrInvalidEnvironment, "unsupported Codex sandbox mode", intent.Value)
+			}
+		case "approval_policy":
+			if !oneOf(intent.Value, "untrusted", "on-failure", "on-request", "granular", "never") {
+				return newError(ErrInvalidEnvironment, "unsupported Codex approval policy", intent.Value)
+			}
+		case "web_search":
+			if !oneOf(intent.Value, "disabled", "cached", "indexed", "live") {
+				return newError(ErrInvalidEnvironment, "unsupported Codex web search mode", intent.Value)
+			}
+		}
+	}
+	return nil
+}
+
+func oneOf(value string, allowed ...string) bool {
+	for _, candidate := range allowed {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
 }

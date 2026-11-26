@@ -21,9 +21,9 @@ func TestResolveLayersPresetRuleAndSession(t *testing.T) {
 			}},
 		},
 	}
-	got, err := Resolve(cfg, "/work/api", FieldMap{
+	got, err := Resolve(cfg, "/work/api", EnvironmentFields{Git: FieldMap{
 		"commit.gpgSign": {Mode: ModeSet, Value: "true"},
-	})
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func TestResolveAppliesDefaultsPresetBeforeInlineAndTracksSource(t *testing.T) {
 		}},
 	}
 
-	got, err := Resolve(cfg, t.TempDir(), nil)
+	got, err := Resolve(cfg, t.TempDir(), EnvironmentFields{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestResolveOrdersMatchingRulesOuterToInner(t *testing.T) {
 		}},
 	}}
 
-	got, err := Resolve(cfg, inner, nil)
+	got, err := Resolve(cfg, inner, EnvironmentFields{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,14 +96,14 @@ func TestResolveExactRuleDoesNotMatchDescendant(t *testing.T) {
 		Git: FieldMap{"user.name": {Mode: ModeSet, Value: "Exact"}},
 	}}}
 
-	exact, err := Resolve(cfg, root, nil)
+	exact, err := Resolve(cfg, root, EnvironmentFields{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if exact.Git["user.name"].Intent.Value != "Exact" {
 		t.Fatalf("exact result = %+v", exact)
 	}
-	descendant, err := Resolve(cfg, filepath.Join(root, "child"), nil)
+	descendant, err := Resolve(cfg, filepath.Join(root, "child"), EnvironmentFields{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestResolveInheritLeavesPriorValueAndClearReplacesIt(t *testing.T) {
 		}}},
 	}
 
-	got, err := Resolve(cfg, root, nil)
+	got, err := Resolve(cfg, root, EnvironmentFields{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,42 @@ func TestResolveInheritLeavesPriorValueAndClearReplacesIt(t *testing.T) {
 
 func TestResolveRejectsMissingPreset(t *testing.T) {
 	cfg := Config{Version: 1, Defaults: LayerConfig{PresetID: "missing"}}
-	if _, err := Resolve(cfg, t.TempDir(), nil); !IsCode(err, ErrPresetNotFound) {
+	if _, err := Resolve(cfg, t.TempDir(), EnvironmentFields{}); !IsCode(err, ErrPresetNotFound) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestResolveLayersGitAndCodexIndependently(t *testing.T) {
+	root := t.TempDir()
+	cfg := Config{
+		Version: 1,
+		Presets: []Preset{{
+			ID: "company", Name: "Company",
+			Git:   FieldMap{"user.email": {Mode: ModeSet, Value: "dev@example.com"}},
+			Codex: FieldMap{"model": {Mode: ModeSet, Value: "company-model"}},
+		}},
+		Rules: []Rule{{
+			ID: "rule", Name: "Company", Path: root, Recursive: true, PresetID: "company",
+			Codex: FieldMap{"sandbox_mode": {Mode: ModeSet, Value: "workspace-write"}},
+		}},
+	}
+
+	resolved, err := Resolve(cfg, root, EnvironmentFields{Codex: FieldMap{
+		"approval_policy": {Mode: ModeSet, Value: "on-request"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if field := resolved.Git["user.email"]; field.Intent.Value != "dev@example.com" || field.Source.Kind != SourcePreset {
+		t.Fatalf("user.email = %+v", field)
+	}
+	if field := resolved.Codex["model"]; field.Intent.Value != "company-model" || field.Source.Kind != SourcePreset {
+		t.Fatalf("model = %+v", field)
+	}
+	if field := resolved.Codex["sandbox_mode"]; field.Intent.Value != "workspace-write" || field.Source.Kind != SourceRule {
+		t.Fatalf("sandbox_mode = %+v", field)
+	}
+	if field := resolved.Codex["approval_policy"]; field.Intent.Value != "on-request" || field.Source.Kind != SourceSession {
+		t.Fatalf("approval_policy = %+v", field)
 	}
 }

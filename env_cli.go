@@ -399,7 +399,7 @@ func runEnvironmentResolve(ctx context.Context, service *projectenv.Service, arg
 	if len(rest) != 1 || strings.HasPrefix(rest[0], "-") {
 		return nil, envUsage("resolve requires one repository path")
 	}
-	return service.Resolve(ctx, projectenv.ResolveRequest{RepoPath: rest[0], Session: fields})
+	return service.Resolve(ctx, projectenv.ResolveRequest{RepoPath: rest[0], Session: projectenv.EnvironmentFields{Git: fields}})
 }
 
 func runEnvironmentPlan(ctx context.Context, service *projectenv.Service, args []string, allowYes bool) ([]projectenv.ChangePlan, error) {
@@ -436,7 +436,7 @@ func runEnvironmentPlan(ctx context.Context, service *projectenv.Service, args [
 	if len(paths) == 0 && len(rules) == 0 {
 		return nil, envUsage("repository path or --rule is required")
 	}
-	return service.Plan(ctx, projectenv.PlanRequest{RepositoryPaths: paths, RuleIDs: rules, Session: fields})
+	return service.Plan(ctx, projectenv.PlanRequest{RepositoryPaths: paths, RuleIDs: rules, Session: projectenv.EnvironmentFields{Git: fields}})
 }
 
 func runEnvironmentApply(ctx context.Context, service *projectenv.Service, args []string, stdin io.Reader, stdout io.Writer, jsonMode bool) (any, error) {

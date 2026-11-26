@@ -44,7 +44,7 @@
 - Produces: request `Session EnvironmentFields` and save-request `Codex FieldMap` properties.
 - Preserves: persisted environment configuration version 1 and existing Git resolution semantics.
 
-- [ ] **Step 1: Write failing validation and resolution tests**
+- [x] **Step 1: Write failing validation and resolution tests**
 
 Add table tests that prove all five keys are accepted, unsupported keys are rejected, fixed enums are strict, and model/reasoning values are non-empty but otherwise free-form. Add a layered resolution test with a preset Codex model, rule sandbox override, and session approval override:
 
@@ -73,7 +73,7 @@ func TestResolveLayersGitAndCodexIndependently(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run focused tests and confirm the compile failure**
+- [x] **Step 2: Run focused tests and confirm the compile failure**
 
 Run:
 
@@ -83,7 +83,7 @@ Run:
 
 Expected: FAIL because Codex fields and `EnvironmentFields` do not exist.
 
-- [ ] **Step 3: Implement explicit field sets and validation**
+- [x] **Step 3: Implement explicit field sets and validation**
 
 Add:
 
@@ -100,7 +100,7 @@ type EnvironmentFields struct {
 
 Add `Codex FieldMap` to each persisted layer and `map[string]ResolvedField` to the resolved result. Split validation into `validateGitFields` and `validateCodexFields`; validate the exact enums from the spec and require a trimmed non-empty value for every `set`. Update save methods, clone behavior, and merge helpers so Git and Codex maps are copied independently. Update `Resolve` to apply both maps through the same source layer in deterministic order.
 
-- [ ] **Step 4: Run domain tests**
+- [x] **Step 4: Run domain tests**
 
 Run:
 
@@ -110,7 +110,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the domain extension**
+- [x] **Step 5: Commit the domain extension**
 
 ```bash
 git add internal/projectenv/model.go internal/projectenv/validate.go internal/projectenv/validate_test.go internal/projectenv/resolver.go internal/projectenv/resolver_test.go internal/projectenv/service.go internal/projectenv/service_test.go

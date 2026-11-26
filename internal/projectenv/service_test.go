@@ -78,7 +78,8 @@ func TestServicePresetCRUDAndDeletionProtection(t *testing.T) {
 	name := "Company"
 	doc, err = service.SavePreset(ctx, SavePresetRequest{
 		Revision: doc.Revision, Name: &name,
-		Git: FieldMap{"user.email": {Mode: ModeSet, Value: "company@example.com"}},
+		Git:   FieldMap{"user.email": {Mode: ModeSet, Value: "company@example.com"}},
+		Codex: FieldMap{"model": {Mode: ModeSet, Value: "company-model"}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -91,7 +92,9 @@ func TestServicePresetCRUDAndDeletionProtection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(doc.Config.Presets) != 2 || doc.Config.Presets[1].Git["user.email"].Value != "company@example.com" {
+	if len(doc.Config.Presets) != 2 ||
+		doc.Config.Presets[1].Git["user.email"].Value != "company@example.com" ||
+		doc.Config.Presets[1].Codex["model"].Value != "company-model" {
 		t.Fatalf("presets = %+v", doc.Config.Presets)
 	}
 	doc, err = service.SaveDefaults(ctx, SaveDefaultsRequest{Revision: doc.Revision, PresetID: stringPointer(presetID)})

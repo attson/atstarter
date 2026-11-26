@@ -17,6 +17,14 @@ var SupportedGitKeys = []string{
 	"gpg.format",
 }
 
+var SupportedCodexKeys = []string{
+	"model",
+	"model_reasoning_effort",
+	"sandbox_mode",
+	"approval_policy",
+	"web_search",
+}
+
 type FieldIntent struct {
 	Mode  Mode   `json:"mode"`
 	Value string `json:"value,omitempty"`
@@ -24,9 +32,15 @@ type FieldIntent struct {
 
 type FieldMap map[string]FieldIntent
 
+type EnvironmentFields struct {
+	Git   FieldMap `json:"git,omitempty"`
+	Codex FieldMap `json:"codex,omitempty"`
+}
+
 type LayerConfig struct {
 	PresetID string   `json:"presetId,omitempty"`
 	Git      FieldMap `json:"git,omitempty"`
+	Codex    FieldMap `json:"codex,omitempty"`
 }
 
 type Preset struct {
@@ -34,6 +48,7 @@ type Preset struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description,omitempty"`
 	Git         FieldMap `json:"git,omitempty"`
+	Codex       FieldMap `json:"codex,omitempty"`
 }
 
 type Rule struct {
@@ -44,6 +59,7 @@ type Rule struct {
 	AutoDiscover bool     `json:"autoDiscover"`
 	PresetID     string   `json:"presetId,omitempty"`
 	Git          FieldMap `json:"git,omitempty"`
+	Codex        FieldMap `json:"codex,omitempty"`
 }
 
 type Config struct {
@@ -82,4 +98,5 @@ type ResolvedEnvironment struct {
 	RepoPath        string                   `json:"repoPath"`
 	MatchingRuleIDs []string                 `json:"matchingRuleIds"`
 	Git             map[string]ResolvedField `json:"git"`
+	Codex           map[string]ResolvedField `json:"codex"`
 }
