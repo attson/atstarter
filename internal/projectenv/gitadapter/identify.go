@@ -10,15 +10,21 @@ import (
 )
 
 type Adapter struct {
-	runner Runner
+	runner   Runner
+	programs ProgramRunner
 }
+
+var _ projectenv.Adapter = (*Adapter)(nil)
 
 func New() *Adapter {
 	path, err := exec.LookPath("git")
 	if err != nil {
 		path = "git"
 	}
-	return &Adapter{runner: commandRunner{path: path, timeout: defaultGitTimeout}}
+	return &Adapter{
+		runner:   commandRunner{path: path, timeout: defaultGitTimeout},
+		programs: execProgramRunner{timeout: defaultGitTimeout},
+	}
 }
 
 func (a *Adapter) Name() string {
