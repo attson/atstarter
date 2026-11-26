@@ -14,12 +14,18 @@ func stringPointer(value string) *string { return &value }
 func boolPointer(value bool) *bool       { return &value }
 
 type serviceAdapter struct {
+	name         string
 	targets      map[string]Target
 	applyStatus  map[string]ApplyStatus
 	doctorIssues []Issue
 }
 
-func (a *serviceAdapter) Name() string { return "test" }
+func (a *serviceAdapter) Name() string {
+	if a.name != "" {
+		return a.name
+	}
+	return "test"
+}
 func (a *serviceAdapter) Identify(ctx context.Context, path string) (Target, error) {
 	if err := ctx.Err(); err != nil {
 		return Target{}, err
@@ -233,7 +239,7 @@ func TestServiceApplyContinuesInOrderAndUpdatesState(t *testing.T) {
 		t.Fatal(err)
 	}
 	sort.Slice(state.Repositories, func(i, j int) bool { return state.Repositories[i].ID < state.Repositories[j].ID })
-	if len(state.Repositories) != 3 || state.Repositories[1].LastApplyResult != string(ApplyFailed) {
+	if len(state.Repositories) != 3 || state.Repositories[1].Adapters["test"].LastApplyResult != string(ApplyFailed) {
 		t.Fatalf("state = %+v", state)
 	}
 }
@@ -274,7 +280,63 @@ func TestServiceApplyUpdatesScannedRepositoryRecord(t *testing.T) {
 		t.Fatalf("repositories = %+v", state.Repositories)
 	}
 	record := state.Repositories[0]
-	if record.ID != scannedRepo || record.TargetID != "common-dir" || record.LastApplyResult != string(ApplySuccess) {
+	if record.ID != scannedRepo || record.Adapters["test"].TargetID != "common-dir" ||
+		record.Adapters["test"].LastApplyResult != string(ApplySuccess) || record.Status != "consistent" {
+		t.Fatalf("repository = %+v", record)
+	}
+}
+
+func TestServiceApplyStoresIndependentAdapterResultsAndWorstStatus(t *testing.T) {
+	root := t.TempDir()
+	repo := filepath.Join(root, "repo")
+	makeRepositoryMarker(t, repo, false)
+	gitAdapter := &serviceAdapter{
+		name: "git",
+		targets: map[string]Target{repo: {
+			Adapter: "git", ID: "shared-common-dir", WorktreePath: repo,
+		}},
+		applyStatus: map[string]ApplyStatus{"shared-common-dir": ApplyFailed},
+	}
+	codexAdapter := &serviceAdapter{
+		name: "codex",
+		targets: map[string]Target{repo: {
+			Adapter: "codex", ID: repo, WorktreePath: repo,
+		}},
+	}
+	service, _ := newTestEnvironmentService(t, gitAdapter, codexAdapter)
+	ctx := context.Background()
+	doc, err := service.GetDocument(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ruleName := "Root"
+	if _, err := service.SaveRule(ctx, SaveRuleRequest{
+		Revision: doc.Revision, Name: &ruleName, Path: stringPointer(root), Recursive: boolPointer(true),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Scan(ctx, ScanRequest{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	plans, err := service.Plan(ctx, PlanRequest{RepositoryPaths: []string{repo}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plans) != 2 {
+		t.Fatalf("plans = %+v", plans)
+	}
+	service.Apply(ctx, plans)
+	state, err := service.State(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Repositories) != 1 {
+		t.Fatalf("repositories = %+v", state.Repositories)
+	}
+	record := state.Repositories[0]
+	if record.Adapters["git"].LastApplyResult != string(ApplyFailed) ||
+		record.Adapters["codex"].LastApplyResult != string(ApplySuccess) ||
+		record.Status != "failed" {
 		t.Fatalf("repository = %+v", record)
 	}
 }

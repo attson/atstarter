@@ -465,6 +465,7 @@ func repositoryRecordsFromCandidates(candidates []RepositoryCandidate) []Reposit
 			Aliases:         []RepositoryAlias{{Path: candidate.Path, RuleIDs: append([]string(nil), candidate.RuleIDs...)}},
 			MatchingRuleIDs: append([]string(nil), candidate.RuleIDs...),
 			Status:          "pending",
+			Adapters:        map[string]AdapterState{},
 		})
 	}
 	return records
@@ -535,51 +536,86 @@ func (s *Service) persistApplyResults(ctx context.Context, plans []ChangePlan, r
 	if err != nil {
 		return
 	}
-	byID := make(map[string]int, len(state.Repositories))
+	byTarget := make(map[string][]int, len(state.Repositories))
 	byAlias := make(map[string]int, len(state.Repositories))
 	for index, repository := range state.Repositories {
-		key := repository.TargetID
-		if key == "" {
-			key = repository.ID
+		for adapter, adapterState := range repository.Adapters {
+			if adapterState.TargetID != "" {
+				key := adapter + "\x00" + adapterState.TargetID
+				byTarget[key] = append(byTarget[key], index)
+			}
 		}
-		byID[key] = index
 		for _, alias := range repository.Aliases {
 			byAlias[alias.Path] = index
 		}
 	}
 	for index, result := range results {
-		recordIndex, exists := byID[result.Target.ID]
-		if !exists && index < len(plans) {
-			for _, alias := range plans[index].Aliases {
-				if recordIndex, exists = byAlias[alias.Path]; exists {
-					break
-				}
-			}
-			if !exists && plans[index].RepoPath != "" {
-				recordIndex, exists = byAlias[plans[index].RepoPath]
+		if index >= len(plans) {
+			continue
+		}
+		plan := plans[index]
+		recordIndexes := append([]int(nil), byTarget[plan.Adapter+"\x00"+result.Target.ID]...)
+		for _, alias := range plan.Aliases {
+			if recordIndex, exists := byAlias[alias.Path]; exists && !containsInt(recordIndexes, recordIndex) {
+				recordIndexes = append(recordIndexes, recordIndex)
 			}
 		}
-		if !exists {
-			recordIndex = len(state.Repositories)
-			aliases := []RepositoryAlias{}
-			if index < len(plans) {
-				aliases = append(aliases, plans[index].Aliases...)
-				if len(aliases) == 0 && plans[index].RepoPath != "" {
-					aliases = append(aliases, RepositoryAlias{Path: plans[index].RepoPath})
-				}
+		if len(recordIndexes) == 0 && plan.RepoPath != "" {
+			if recordIndex, exists := byAlias[plan.RepoPath]; exists {
+				recordIndexes = append(recordIndexes, recordIndex)
 			}
-			state.Repositories = append(state.Repositories, RepositoryRecord{ID: result.Target.ID, TargetID: result.Target.ID, Aliases: aliases})
 		}
-		byID[result.Target.ID] = recordIndex
-		record := &state.Repositories[recordIndex]
-		record.TargetID = result.Target.ID
-		record.Fingerprint = result.Fingerprint
-		record.LastApplyAt = s.now().UTC().Format(time.RFC3339Nano)
-		record.LastApplyResult = string(result.Status)
-		record.Status = statusForApply(result.Status)
-		record.Blockers = append([]Issue(nil), result.Issues...)
+		if len(recordIndexes) == 0 {
+			aliases := append([]RepositoryAlias(nil), plan.Aliases...)
+			if len(aliases) == 0 && plan.RepoPath != "" {
+				aliases = append(aliases, RepositoryAlias{Path: plan.RepoPath})
+			}
+			recordID := plan.RepoPath
+			if recordID == "" {
+				recordID = result.Target.WorktreePath
+			}
+			recordIndexes = append(recordIndexes, len(state.Repositories))
+			state.Repositories = append(state.Repositories, RepositoryRecord{ID: recordID, Aliases: aliases, Adapters: map[string]AdapterState{}})
+		}
+		for _, recordIndex := range recordIndexes {
+			record := &state.Repositories[recordIndex]
+			if record.Adapters == nil {
+				record.Adapters = map[string]AdapterState{}
+			}
+			record.Adapters[plan.Adapter] = AdapterState{
+				TargetID: result.Target.ID, Fingerprint: result.Fingerprint, Status: statusForApply(result.Status),
+				LastApplyAt: s.now().UTC().Format(time.RFC3339Nano), LastApplyResult: string(result.Status),
+				Blockers: append([]Issue(nil), result.Issues...),
+			}
+			record.Status = aggregateAdapterStatus(record.Adapters)
+		}
 	}
 	_ = s.state.Save(ctx, state)
+}
+
+func containsInt(values []int, target int) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
+
+func aggregateAdapterStatus(adapters map[string]AdapterState) string {
+	severity := map[string]int{"consistent": 1, "pending": 2, "drifted": 3, "blocked": 4, "failed": 5}
+	best := ""
+	bestSeverity := 0
+	for _, adapter := range adapters {
+		if severity[adapter.Status] > bestSeverity {
+			best = adapter.Status
+			bestSeverity = severity[adapter.Status]
+		}
+	}
+	if best == "" {
+		return "pending"
+	}
+	return best
 }
 
 func statusForApply(status ApplyStatus) string {

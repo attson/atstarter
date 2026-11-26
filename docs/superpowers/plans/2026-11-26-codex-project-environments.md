@@ -133,7 +133,7 @@ git commit -m "feat: resolve Codex environment fields"
 - Produces: state version 2 with automatic version 1 migration.
 - Preserves: repository aliases, rule matches, scan timestamps, and rebuildable-state quarantine behavior.
 
-- [ ] **Step 1: Write failing migration and aggregation tests**
+- [x] **Step 1: Write failing migration and aggregation tests**
 
 Cover a version 1 JSON document whose legacy target fields migrate into `Adapters["git"]`, a new repository with both adapter states, and severity aggregation:
 
@@ -152,7 +152,7 @@ func TestStateStoreMigratesVersionOneRepositoryTargetToGitAdapter(t *testing.T) 
 }
 ```
 
-- [ ] **Step 2: Run state tests and verify failure**
+- [x] **Step 2: Run state tests and verify failure**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv -run 'Test(State|PersistApply)' -count=1
@@ -160,7 +160,7 @@ func TestStateStoreMigratesVersionOneRepositoryTargetToGitAdapter(t *testing.T) 
 
 Expected: FAIL because state version 2 and adapter states are absent.
 
-- [ ] **Step 3: Implement migration and aggregate status**
+- [x] **Step 3: Implement migration and aggregate status**
 
 Define:
 
@@ -177,7 +177,7 @@ type AdapterState struct {
 
 Load raw version metadata first. Decode version 1 into a private legacy struct, migrate its target fields to `git`, and save version 2 only on the next state mutation. Normalize nil adapter maps. Update `persistApplyResults` to locate records by plan aliases, write `record.Adapters[plan.Adapter]`, and recompute repository status using `failed > blocked > drifted > pending > consistent`.
 
-- [ ] **Step 4: Run state and service tests**
+- [x] **Step 4: Run state and service tests**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv -run 'Test(State|PersistApply|Service)' -count=1
@@ -185,7 +185,7 @@ Load raw version metadata first. Decode version 1 into a private legacy struct, 
 
 Expected: PASS with both legacy migration and independent adapter results.
 
-- [ ] **Step 5: Commit state version 2**
+- [x] **Step 5: Commit state version 2**
 
 ```bash
 git add internal/projectenv/state.go internal/projectenv/state_test.go internal/projectenv/service.go internal/projectenv/service_test.go
