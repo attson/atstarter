@@ -15,6 +15,7 @@ import ThemeToggle from './components/ui/ThemeToggle.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
 import ComposeDetail from './components/ComposeDetail.vue'
 import ContainerPanel from './components/ContainerPanel.vue'
+import EnvironmentWorkspace from './components/environments/EnvironmentWorkspace.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import ContextMenu from './components/ui/ContextMenu.vue'
@@ -51,7 +52,7 @@ const statusFilter = ref(null) // null | 'running' | 'exited'
 const rescanning = ref(false)
 const missingIds = ref(new Set()) // 项目 Path 已消失(如 worktree 删除),前端据此显示"missing"标记并给出快捷移除入口
 
-const activeTab = ref('projects') // 'projects' | 'containers'
+const activeTab = ref('projects') // 'projects' | 'containers' | 'environments'
 const dockerAvailable = ref(true)
 const containerSummary = ref({ total: 0, running: 0, exited: 0 })
 const confirm = ref({ show: false, kind: '', payload: null, title: '', message: '', confirmText: '', danger: true })
@@ -451,7 +452,7 @@ onUnmounted(() => {
     <UpdateBanner ref="updateBannerRef" />
     <header class="topbar">
       <div class="brand">Rootyard</div>
-      <div class="summary">
+      <div v-if="activeTab !== 'environments'" class="summary">
         <span class="summary-count">{{ summaryTotalLabel }}</span>
         <AppPill
           variant="running"
@@ -470,6 +471,7 @@ onUnmounted(() => {
       <div class="tabs">
         <button class="tab" :class="{ active: activeTab === 'projects' }" @click="activeTab = 'projects'">Projects</button>
         <button class="tab" :class="{ active: activeTab === 'containers' }" @click="activeTab = 'containers'">Containers</button>
+        <button class="tab" :class="{ active: activeTab === 'environments' }" @click="activeTab = 'environments'">Environments</button>
       </div>
       <div class="top-actions">
         <ThemeToggle />
@@ -479,15 +481,15 @@ onUnmounted(() => {
         <AppButton variant="secondary" size="sm" icon-only title="检查更新" aria-label="检查更新" @click="onCheckUpdates">
           <template #icon><AppIcon :icon="RefreshCw" :size="14" /></template>
         </AppButton>
-        <AppButton variant="secondary" size="sm" @click="editingGroup = null; showGroup = true">
+        <AppButton v-if="activeTab !== 'environments'" variant="secondary" size="sm" @click="editingGroup = null; showGroup = true">
           <template #icon><AppIcon :icon="FolderPlus" :size="14" /></template>
           New Group
         </AppButton>
-        <AppButton variant="secondary" size="sm" @click="showScan = true">
+        <AppButton v-if="activeTab !== 'environments'" variant="secondary" size="sm" @click="showScan = true">
           <template #icon><AppIcon :icon="Radar" :size="14" /></template>
           Scan
         </AppButton>
-        <AppButton variant="primary" size="sm" @click="showAddProject = true">
+        <AppButton v-if="activeTab !== 'environments'" variant="primary" size="sm" @click="showAddProject = true">
           <template #icon><AppIcon :icon="Plus" :size="14" /></template>
           Add
         </AppButton>
@@ -511,7 +513,8 @@ onUnmounted(() => {
           @start="onStart" @stop="onStop" @restart="onRestart" @edit="showEdit = true"
           @add-to-group="showAddToGroup = true" @switch-type="onSwitchDetection" @remove="onRemoveSelectedProject" />
       </template>
-      <ContainerPanel v-else ref="containerPanelRef" :projects="projects" @confirm-remove="onConfirmRemove" @summary="onContainerSummary" />
+      <ContainerPanel v-else-if="activeTab === 'containers'" ref="containerPanelRef" :projects="projects" @confirm-remove="onConfirmRemove" @summary="onContainerSummary" />
+      <EnvironmentWorkspace v-else />
     </main>
   </div>
 
