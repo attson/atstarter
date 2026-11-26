@@ -10,12 +10,24 @@ export function AddScanned(arg1) {
   return window['go']['main']['App']['AddScanned'](arg1);
 }
 
+export function ApplyEnvironmentPlans(arg1) {
+  return window['go']['main']['App']['ApplyEnvironmentPlans'](arg1);
+}
+
+export function CancelEnvironmentScan(arg1) {
+  return window['go']['main']['App']['CancelEnvironmentScan'](arg1);
+}
+
 export function CheckoutProjectBranch(arg1, arg2) {
   return window['go']['main']['App']['CheckoutProjectBranch'](arg1, arg2);
 }
 
 export function ClearLogs(arg1) {
   return window['go']['main']['App']['ClearLogs'](arg1);
+}
+
+export function CloneEnvironmentPreset(arg1) {
+  return window['go']['main']['App']['CloneEnvironmentPreset'](arg1);
 }
 
 export function ComposeDown(arg1) {
@@ -46,8 +58,20 @@ export function CreateProjectFile(arg1, arg2) {
   return window['go']['main']['App']['CreateProjectFile'](arg1, arg2);
 }
 
+export function DeleteEnvironmentPreset(arg1) {
+  return window['go']['main']['App']['DeleteEnvironmentPreset'](arg1);
+}
+
+export function DeleteEnvironmentRule(arg1) {
+  return window['go']['main']['App']['DeleteEnvironmentRule'](arg1);
+}
+
 export function DockerAvailable() {
   return window['go']['main']['App']['DockerAvailable']();
+}
+
+export function DoctorEnvironments(arg1) {
+  return window['go']['main']['App']['DoctorEnvironments'](arg1);
 }
 
 export function FollowComposeLogs(arg1, arg2) {
@@ -60,6 +84,14 @@ export function FollowContainerLogs(arg1) {
 
 export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
+}
+
+export function GetEnvironmentDocument() {
+  return window['go']['main']['App']['GetEnvironmentDocument']();
+}
+
+export function GetEnvironmentState() {
+  return window['go']['main']['App']['GetEnvironmentState']();
 }
 
 export function GetLogs(arg1) {
@@ -134,6 +166,10 @@ export function PickDirectoryFrom(arg1) {
   return window['go']['main']['App']['PickDirectoryFrom'](arg1);
 }
 
+export function PlanEnvironmentRepositories(arg1) {
+  return window['go']['main']['App']['PlanEnvironmentRepositories'](arg1);
+}
+
 export function ProjectAbsPath(arg1, arg2) {
   return window['go']['main']['App']['ProjectAbsPath'](arg1, arg2);
 }
@@ -182,6 +218,10 @@ export function ResetProjects() {
   return window['go']['main']['App']['ResetProjects']();
 }
 
+export function ResolveEnvironment(arg1) {
+  return window['go']['main']['App']['ResolveEnvironment'](arg1);
+}
+
 export function RestartContainer(arg1) {
   return window['go']['main']['App']['RestartContainer'](arg1);
 }
@@ -192,6 +232,18 @@ export function RevealProjectPath(arg1, arg2) {
 
 export function SaveAppSettings(arg1) {
   return window['go']['main']['App']['SaveAppSettings'](arg1);
+}
+
+export function SaveEnvironmentDefaults(arg1) {
+  return window['go']['main']['App']['SaveEnvironmentDefaults'](arg1);
+}
+
+export function SaveEnvironmentPreset(arg1) {
+  return window['go']['main']['App']['SaveEnvironmentPreset'](arg1);
+}
+
+export function SaveEnvironmentRule(arg1) {
+  return window['go']['main']['App']['SaveEnvironmentRule'](arg1);
 }
 
 export function SaveGroup(arg1) {
@@ -216,6 +268,10 @@ export function SetWorkspaces(arg1) {
 
 export function StartContainer(arg1) {
   return window['go']['main']['App']['StartContainer'](arg1);
+}
+
+export function StartEnvironmentScan(arg1) {
+  return window['go']['main']['App']['StartEnvironmentScan'](arg1);
 }
 
 export function StartGroup(arg1) {
