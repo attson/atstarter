@@ -16,6 +16,7 @@ const (
 	ErrLockTimeout          ErrorCode = "lock_timeout"
 	ErrExternalLocalOrigin  ErrorCode = "external_local_origin"
 	ErrSharedTargetConflict ErrorCode = "shared_target_conflict"
+	ErrScanWarning          ErrorCode = "scan_warning"
 )
 
 type Error struct {
