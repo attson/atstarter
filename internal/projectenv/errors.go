@@ -17,6 +17,9 @@ const (
 	ErrExternalLocalOrigin  ErrorCode = "external_local_origin"
 	ErrSharedTargetConflict ErrorCode = "shared_target_conflict"
 	ErrScanWarning          ErrorCode = "scan_warning"
+	ErrGitUnavailable       ErrorCode = "git_unavailable"
+	ErrInvalidRepository    ErrorCode = "invalid_repository"
+	ErrInvalidGitConfig     ErrorCode = "invalid_git_config"
 )
 
 type Error struct {
