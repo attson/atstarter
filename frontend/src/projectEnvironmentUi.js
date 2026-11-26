@@ -118,3 +118,52 @@ export function fieldRows(fields = {}) {
     intent: normalizeIntent(fields[key]),
   }))
 }
+
+export function editFieldMode(fields = {}, key, mode) {
+  const next = { ...fields }
+  next[key] = mode === 'set'
+    ? { mode: 'set', value: fields[key]?.value || '' }
+    : { mode }
+  return next
+}
+
+export function editFieldValue(fields = {}, key, value) {
+  return { ...fields, [key]: { mode: 'set', value } }
+}
+
+export function presetUsage(document, state = {}, presetID) {
+  const normalized = normalizeEnvironmentDocument(document)
+  const rules = normalized.config.rules.filter((rule) => rule.presetId === presetID).map((rule) => rule.id)
+  const repositories = (valueFor(state, 'repositories', 'Repositories', []) || [])
+    .filter((repository) => (valueFor(repository, 'winningSourceIds', 'WinningSourceIDs', []) || []).includes(presetID))
+    .map((repository) => valueFor(repository, 'id', 'ID', ''))
+    .filter(Boolean)
+  const defaults = normalized.config.defaults.presetId === presetID
+  return { defaults, rules, repositories, total: Number(defaults) + rules.length + repositories.length }
+}
+
+function validateFields(fields, errors) {
+  for (const [key, intent] of Object.entries(fields || {})) {
+    if (intent?.mode === 'set' && !String(intent.value || '').trim()) errors[key] = 'A value is required'
+  }
+}
+
+export function validatePresetDraft(draft = {}) {
+  const errors = {}
+  if (!String(draft.name || '').trim()) errors.name = 'Name is required'
+  validateFields(draft.git, errors)
+  return { valid: Object.keys(errors).length === 0, errors }
+}
+
+export function validateRuleDraft(draft = {}) {
+  const errors = {}
+  if (!String(draft.name || '').trim()) errors.name = 'Name is required'
+  if (!String(draft.path || '').trim()) errors.path = 'Directory is required'
+  validateFields(draft.git, errors)
+  return { valid: Object.keys(errors).length === 0, errors }
+}
+
+export function isEnvironmentStaleError(error) {
+  const code = error?.code ?? error?.Code ?? error?.error?.code
+  return code === 'environment_stale' || String(error?.message || error || '').includes('environment_stale') || String(error?.message || error || '').includes('configuration changed')
+}

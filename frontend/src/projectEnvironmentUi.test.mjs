@@ -7,6 +7,12 @@ import {
   toggleRepositorySelection,
   selectableRepositoryIDs,
   fieldRows,
+  editFieldMode,
+  editFieldValue,
+  presetUsage,
+  validatePresetDraft,
+  validateRuleDraft,
+  isEnvironmentStaleError,
 } from './projectEnvironmentUi.js'
 
 test('normalizes Go-shaped and missing environment document values', () => {
@@ -68,4 +74,45 @@ test('field rows always expose the six managed Git fields', () => {
   ])
   assert.deepEqual(rows[0].intent, { mode: 'set', value: 'Ada' })
   assert.deepEqual(rows[1].intent, { mode: 'inherit', value: '' })
+})
+
+test('field mode and value edits are immutable and clear stale values', () => {
+  const original = { 'user.name': { mode: 'set', value: 'Ada' } }
+  const cleared = editFieldMode(original, 'user.name', 'clear')
+  assert.deepEqual(cleared['user.name'], { mode: 'clear' })
+  assert.deepEqual(original['user.name'], { mode: 'set', value: 'Ada' })
+  assert.deepEqual(editFieldMode(original, 'user.name', 'inherit')['user.name'], { mode: 'inherit' })
+  assert.deepEqual(editFieldValue(cleared, 'user.name', 'Grace')['user.name'], { mode: 'set', value: 'Grace' })
+})
+
+test('preset usage includes defaults rules and repository source IDs', () => {
+  const document = normalizeEnvironmentDocument({ config: {
+    version: 1,
+    defaults: { presetId: 'company' },
+    rules: [{ id: 'work', presetId: 'company' }, { id: 'other', presetId: 'personal' }],
+  } })
+  const state = { repositories: [
+    { id: 'one', winningSourceIds: ['company'] },
+    { id: 'two', WinningSourceIDs: ['personal'] },
+  ] }
+  assert.deepEqual(presetUsage(document, state, 'company'), {
+    defaults: true,
+    rules: ['work'],
+    repositories: ['one'],
+    total: 3,
+  })
+})
+
+test('draft validation requires names paths and set values', () => {
+  assert.equal(validatePresetDraft({ name: '', git: {} }).valid, false)
+  assert.equal(validatePresetDraft({ name: 'Company', git: { 'user.email': { mode: 'set', value: '' } } }).valid, false)
+  assert.deepEqual(validatePresetDraft({ name: 'Company', git: { 'user.email': { mode: 'set', value: 'a@example.com' } } }), { valid: true, errors: {} })
+  assert.equal(validateRuleDraft({ name: 'Work', path: '', git: {} }).valid, false)
+  assert.equal(validateRuleDraft({ name: 'Work', path: '/work', git: {} }).valid, true)
+})
+
+test('stale revision mapping accepts structured and Wails string errors', () => {
+  assert.equal(isEnvironmentStaleError({ code: 'environment_stale' }), true)
+  assert.equal(isEnvironmentStaleError(new Error('environment_stale: reload and retry')), true)
+  assert.equal(isEnvironmentStaleError(new Error('permission denied')), false)
 })

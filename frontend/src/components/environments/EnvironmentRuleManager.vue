@@ -1,0 +1,205 @@
+<script setup>
+import { computed, ref, watch } from 'vue'
+import { FolderOpen, Plus, Radar, Save, Trash2 } from 'lucide-vue-next'
+import AppButton from '../ui/AppButton.vue'
+import AppIcon from '../ui/AppIcon.vue'
+import EnvironmentFieldEditor from './EnvironmentFieldEditor.vue'
+import { isEnvironmentStaleError, validatePresetDraft, validateRuleDraft } from '../../projectEnvironmentUi.js'
+
+const props = defineProps({
+  document: { type: Object, required: true },
+  state: { type: Object, required: true },
+  saveDefaults: { type: Function, required: true },
+  saveRule: { type: Function, required: true },
+  deleteRule: { type: Function, required: true },
+  pickDirectory: { type: Function, required: true },
+  scanRule: { type: Function, required: true },
+})
+
+const selectedID = ref('defaults')
+const draft = ref(null)
+const saving = ref(false)
+const conflict = ref(false)
+const message = ref('')
+const confirmDelete = ref(false)
+const rules = computed(() => props.document.config.rules || [])
+const presets = computed(() => props.document.config.presets || [])
+const isDefaults = computed(() => selectedID.value === 'defaults')
+const validation = computed(() => isDefaults.value
+  ? validatePresetDraft({ name: 'Global Defaults', git: draft.value?.git || {} })
+  : validateRuleDraft(draft.value || {}))
+const matchedCount = computed(() => (props.state.repositories || props.state.Repositories || []).filter((repository) => {
+  const ids = repository.matchingRuleIds || repository.MatchingRuleIDs || []
+  return ids.includes(selectedID.value)
+}).length)
+
+function selectDefaults() {
+  selectedID.value = 'defaults'
+  draft.value = {
+    id: 'defaults', name: 'Global Defaults', presetId: props.document.config.defaults.presetId,
+    git: JSON.parse(JSON.stringify(props.document.config.defaults.git || {})),
+  }
+  conflict.value = false
+  message.value = ''
+}
+
+function selectRule(rule) {
+  selectedID.value = rule.id
+  draft.value = JSON.parse(JSON.stringify(rule))
+  conflict.value = false
+  message.value = ''
+  confirmDelete.value = false
+}
+
+function createRule() {
+  selectedID.value = ''
+  draft.value = { id: '', name: '', path: '', recursive: false, autoDiscover: false, presetId: '', git: {} }
+}
+
+async function chooseDirectory() {
+  const path = await props.pickDirectory(draft.value?.path || '')
+  if (path) draft.value.path = path
+}
+
+async function save() {
+  if (!validation.value.valid || saving.value) return
+  saving.value = true
+  conflict.value = false
+  message.value = ''
+  try {
+    const saved = isDefaults.value ? await props.saveDefaults(draft.value) : await props.saveRule(draft.value)
+    if (isDefaults.value) {
+      draft.value = {
+        id: 'defaults', name: 'Global Defaults',
+        presetId: saved.config.defaults.presetId,
+        git: JSON.parse(JSON.stringify(saved.config.defaults.git || {})),
+      }
+    }
+    else {
+      const current = saved.config.rules.find((rule) => rule.id === draft.value.id) || saved.config.rules.at(-1)
+      if (current) selectRule(current)
+    }
+    message.value = 'Saved'
+  } catch (error) {
+    conflict.value = isEnvironmentStaleError(error)
+    message.value = conflict.value ? '' : String(error)
+  } finally {
+    saving.value = false
+  }
+}
+
+async function remove() {
+  if (!confirmDelete.value) {
+    confirmDelete.value = true
+    return
+  }
+  try {
+    await props.deleteRule(draft.value.id)
+    selectDefaults()
+  } catch (error) {
+    conflict.value = isEnvironmentStaleError(error)
+    message.value = String(error)
+  }
+}
+
+watch(() => props.document.revision, () => {
+  if (!draft.value) selectDefaults()
+})
+selectDefaults()
+</script>
+
+<template>
+  <section class="rule-layout">
+    <aside class="rule-list">
+      <button type="button" class="rule-row protected" :class="{ active: selectedID === 'defaults' }" @click="selectDefaults">
+        <span>Global Defaults</span><small>Protected</small>
+      </button>
+      <div class="rule-list-heading">
+        <span>Directory rules</span>
+        <AppButton variant="secondary" size="sm" icon-only title="New directory rule" aria-label="New directory rule" @click="createRule">
+          <template #icon><AppIcon :icon="Plus" :size="14" /></template>
+        </AppButton>
+      </div>
+      <button v-for="rule in rules" :key="rule.id" type="button" class="rule-row" :class="{ active: selectedID === rule.id }" @click="selectRule(rule)">
+        <span>{{ rule.name }}</span>
+        <code :title="rule.path">{{ rule.path }}</code>
+      </button>
+    </aside>
+
+    <div v-if="draft" class="rule-editor">
+      <div class="rule-heading">
+        <input v-model="draft.name" class="title-input" :disabled="isDefaults" placeholder="Rule name">
+        <div class="rule-actions">
+          <AppButton v-if="draft.id && !isDefaults" variant="secondary" size="sm" @click="scanRule(draft.id)">
+            <template #icon><AppIcon :icon="Radar" :size="14" /></template>
+            Scan
+          </AppButton>
+          <AppButton v-if="draft.id && !isDefaults" variant="secondary" size="sm" @click="remove">
+            <template #icon><AppIcon :icon="Trash2" :size="14" /></template>
+            {{ confirmDelete ? 'Confirm delete' : 'Delete' }}
+          </AppButton>
+          <AppButton variant="primary" size="sm" :disabled="!validation.valid || saving" @click="save">
+            <template #icon><AppIcon :icon="Save" :size="14" /></template>
+            Save
+          </AppButton>
+        </div>
+      </div>
+      <div v-if="conflict" class="conflict-banner">Configuration changed on disk. Review this draft and save again.</div>
+      <div v-else-if="message" class="rule-message">{{ message }}</div>
+
+      <template v-if="!isDefaults">
+        <div class="path-row">
+          <input v-model="draft.path" class="path-input" title="Directory path" placeholder="Directory path">
+          <AppButton variant="secondary" size="sm" icon-only title="Choose directory" aria-label="Choose directory" @click="chooseDirectory">
+            <template #icon><AppIcon :icon="FolderOpen" :size="14" /></template>
+          </AppButton>
+        </div>
+        <div class="rule-options">
+          <div class="segmented" aria-label="Rule scope">
+            <button type="button" :class="{ active: !draft.recursive }" @click="draft.recursive = false">Exact</button>
+            <button type="button" :class="{ active: draft.recursive }" @click="draft.recursive = true">Recursive</button>
+          </div>
+          <label><input v-model="draft.autoDiscover" type="checkbox"> Auto-discover</label>
+          <span>{{ matchedCount }} matched</span>
+        </div>
+      </template>
+
+      <label class="preset-row">
+        <span>Preset</span>
+        <select v-model="draft.presetId">
+          <option value="">No preset</option>
+          <option v-for="preset in presets" :key="preset.id" :value="preset.id">{{ preset.name }}</option>
+        </select>
+      </label>
+      <EnvironmentFieldEditor v-model="draft.git" />
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.rule-layout { width: 100%; min-width: 0; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
+.rule-list { padding: var(--space-6); border-right: 1px solid var(--border); overflow: auto; }
+.rule-list-heading { display: flex; align-items: center; justify-content: space-between; margin: var(--space-7) var(--space-3) var(--space-3); color: var(--text-muted); font-size: var(--fs-xs); text-transform: uppercase; }
+.rule-row { width: 100%; min-width: 0; display: grid; gap: 2px; padding: var(--space-5); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); font: inherit; text-align: left; cursor: pointer; }
+.rule-row.active { background: var(--elevated); border-color: var(--border); color: var(--text); }
+.rule-row span, .rule-row code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rule-row code { color: var(--text-muted); font-size: var(--fs-xs); }
+.rule-row.protected { grid-template-columns: 1fr auto; align-items: center; }
+.rule-row small { color: var(--text-muted); }
+.rule-editor { min-width: 0; padding: var(--space-8) var(--space-9); overflow: auto; }
+.rule-heading { display: flex; align-items: center; gap: var(--space-7); }
+.title-input { min-width: 0; flex: 1; border: 0; border-bottom: 1px solid var(--border); outline: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-lg); font-weight: var(--fw-semibold); letter-spacing: 0; padding: var(--space-3) 0; }
+.title-input:disabled { opacity: 1; }
+.rule-actions { display: flex; gap: var(--space-4); }
+.path-row { display: grid; grid-template-columns: minmax(0, 1fr) 32px; gap: var(--space-4); margin-top: var(--space-7); }
+.path-input, select { height: 32px; box-sizing: border-box; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--elevated); color: var(--text); padding: 0 var(--space-5); font: inherit; }
+.path-input { min-width: 0; font-family: var(--font-mono); }
+.rule-options { display: flex; align-items: center; gap: var(--space-7); padding: var(--space-6) 0; color: var(--text-secondary); }
+.segmented { display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.segmented button { height: 28px; border: 0; border-right: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; }
+.segmented button:last-child { border-right: 0; }
+.segmented button.active { background: var(--elevated); color: var(--text); }
+.preset-row { display: grid; grid-template-columns: 130px minmax(180px, 320px); align-items: center; gap: var(--space-6); padding: var(--space-6) 0; border-top: 1px solid var(--border); }
+.conflict-banner, .rule-message { margin-top: var(--space-5); padding: var(--space-4) var(--space-5); border-left: 2px solid var(--warning); color: var(--text-secondary); }
+@media (max-width: 820px) { .rule-layout { grid-template-columns: 200px minmax(0, 1fr); } .rule-heading { align-items: flex-start; flex-direction: column; } }
+</style>

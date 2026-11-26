@@ -3,10 +3,19 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { FolderTree, GitBranch, LayoutDashboard, SlidersHorizontal } from 'lucide-vue-next'
 import AppIcon from '../ui/AppIcon.vue'
 import EnvironmentOverview from './EnvironmentOverview.vue'
+import EnvironmentPresetManager from './EnvironmentPresetManager.vue'
+import EnvironmentRuleManager from './EnvironmentRuleManager.vue'
 import {
   CancelEnvironmentScan,
+  CloneEnvironmentPreset,
+  DeleteEnvironmentPreset,
+  DeleteEnvironmentRule,
   GetEnvironmentDocument,
   GetEnvironmentState,
+  PickDirectoryFrom,
+  SaveEnvironmentDefaults,
+  SaveEnvironmentPreset,
+  SaveEnvironmentRule,
   StartEnvironmentScan,
 } from '../../../wailsjs/go/main/App'
 import { EventsOff, EventsOn } from '../../../wailsjs/runtime/runtime'
@@ -43,15 +52,74 @@ async function refreshEnvironmentData() {
   }
 }
 
-async function startScan() {
+async function startScan(ruleIDs = []) {
   if (scanID.value) return
   error.value = ''
   scanProgress.value = {}
   try {
-    scanID.value = await StartEnvironmentScan([])
+    scanID.value = await StartEnvironmentScan(ruleIDs)
   } catch (cause) {
     error.value = String(cause)
   }
+}
+
+async function acceptDocumentMutation(operation) {
+  try {
+    const next = await operation()
+    document.value = normalizeEnvironmentDocument(next)
+    return document.value
+  } catch (cause) {
+    if (String(cause).includes('environment_stale') || String(cause).includes('configuration changed')) await refreshEnvironmentData()
+    throw cause
+  }
+}
+
+function savePreset(draft) {
+  return acceptDocumentMutation(() => SaveEnvironmentPreset({
+    revision: document.value.revision,
+    id: draft.id || '',
+    name: draft.name,
+    description: draft.description || '',
+    git: draft.git || {},
+  }))
+}
+
+function clonePreset(id, name) {
+  return acceptDocumentMutation(() => CloneEnvironmentPreset({ revision: document.value.revision, id, name }))
+}
+
+function deletePreset(id) {
+  return acceptDocumentMutation(() => DeleteEnvironmentPreset({ revision: document.value.revision, id }))
+}
+
+function saveDefaults(draft) {
+  return acceptDocumentMutation(() => SaveEnvironmentDefaults({ revision: document.value.revision, presetId: draft.presetId || '', git: draft.git || {} }))
+}
+
+async function saveRule(draft) {
+  const saved = await acceptDocumentMutation(() => SaveEnvironmentRule({
+    revision: document.value.revision,
+    id: draft.id || '',
+    name: draft.name,
+    path: draft.path,
+    recursive: Boolean(draft.recursive),
+    autoDiscover: Boolean(draft.autoDiscover),
+    presetId: draft.presetId || '',
+    git: draft.git || {},
+  }))
+  const savedRule = draft.id
+    ? saved.config.rules.find((rule) => rule.id === draft.id)
+    : saved.config.rules.at(-1)
+  if (savedRule?.autoDiscover) await startScan([savedRule.id])
+  return saved
+}
+
+function deleteRule(id) {
+  return acceptDocumentMutation(() => DeleteEnvironmentRule({ revision: document.value.revision, id }))
+}
+
+function pickDirectory(path) {
+  return PickDirectoryFrom(path || '')
 }
 
 function onScanProgress(payload) {
@@ -107,6 +175,24 @@ onUnmounted(() => {
         :progress="scanProgress"
         @scan="startScan"
         @open-repositories="activeView = 'repositories'"
+      />
+      <EnvironmentPresetManager
+        v-else-if="activeView === 'presets'"
+        :document="document"
+        :state="state"
+        :save-preset="savePreset"
+        :clone-preset="clonePreset"
+        :delete-preset="deletePreset"
+      />
+      <EnvironmentRuleManager
+        v-else-if="activeView === 'rules'"
+        :document="document"
+        :state="state"
+        :save-defaults="saveDefaults"
+        :save-rule="saveRule"
+        :delete-rule="deleteRule"
+        :pick-directory="pickDirectory"
+        :scan-rule="(id) => startScan([id])"
       />
       <section v-else class="environment-placeholder">
         <h1>{{ currentTitle }}</h1>
