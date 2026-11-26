@@ -452,6 +452,11 @@ onUnmounted(() => {
     <UpdateBanner ref="updateBannerRef" />
     <header class="topbar">
       <div class="brand">Rootyard</div>
+      <div class="tabs">
+        <button class="tab" :class="{ active: activeTab === 'projects' }" @click="activeTab = 'projects'">Projects</button>
+        <button class="tab" :class="{ active: activeTab === 'containers' }" @click="activeTab = 'containers'">Containers</button>
+        <button class="tab" :class="{ active: activeTab === 'environments' }" @click="activeTab = 'environments'">Environments</button>
+      </div>
       <div v-if="activeTab !== 'environments'" class="summary">
         <span class="summary-count">{{ summaryTotalLabel }}</span>
         <AppPill
@@ -467,11 +472,6 @@ onUnmounted(() => {
           :active="activeTab === 'projects' && statusFilter === 'exited'"
           @click="toggleStatusFilter('exited')"
         >{{ summaryExitedCount }} exited</AppPill>
-      </div>
-      <div class="tabs">
-        <button class="tab" :class="{ active: activeTab === 'projects' }" @click="activeTab = 'projects'">Projects</button>
-        <button class="tab" :class="{ active: activeTab === 'containers' }" @click="activeTab = 'containers'">Containers</button>
-        <button class="tab" :class="{ active: activeTab === 'environments' }" @click="activeTab = 'environments'">Environments</button>
       </div>
       <div class="top-actions">
         <ThemeToggle />
@@ -613,7 +613,7 @@ html, body, #app { height: 100%; margin: 0; }
   font-weight: var(--fw-medium);
 }
 
-.tabs { display: flex; gap: var(--space-2); }
+.tabs { display: flex; flex-shrink: 0; gap: var(--space-2); }
 .tab { height: 28px; padding: 0 var(--space-5); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-medium); cursor: pointer; }
 .tab.active { background: var(--elevated); color: var(--text); border-color: var(--border-strong); }
 
