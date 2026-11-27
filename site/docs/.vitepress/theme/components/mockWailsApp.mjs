@@ -300,6 +300,82 @@ export async function SaveAppSettings(settings) {
   demoSettings = { ...demoSettings, ...clone(settings) }
   return clone(demoSettings)
 }
+
+// Environment demo state is synthetic and stays in memory. No repositories are
+// discovered, so preview, apply, and doctor have no native work to perform.
+const demoEnvironment = {
+  revision: 'demo-env-0',
+  config: { version: 2, defaults: { presetId: '', git: {}, codex: {} }, presets: [], rules: [] },
+}
+let environmentRevision = 0
+let environmentId = 0
+const environmentScans = new Map()
+
+function editEnvironment(request, edit) {
+  if (request.revision !== demoEnvironment.revision) throw new Error('environment_stale')
+  edit()
+  demoEnvironment.revision = `demo-env-${++environmentRevision}`
+  return clone(demoEnvironment)
+}
+
+function saveEnvironmentItem(collection, request) {
+  return editEnvironment(request, () => {
+    const { revision, ...item } = clone(request)
+    item.id ||= `demo-env-item-${++environmentId}`
+    const index = collection.findIndex((value) => value.id === item.id)
+    if (index < 0) collection.push(item)
+    else collection[index] = { ...collection[index], ...item }
+  })
+}
+
+export async function GetEnvironmentDocument() { return clone(demoEnvironment) }
+export async function GetEnvironmentState() { return { version: 2, ruleScans: [], repositories: [] } }
+export async function SaveEnvironmentDefaults(request) {
+  return editEnvironment(request, () => {
+    const { revision, ...defaults } = clone(request)
+    demoEnvironment.config.defaults = { ...demoEnvironment.config.defaults, ...defaults }
+  })
+}
+export async function SaveEnvironmentPreset(request) { return saveEnvironmentItem(demoEnvironment.config.presets, request) }
+export async function SaveEnvironmentRule(request) { return saveEnvironmentItem(demoEnvironment.config.rules, request) }
+export async function CloneEnvironmentPreset(request) {
+  return editEnvironment(request, () => {
+    const preset = demoEnvironment.config.presets.find((item) => item.id === request.id)
+    if (!preset) throw new Error('Preset not found')
+    demoEnvironment.config.presets.push({ ...clone(preset), id: `demo-env-item-${++environmentId}`, name: request.name })
+  })
+}
+export async function DeleteEnvironmentPreset(request) {
+  return editEnvironment(request, () => {
+    demoEnvironment.config.presets = demoEnvironment.config.presets.filter((item) => item.id !== request.id)
+    for (const layer of [demoEnvironment.config.defaults, ...demoEnvironment.config.rules]) {
+      if (layer.presetId === request.id) layer.presetId = ''
+    }
+  })
+}
+export async function DeleteEnvironmentRule(request) {
+  return editEnvironment(request, () => {
+    demoEnvironment.config.rules = demoEnvironment.config.rules.filter((item) => item.id !== request.id)
+  })
+}
+export async function PlanEnvironmentRepositories() { return [] }
+export async function ApplyEnvironmentPlans() { return [] }
+export async function DoctorEnvironments() { return [] }
+export async function StartEnvironmentScan() {
+  const scanId = `demo-env-scan-${++environmentId}`
+  environmentScans.set(scanId, setTimeout(() => {
+    environmentScans.delete(scanId)
+    EventsEmit('projectenv:scan-complete', { scanId, result: { repositories: [], warnings: [], canceled: false } })
+  }, 0))
+  return scanId
+}
+export function CancelEnvironmentScan(scanId) {
+  if (!environmentScans.has(scanId)) return false
+  clearTimeout(environmentScans.get(scanId))
+  environmentScans.delete(scanId)
+  return true
+}
+
 export async function PickDirectory() { return '/Users/demo/workspaces' }
 export async function PickDirectoryFrom(defaultDir) { return defaultDir || '/Users/demo/workspaces' }
 

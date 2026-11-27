@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"rootyard/internal/cmdparse"
@@ -16,6 +17,9 @@ import (
 	"rootyard/internal/docker"
 	"rootyard/internal/filetree"
 	"rootyard/internal/git"
+	"rootyard/internal/projectenv"
+	"rootyard/internal/projectenv/codexadapter"
+	"rootyard/internal/projectenv/gitadapter"
 	"rootyard/internal/runner"
 	"rootyard/internal/scanner"
 	"rootyard/internal/store"
@@ -36,6 +40,12 @@ type App struct {
 	watcher            *filetree.Watcher
 	control            *controlServer
 	logBatcher         *logBatcher
+	envService         *projectenv.Service
+	environmentScans   map[string]context.CancelFunc
+	environmentScanMu  sync.Mutex
+	environmentScan    func(context.Context, projectenv.ScanRequest, func(projectenv.ScanProgress)) (projectenv.ScanResult, error)
+	environmentScanID  func() (string, error)
+	environmentEmit    func(string, any)
 }
 
 type CommandInput struct {
@@ -55,6 +65,7 @@ type LaunchResult struct {
 }
 
 type AppSettings struct {
+	Language         string   `json:"language"`
 	Shell            string   `json:"shell"`
 	AutoShell        string   `json:"autoShell"`
 	AvailableShells  []string `json:"availableShells"`
@@ -82,9 +93,19 @@ func appSettingsFromConfig(settings store.AppSettings) AppSettings {
 		letterSpacing = 0
 	}
 	return AppSettings{
-		Shell: strings.TrimSpace(settings.Shell), AutoShell: runner.DefaultShell(),
+		Language: normalizeLanguagePreference(settings.Language),
+		Shell:    strings.TrimSpace(settings.Shell), AutoShell: runner.DefaultShell(),
 		AvailableShells: runner.AvailableShells(), LogFontFamily: fontFamily,
 		LogFontSize: fontSize, LogLetterSpacing: letterSpacing,
+	}
+}
+
+func normalizeLanguagePreference(value string) string {
+	switch value {
+	case "system", "zh-CN", "en":
+		return value
+	default:
+		return "system"
 	}
 }
 
@@ -95,13 +116,23 @@ func NewApp() *App {
 
 // NewAppWithConfig 用指定配置路径构造(测试用)。
 func NewAppWithConfig(cfgPath string) *App {
-	return &App{
-		store:      store.New(cfgPath),
-		runner:     runner.New(5000),
-		updater:    newUpdater(),
-		docker:     docker.New(),
-		configPath: cfgPath,
+	app := &App{
+		store:            store.New(cfgPath),
+		runner:           runner.New(5000),
+		updater:          newUpdater(),
+		docker:           docker.New(),
+		configPath:       cfgPath,
+		environmentScans: make(map[string]context.CancelFunc),
 	}
+	app.envService = projectenv.NewService(cfgPath, gitadapter.New(), codexadapter.New())
+	app.environmentScan = app.envService.Scan
+	app.environmentScanID = newEnvironmentScanID
+	app.environmentEmit = func(name string, payload any) {
+		if app.ctx != nil {
+			runtime.EventsEmit(app.ctx, name, payload)
+		}
+	}
+	return app
 }
 
 // defaultConfigPath 返回配置文件路径。dev 构建使用项目目录下的 .dev 隔离本地数据。
@@ -149,10 +180,12 @@ func (a *App) startup(ctx context.Context) {
 	if traySupported() {
 		startTray(a)
 	}
+	a.startAutomaticEnvironmentScan()
 }
 
 // shutdown 由 Wails 在退出时调用,停掉所有进程。
 func (a *App) shutdown(ctx context.Context) {
+	a.cancelEnvironmentScans()
 	if a.control != nil {
 		a.control.Close()
 	}
@@ -899,6 +932,7 @@ func (a *App) GetAppSettings() (AppSettings, error) {
 
 // SaveAppSettings 校验并保存跨项目应用偏好。
 func (a *App) SaveAppSettings(settings AppSettings) (AppSettings, error) {
+	settings.Language = normalizeLanguagePreference(settings.Language)
 	settings.Shell = strings.TrimSpace(settings.Shell)
 	settings.LogFontFamily = strings.TrimSpace(settings.LogFontFamily)
 	if err := runner.ValidateShell(settings.Shell); err != nil {
@@ -914,7 +948,8 @@ func (a *App) SaveAppSettings(settings AppSettings) (AppSettings, error) {
 		return AppSettings{}, errors.New("log letter spacing must be between 0 and 4")
 	}
 	persisted := store.AppSettings{
-		Shell: settings.Shell, LogFontFamily: settings.LogFontFamily,
+		Language: settings.Language,
+		Shell:    settings.Shell, LogFontFamily: settings.LogFontFamily,
 		LogFontSize: settings.LogFontSize, LogLetterSpacing: settings.LogLetterSpacing,
 	}
 	if err := a.store.SetSettings(persisted); err != nil {

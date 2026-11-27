@@ -1,10 +1,13 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { Play, Square, Pencil, Trash2 } from 'lucide-vue-next'
 import AppButton from './ui/AppButton.vue'
 import AppPill from './ui/AppPill.vue'
 import AppIcon from './ui/AppIcon.vue'
 import { stateClass, memberStatusState } from '../groupMemberStatus.js'
+
+const { t } = useI18n()
 
 const props = defineProps({ group: Object, projects: Array, statuses: { type: Object, default: () => ({}) } })
 const emit = defineEmits(['start', 'stop', 'edit', 'remove', 'select-command'])
@@ -54,27 +57,27 @@ const members = computed(() => {
       <div class="info">
         <div class="title-line">
           <h1>{{ group.name }}</h1>
-          <AppPill variant="neutral">group</AppPill>
-          <AppPill variant="stopped">{{ (group.items || []).length }} commands</AppPill>
+          <AppPill variant="neutral">{{ t('groups.badge') }}</AppPill>
+          <AppPill variant="stopped">{{ t('commands.count', (group.items || []).length, { count: (group.items || []).length }) }}</AppPill>
         </div>
-        <p>启动、停止或检查这组项目命令。</p>
+        <p>{{ t('groups.description') }}</p>
       </div>
       <div class="btns">
         <AppButton variant="secondary" @click="emit('edit', group)">
           <template #icon><AppIcon :icon="Pencil" :size="14" /></template>
-          Edit
+          {{ t('common.edit') }}
         </AppButton>
         <AppButton variant="secondary" @click="emit('remove', group.id)">
           <template #icon><AppIcon :icon="Trash2" :size="14" /></template>
-          Remove
+          {{ t('common.remove') }}
         </AppButton>
         <AppButton variant="danger" @click="emit('stop', group.id)">
           <template #icon><AppIcon :icon="Square" :size="14" /></template>
-          Stop
+          {{ t('common.stop') }}
         </AppButton>
         <AppButton variant="success" @click="emit('start', group.id)">
           <template #icon><AppIcon :icon="Play" :size="14" /></template>
-          Start
+          {{ t('common.start') }}
         </AppButton>
       </div>
     </header>
@@ -91,7 +94,7 @@ const members = computed(() => {
         <span class="command-name">{{ member.command.name }}</span>
         <code>{{ lineFor(member.command) }}</code>
       </button>
-      <div v-if="members.length === 0" class="empty">这个分组还没有项目命令。</div>
+      <div v-if="members.length === 0" class="empty">{{ t('groups.empty') }}</div>
     </div>
   </section>
 </template>

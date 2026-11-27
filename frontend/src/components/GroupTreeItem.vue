@@ -1,14 +1,18 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { ChevronDown, ChevronRight, FolderKanban } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
 import ProjectCardContent from './ProjectCardContent.vue'
 import { DEFAULT_PROJECT_CARD_FIELDS } from '../projectNavigation.js'
 
+const { t } = useI18n()
+
 const props = defineProps({
   group: Object,
   projects: Array,
   statuses: Object,
+  missingIds: { type: Set, default: () => new Set() },
   selected: Boolean,
   expanded: Boolean,
   viewMode: { type: String, default: 'list' },
@@ -68,14 +72,14 @@ const members = computed(() => {
       @keydown.enter.prevent="emit('select', group.id)"
       @keydown.space.prevent="emit('select', group.id)"
     >
-      <button class="toggle" @click.stop="emit('toggle', `group:${group.id}`)">
+      <button class="toggle" :aria-label="t(expanded ? 'groups.collapse' : 'groups.expand', { name: group.name })" @click.stop="emit('toggle', `group:${group.id}`)">
         <AppIcon :icon="expanded ? ChevronDown : ChevronRight" :size="12" />
       </button>
       <span class="group-main">
         <span class="group-badge"><AppIcon :icon="FolderKanban" :size="12" /></span>
         <span class="group-copy">
           <span class="group-name">{{ group.name }}</span>
-          <span class="group-count">{{ (group.items || []).length }} commands</span>
+          <span class="group-count">{{ t('commands.count', (group.items || []).length, { count: (group.items || []).length }) }}</span>
         </span>
         <span class="count">{{ (group.items || []).length }}</span>
       </span>
@@ -96,6 +100,7 @@ const members = computed(() => {
           v-else
           :project="member.project"
           :status="member.status"
+          :missing="missingIds.has(member.project.id)"
           :branch-entry="branches[member.project.id]"
           :command-name="member.command.name"
           :fields="cardFields"

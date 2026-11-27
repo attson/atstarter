@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Play, Square, RotateCcw, Trash2, ScrollText } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
 import FileBrowser from './FileBrowser.vue'
@@ -14,6 +15,7 @@ import {
 } from '../../wailsjs/go/main/App'
 
 const props = defineProps({ project: Object, dockerAvailable: Boolean })
+const { t } = useI18n()
 const emit = defineEmits(['confirm-down', 'switch-type'])
 const detailTab = ref('services') // 'services' | 'files'
 const services = ref([])
@@ -39,12 +41,16 @@ async function refresh() {
 
 const aggregate = computed(() => {
   const list = services.value
-  if (!list.length) return { label: 'unknown', variant: 'stopped' }
+  if (!list.length) return { label: t('status.unknown'), variant: 'stopped' }
   const running = list.filter((s) => s.state === 'running').length
-  if (running === list.length) return { label: `${running}/${list.length} running`, variant: 'running' }
-  if (running === 0) return { label: 'stopped', variant: 'stopped' }
-  return { label: `${running}/${list.length} running`, variant: 'exited' }
+  if (running === 0) return { label: t('status.stopped'), variant: 'stopped' }
+  return { label: t('containers.runningTotal', { running, total: list.length }), variant: running === list.length ? 'running' : 'exited' }
 })
+
+const translatedStates = new Set(['running', 'stopped', 'exited', 'error', 'created', 'paused', 'restarting', 'removing', 'dead'])
+function stateLabel(state) {
+  return translatedStates.has(state) ? t(`status.${state}`) : state || t('status.unknown')
+}
 
 async function upAll() { await ComposeUp(props.project.id, ''); await refresh() }
 async function stopAll() { await ComposeStop(props.project.id, ''); await refresh() }
@@ -76,53 +82,53 @@ onUnmounted(() => { clearInterval(timer); stopActiveFollow() })
           <h1>{{ project.name }}</h1>
           <AppPill :variant="aggregate.variant" :dot="aggregate.variant === 'running'">{{ aggregate.label }}</AppPill>
           <DetectionSwitch v-if="hasDetectionSwitch(project)" :project="project" @switch="emit('switch-type', $event)" />
-          <AppPill v-else variant="neutral">compose</AppPill>
+          <AppPill v-else variant="neutral">{{ t('containers.compose') }}</AppPill>
         </div>
         <div class="path">{{ project.path }}</div>
         <div class="ops">
           <AppButton variant="success" size="sm" :disabled="!dockerAvailable" @click="upAll">
-            <template #icon><AppIcon :icon="Play" :size="13" /></template> Up (all)
+            <template #icon><AppIcon :icon="Play" :size="13" /></template> {{ t('containers.upAll') }}
           </AppButton>
           <AppButton variant="secondary" size="sm" :disabled="!dockerAvailable" @click="stopAll">
-            <template #icon><AppIcon :icon="Square" :size="13" /></template> Stop (all)
+            <template #icon><AppIcon :icon="Square" :size="13" /></template> {{ t('containers.stopAll') }}
           </AppButton>
           <AppButton variant="danger" size="sm" :disabled="!dockerAvailable" @click="requestDown">
-            <template #icon><AppIcon :icon="Trash2" :size="13" /></template> Down…
+            <template #icon><AppIcon :icon="Trash2" :size="13" /></template> {{ t('containers.down') }}
           </AppButton>
         </div>
       </div>
     </div>
 
     <div class="detail-tabs">
-      <button class="tab" :class="{ active: detailTab === 'services' }" @click="detailTab = 'services'">服务</button>
-      <button class="tab" :class="{ active: detailTab === 'files' }" @click="detailTab = 'files'">文件</button>
+      <button class="tab" :class="{ active: detailTab === 'services' }" @click="detailTab = 'services'">{{ t('containers.services') }}</button>
+      <button class="tab" :class="{ active: detailTab === 'files' }" @click="detailTab = 'files'">{{ t('projects.files') }}</button>
     </div>
 
     <div class="services" v-if="detailTab === 'services' && dockerAvailable">
-      <div class="svc-head">SERVICES <span class="count">{{ services.length }}</span></div>
+      <div class="svc-head">{{ t('containers.services') }} <span class="count">{{ services.length }}</span></div>
       <div v-for="s in services" :key="s.name" class="svc-row">
         <span class="dot" :class="s.state"></span>
         <span class="svc-name">{{ s.name }}</span>
-        <span class="svc-state">{{ s.state }}</span>
+        <span class="svc-state">{{ stateLabel(s.state) }}</span>
         <span class="svc-image">{{ s.image }}</span>
         <span class="svc-ports">{{ (s.ports || []).join(', ') }}</span>
         <span class="svc-acts">
-          <AppButton v-if="s.state !== 'running'" variant="success" size="sm" iconOnly title="start" @click="upService(s)">
+          <AppButton v-if="s.state !== 'running'" variant="success" size="sm" iconOnly :title="t('common.start')" :aria-label="t('common.start')" @click="upService(s)">
             <template #icon><AppIcon :icon="Play" :size="13" /></template>
           </AppButton>
-          <AppButton v-else variant="danger" size="sm" iconOnly title="stop" @click="stopService(s)">
+          <AppButton v-else variant="danger" size="sm" iconOnly :title="t('common.stop')" :aria-label="t('common.stop')" @click="stopService(s)">
             <template #icon><AppIcon :icon="Square" :size="13" /></template>
           </AppButton>
-          <AppButton variant="secondary" size="sm" iconOnly title="restart" @click="restartService(s)">
+          <AppButton variant="secondary" size="sm" iconOnly :title="t('common.restart')" :aria-label="t('common.restart')" @click="restartService(s)">
             <template #icon><AppIcon :icon="RotateCcw" :size="13" /></template>
           </AppButton>
-          <AppButton variant="secondary" size="sm" iconOnly title="logs" @click="followLogs(s.name)">
+          <AppButton variant="secondary" size="sm" iconOnly :title="t('projects.logs')" :aria-label="t('projects.logs')" @click="followLogs(s.name)">
             <template #icon><AppIcon :icon="ScrollText" :size="13" /></template>
           </AppButton>
         </span>
       </div>
     </div>
-    <div v-else-if="detailTab === 'services'" class="docker-off">Docker 不可用,无法管理 compose 服务。</div>
+    <div v-else-if="detailTab === 'services'" class="docker-off">{{ t('containers.composeUnavailable') }}</div>
 
     <div v-if="detailTab === 'files'" class="files-tab">
       <FileBrowser :projectId="project.id" />

@@ -1,9 +1,12 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { ref, watch } from 'vue'
 import { FolderOpen } from 'lucide-vue-next'
 import { PickDirectory } from '../../wailsjs/go/main/App'
 import AppButton from './ui/AppButton.vue'
 import AppIcon from './ui/AppIcon.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({ show: Boolean })
 const emit = defineEmits(['close', 'save'])
@@ -31,17 +34,17 @@ function save() {
     <div class="mask" v-if="show" @click.self="emit('close')">
       <Transition name="dlg-pop" appear>
         <div class="dialog">
-          <h3>添加项目</h3>
-          <label>项目目录<input v-model="path" placeholder="/home/attson/GolandProjects/rootyard" /></label>
+          <h3>{{ t('projects.addTitle') }}</h3>
+          <label>{{ t('projects.directory') }}<input v-model="path" placeholder="/home/attson/GolandProjects/rootyard" /></label>
           <div class="inline-actions">
             <AppButton variant="secondary" @click="pickDir">
               <template #icon><AppIcon :icon="FolderOpen" :size="14" /></template>
-              选择文件夹
+              {{ t('common.chooseFolder') }}
             </AppButton>
           </div>
           <div class="btns">
-            <AppButton variant="secondary" @click="emit('close')">取消</AppButton>
-            <AppButton variant="primary" :disabled="!path.trim()" @click="save">添加</AppButton>
+            <AppButton variant="secondary" @click="emit('close')">{{ t('common.cancel') }}</AppButton>
+            <AppButton variant="primary" :disabled="!path.trim()" @click="save">{{ t('common.add') }}</AppButton>
           </div>
         </div>
       </Transition>

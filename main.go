@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"io"
 	"os"
 
 	"github.com/wailsapp/wails/v2"
@@ -23,13 +24,8 @@ var Version = "dev"
 var UpdateVerifyPublicKey = ""
 
 func main() {
-	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "cli":
-			os.Exit(runCLI(os.Args[2:]))
-		case "mcp":
-			os.Exit(runMCP(os.Stdin, os.Stdout))
-		}
+	if handled, code := dispatchTopLevel(os.Args, os.Stdin, os.Stdout, os.Stderr); handled {
+		os.Exit(code)
 	}
 
 	// Linux 下若探测到会让 WebKitGTK 在 DMABUF/GBM 路径 abort 的 GPU 环境
@@ -66,5 +62,21 @@ func main() {
 
 	if err != nil {
 		println("Error:", err.Error())
+	}
+}
+
+func dispatchTopLevel(args []string, stdin io.Reader, stdout, stderr io.Writer) (bool, int) {
+	if len(args) <= 1 {
+		return false, 0
+	}
+	switch args[1] {
+	case "env":
+		return true, runEnvCLI(args[2:], stdin, stdout, stderr)
+	case "cli":
+		return true, runCLIWithIO(args[2:], stdout, stderr)
+	case "mcp":
+		return true, runMCP(stdin, stdout)
+	default:
+		return false, 0
 	}
 }

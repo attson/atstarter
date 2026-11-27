@@ -1,10 +1,13 @@
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Folder, GitBranch, Terminal } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
 import { displayPath } from '../projectTree.js'
 import { typeLabel } from '../typeLabel.js'
 import { DEFAULT_PROJECT_CARD_FIELDS } from '../projectNavigation.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -24,9 +27,9 @@ const statusClass = computed(() => {
 })
 
 const branchLabel = computed(() => {
-  if (!props.branchEntry || props.branchEntry.state === 'loading') return '读取分支...'
-  if (props.branchEntry.state === 'error') return '分支读取失败'
-  return props.branchEntry.branch || '无分支信息'
+  if (!props.branchEntry || props.branchEntry.state === 'loading') return t('projects.card.branchLoading')
+  if (props.branchEntry.state === 'error') return t('projects.card.branchReadFailed')
+  return props.branchEntry.branch || t('projects.card.noBranch')
 })
 
 const branchTitle = computed(() => props.branchEntry?.branch || branchLabel.value)
@@ -38,8 +41,8 @@ const shortPath = computed(() => displayPath(props.project.path))
     <span class="card-title-line">
       <span :class="['status-dot', statusClass]" />
       <span class="project-name" :title="project.name">{{ project.name }}</span>
-      <span v-if="missing" class="meta-pill missing-pill">missing</span>
-      <span v-else-if="fields.type" class="meta-pill">{{ typeLabel(project.detectedType) }}</span>
+      <span v-if="missing" class="meta-pill missing-pill">{{ t('status.missing') }}</span>
+      <span v-else-if="fields.type" class="meta-pill">{{ typeLabel(project.detectedType) || t('status.unknown') }}</span>
       <span v-if="count" class="meta-pill">{{ count }}</span>
     </span>
     <span

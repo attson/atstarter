@@ -23,6 +23,8 @@ update:state      UpdateState
 docker:available  docker.Info
 docker:state      []docker.ContainerState
 fs:dir-changed    string // changed relative directory
+projectenv:scan-progress {scanId,progress}
+projectenv:scan-complete {scanId,result,error?}
 ```
 
 `GetStatuses(runIDs)` returns one RunID-keyed status snapshot. Visible pages use it for initial,
@@ -45,6 +47,15 @@ control.WriteState(<config>.control.json, {url, token, pid, version})
 control.Client.Call(method, params, out)
 ```
 
+```go
+// Project environments: shared by offline CLI and Wails bindings
+projectenv.Store.Load(ctx) (projectenv.Document, error)
+projectenv.Store.Update(ctx, expectedRevision, mutate) (projectenv.Document, error)
+projectenv.Resolve(config, repoPath, session projectenv.EnvironmentFields) (projectenv.ResolvedEnvironment, error)
+projectenv.Service.Plan(ctx, request) ([]projectenv.ChangePlan, error)
+projectenv.Service.Apply(ctx, displayedPlans) []projectenv.ApplyResult
+```
+
 ### Interface Constraints
 
 - Detector suggestions are defaults, not hidden rules. Users can override command, args, cwd, env, and
@@ -53,7 +64,11 @@ control.Client.Call(method, params, out)
 - Wails bindings are the only frontend/backend API. Do not make frontend code depend on local files
   outside Wails methods.
 - CLI and MCP must call the desktop control server. They must not instantiate their own long-lived
-  runner, Docker poller, or store mutation path.
+  runner, Docker poller, or launcher-store mutation path. Top-level `rootyard env` is the only offline
+  exception and may instantiate `projectenv.Service` directly.
+- The environment resolver and service do not depend on Wails or native file representation. Session
+  overrides use `EnvironmentFields{Git, Codex}`. Native identity, inspection, doctor, planning, and
+  apply behavior stays behind registered `projectenv.Adapter` implementations.
 
 ## 2. Dispatch Rules
 
@@ -67,6 +82,10 @@ control.Client.Call(method, params, out)
 | Run ID compose logs | `compose:<projectID>[:<service>]` | Runner-managed `docker compose logs -f` |
 | Compose lifecycle | docker CLI detached commands | Not persisted as runner processes |
 | Control state path | `<config path>.control.json` | Runtime-only CLI/MCP discovery file |
+| Environment config path | sibling `environments.json` | Authoritative defaults, presets, and rules |
+| Environment state path | sibling `environment-state.json` | Rebuildable version 2 per-adapter discovery and apply state |
+| Git environment target | canonical common directory | De-duplicates linked-worktree aliases |
+| Codex environment target | canonical worktree root | Owns `<worktree>/.codex/config.toml` independently |
 
 ### Dispatch Constraints
 
@@ -78,6 +97,11 @@ control.Client.Call(method, params, out)
   must fail and ask for an ID.
 - Control RPC scan/add/switch/group-management methods must delegate to `App`/`store` helpers that
   already normalize projects, commands, detection options, and group item command IDs.
+- Environment resolution orders defaults, shallow-to-deep matching rules, then session fields. Each
+  layer applies its referenced preset before its inline fields.
+- `rootyard env diff` and the desktop preview plan canonical adapter targets. Linked worktrees share one
+  Git target through their common directory but retain separate Codex targets. Conflicting resolutions
+  for aliases of one shared target block with `shared_target_conflict`.
 
 ## 3. Implementation Patterns
 
@@ -218,6 +242,54 @@ Applicable to `control_server.go`, `cli.go`, `mcp.go`, and `internal/control`.
 
 Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/control/protocol.go`.
 
+### 3.9 Project Environment Pattern
+
+Applicable to `internal/projectenv`, `internal/projectenv/gitadapter`,
+`internal/projectenv/codexadapter`, `env_cli.go`, and `app_environments.go`.
+
+1. Load `environments.json` strictly. Reject unknown fields, trailing JSON, unsupported versions,
+   invalid field intents, missing preset references, and duplicate canonical rule paths.
+2. Serialize config mutation with a sibling file lock. Under the lock, reload and compare the caller's
+   non-empty revision; a mismatch returns `environment_stale`. Write a same-directory temporary file,
+   sync it, atomically rename it, and sync the directory on Unix. Lock waits are context bounded and
+   report `lock_timeout`.
+3. Treat `environment-state.json` as derived. Version 2 stores status, fingerprints, blockers, and apply
+   results per adapter. Lock and atomically save it separately; migrate a valid version 1 record into
+   its Git adapter entry, but quarantine any other invalid state as `.corrupt-<UTC timestamp>` and
+   rebuild. State never participates in resolution.
+4. Discovery is cancellable, does not follow descendant symlinks, and never writes native environment
+   configuration. Desktop scans emit `projectenv:scan-progress` and one
+   `projectenv:scan-complete`; app shutdown cancels outstanding scans.
+5. Resolve aliases independently, then identify targets through each adapter. Git uses the canonical
+   common directory and main local config path, so linked worktrees share one Git target. Codex uses
+   the canonical worktree root and `<worktree>/.codex/config.toml`, so linked worktrees retain separate
+   Codex targets. Included local Git origins block the affected key with `external_local_origin`.
+6. Preview produces a `ChangePlan` containing the inspected fingerprint, exact desired intents,
+   operations, sources, aliases, warnings, and blockers. A Codex plan also stores exact `TextEdit`
+   operations and a managed-field-only `NativeDiff`. UI and CLI apply the exact displayed plan; they
+   must not hide a re-plan between confirmation and mutation.
+7. Every apply re-identifies the target, acquires a target config lock, re-inspects, compares the
+   fingerprint, and returns `stale_plan` without writing when native state changed. One failed target
+   does not stop unrelated targets.
+8. Git apply copies the original to a same-directory temporary config, runs bounded
+   `git config --file` mutations, verifies every managed result, syncs, then atomically replaces only
+   the canonical main config.
+9. Codex inspect checks that `.codex` and `config.toml` are safe non-symlink paths and parses the full
+   TOML document while managing only the five supported top-level assignments. Its fingerprint
+   distinguishes a missing file from an empty file, so a file appearing after preview is stale. Codex
+   apply replays the displayed text edits, parses and verifies the proposed TOML, creates new files with
+   mode `0600`, and atomically replaces the worktree-local file while preserving unmanaged content.
+10. Doctor stays offline. Git signing checks run only when commit or tag signing resolves to true and
+    use configured programs or local `gpg`, `ssh-keygen`, or `gpgsm` fallbacks with timeouts. A missing
+    Codex executable is a non-blocking `codex_unavailable` warning. Invalid TOML and unsafe Codex paths
+    block; the `danger-full-access` plus `never` pair emits non-blocking
+    `dangerous_codex_permissions` but requires a separate explicit confirmation before apply.
+11. `rootyard env` works without the desktop. Existing `rootyard cli` and `rootyard mcp` still require
+   the localhost control server for projects, processes, logs, Docker, compose, and groups.
+
+Reference implementation: `internal/projectenv`, `internal/projectenv/gitadapter`,
+`internal/projectenv/codexadapter`, `env_cli.go`, `app_environments.go`.
+
 ## 4. Allowed And Forbidden
 
 ### Allowed Changes
@@ -226,6 +298,8 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 - Add frontend-only transformation helpers when covered by `node:test`.
 - Add Wails methods when a frontend feature needs a clear backend boundary.
 - Add docker parser support through pure parser tests with fake CLI output.
+- Add environment adapters through `projectenv.Adapter` without coupling the resolver to native file
+  formats.
 
 ### Forbidden Changes
 
@@ -240,6 +314,14 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 - Do not persist control URL/token/PID/version into `config.json`.
 - Do not pass unvalidated branch names to `git`, and do not add network git operations
   (`fetch`/`pull`/`push`) to `internal/git`.
+- Do not write native Git or Codex configuration during environment discovery, resolution,
+  preset/rule save, doctor, or diff. Apply requires an explicit preview and confirmation.
+- Do not fetch, pull, push, merge, commit, or stash from project-environment code.
+- Do not edit included Git config origins, bypass stale fingerprint checks, or apply a plan other than
+  the one shown to the user.
+- Do not read or write global Codex configuration, infer management of arbitrary TOML keys, follow
+  symlinks for project Codex configuration, or apply the dangerous permissions pair without the
+  separate high-risk confirmation.
 
 ## 5. New Implementation Checklist
 
@@ -250,6 +332,8 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 - [ ] Keep runtime-only state out of `config.json`.
 - [ ] Add or update Go tests for `internal/*` behavior changes.
 - [ ] Regenerate Wails bindings after exported App signature changes.
+- [ ] Keep environment configuration authoritative and environment state rebuildable.
+- [ ] Preserve `inherit`, `set(value)`, and `clear` intent rather than inferring clear from absence.
 
 ### Conditional
 
@@ -257,6 +341,8 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 - [ ] If changing Wails build commands, keep `-tags webkit2_41` for Ubuntu 24.04.
 - [ ] If changing docker behavior, cover parser/command construction with fake exec tests.
 - [ ] If changing updater install/download, cover cancellation, mirror fallback, and verification paths.
+- [ ] If changing project-environment locking, persistence, discovery, or apply, run
+      `$GO test -race ./internal/projectenv/...`.
 - [ ] If changing `internal/git`, cover non-repo, detached HEAD, dirty worktree, remote-only branches,
       and hostile branch names.
 
@@ -264,6 +350,7 @@ Reference implementation: `control_server.go`, `cli.go`, `mcp.go`, `internal/con
 
 - [ ] `export GO=/home/attson/sdk/go1.24.13/bin/go`
 - [ ] `$GO test ./...`
+- [ ] `$GO test -race ./internal/projectenv/...` for project-environment changes.
 - [ ] Frontend pure tests with `node --test ...`
 - [ ] `cd frontend && npm run build` for UI or binding changes.
 

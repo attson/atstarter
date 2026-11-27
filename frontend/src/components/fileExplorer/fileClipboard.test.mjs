@@ -53,7 +53,7 @@ test('planPaste 拒绝把目录粘进它自己内部', () => {
   const entry = { projectId: 'p', mode: 'copy', items: [{ path: 'sub', isDir: true }] }
   const { ops, error } = planPaste(entry, 'p', 'sub/deep')
   assert.deepEqual(ops, [])
-  assert.match(error, /自己内部/)
+  assert.deepEqual(error, { code: 'pasteIntoSelf', name: 'sub' })
 })
 
 test('planPaste 同项目复制到原目录保留为副本', () => {
@@ -94,5 +94,5 @@ test('planDrop 生成移动 op 并跳过原地拖拽', () => {
 test('planDrop 拒绝把目录拖进自己的子孙', () => {
   const { ops, error } = planDrop([{ path: 'sub', isDir: true }], 'p', 'sub/deep')
   assert.deepEqual(ops, [])
-  assert.match(error, /自己内部/)
+  assert.deepEqual(error, { code: 'moveIntoSelf', name: 'sub' })
 })

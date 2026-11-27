@@ -16,27 +16,32 @@ import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 commandFormsForProject(project)
 envTextToMap(text)
 envMapToText(env)
+normalizeEnvironmentDocument(document)
+filterEnvironmentRepositories(repositories, filters)
+summarizeApplyResults(results)
 ```
 
 ### Interface Constraints
 
 - Vue components call Wails bindings, not Go internals or local config files.
 - Pure frontend state transformations belong in small modules such as `commandForms.js`,
-  `envVars.js`, `dockerState.js`, and `projectTree.js` with `node:test` coverage.
+  `envVars.js`, `dockerState.js`, `projectTree.js`, and `projectEnvironmentUi.js` with `node:test`
+  coverage.
 - Event payloads from Wails use lower-case keys; frontend polling results may use Go-shaped keys.
 
 ## 2. Layout And Dispatch Rules
 
 | Area | Component | Rule |
 |------|-----------|------|
-| App shell | `App.vue` | Top-level app state and Projects/Containers view switching |
+| App shell | `App.vue` | Top-level app state and Projects/Containers/Environments view switching |
 | Project tree | `ProjectList`, tree node components | Navigation, scan/add/group entry points |
 | Project detail | `ProjectDetail.vue` | Header, command row, logs/files tabs |
 | Compose detail | `ComposeDetail.vue` | Compose lifecycle and service logs |
 | Containers | `ContainerPanel.vue` | Host container list and lifecycle |
 | File browser | `FileBrowser.vue`, `fileExplorer/*` | Project-scoped file operations |
 | Dialogs | `*Dialog.vue` | Modal editing/confirmation flows |
-| App settings | `SettingsDialog.vue` | Default shell and live log typography preferences |
+| App settings | `SettingsDialog.vue` | Language, default shell, and live log typography preferences |
+| Environments | `EnvironmentWorkspace.vue` | Overview, Presets, Directory Rules, and Repositories views |
 | UI primitives | `components/ui/*` | Buttons, icons, pills, theme toggle |
 
 ### Layout Constraints
@@ -86,8 +91,9 @@ Applicable to `ProjectList.vue`, `ProjectTreeNode.vue`, and `GroupTreeItem.vue`.
    visible, caches display state by Project ID, and limits reads to four concurrent calls. Refresh on
    entering card mode, when the project collection changes, and when the branch field is re-enabled.
    Hiding the field stops queued reads from starting and ignores results from reads already in flight. Do
-   not poll or perform network Git operations. Empty branch values display `无分支信息`; rejected reads
-   display `分支读取失败`, and neither state blocks navigation.
+   not poll or perform network Git operations. Empty branch values render `projects.card.noBranch` in
+   the active locale; rejected reads render `projects.card.branchReadFailed` in the active locale.
+   Raw branch names remain unchanged, and neither state blocks navigation.
 6. A successful detail-view branch switch updates the matching card immediately. The event must carry
    the Project ID captured when the switch started, and an older in-flight branch read must not
    overwrite the switched value.
@@ -170,6 +176,55 @@ Reference implementation: `frontend/src/scriptComplete.js`.
 5. Settings persist through `GetAppSettings`/`SaveAppSettings` in `config.json.settings`; frontend
    normalization lives in `appSettings.js` and has `node:test` coverage.
 
+### 3.7 Project Environment Pattern
+
+Applicable to `EnvironmentWorkspace.vue`, `components/environments/*`, and
+`projectEnvironmentUi.js`.
+
+1. Environments is a top-level operational workspace with four stable views: Overview, Presets,
+   Directory Rules, and Repositories. It is not a settings modal or a launcher-project subview.
+2. Vue calls generated Wails bindings for document/state access, CRUD, scans, planning, doctor, and
+   apply. It may subscribe to `projectenv:scan-progress` and `projectenv:scan-complete`; it must not
+   read environment files, walk directories, or invoke native environment tools.
+3. Normalization, Git/Codex field editing, validation, status filtering, canonical-target selection,
+   plan/result summaries, and stale/conflict detection stay pure in `projectEnvironmentUi.js` with
+   `node:test` coverage.
+4. Saving defaults, presets, or directory rules never implies apply. Repository selection excludes
+   blocked rows, select-all skips them, and aliases sharing a target count once.
+5. Preset, Global Defaults, and Directory Rule field areas use compact `Git` and `Codex` sub-tabs.
+   Model/reasoning controls accept non-empty free-form values; fixed Codex enums use selects.
+6. Preview groups by worktree and then adapter, showing adapter, config path, exact per-key source,
+   current value, operation, desired value, warnings, blockers, and Codex native diff lines. Apply
+   receives those displayed plans unchanged. Every apply requires the exact-change checkbox; plans
+   containing `dangerous_codex_permissions` require a second high-risk checkbox.
+7. Repository status is the worst per-adapter state. Stale results require re-preview; blocked targets
+   remain disabled.
+8. At 1440x900 the repository list and diff may use side-by-side tracks. At 1024x768 the preview stacks
+   into bounded list/diff rows without overlap, clipped controls, or horizontal layout growth. Below the
+   compact breakpoint, the environment sidebar collapses to icons while preserving tooltips/labels for
+   accessibility.
+
+Reference implementation: `frontend/src/components/environments`,
+`frontend/src/projectEnvironmentUi.js`.
+
+### 3.8 Localization Pattern
+
+1. Use `vue-i18n` with semantic message keys in `frontend/src/i18n/messages/en.js` and
+   `zh-CN.js`. The catalogs must have exact key parity.
+2. Translate at render time with `t(...)`; do not store translated UI text in state or return it from
+   presentation helpers. Helpers return stable semantic keys/codes and raw parameters.
+3. Keep third-party diagnostics and user-owned data raw, including process output, paths, commands,
+   repository names, Git/Codex values, and file contents. Translate known application-owned status
+   and error codes at the UI boundary; do not translate arbitrary diagnostic strings.
+4. Localize accessible names and other user-facing attributes (`aria-label`, `title`, `alt`, and
+   placeholders) alongside visible labels. Keep `<html lang>` synchronized with the effective
+   locale (`zh-CN` or `en`).
+5. The language preference is `system | zh-CN | en`; the Settings dialog is the only language
+   switch surface. The backend-normalized `AppSettings.Language` is authoritative. The
+   `rootyard.settings.language` browser-storage value is a startup cache only.
+
+Reference implementation: `frontend/src/i18n`, `frontend/src/components/SettingsDialog.vue`.
+
 ## 4. Allowed And Forbidden
 
 ### Allowed Changes
@@ -187,6 +242,8 @@ Reference implementation: `frontend/src/scriptComplete.js`.
 - Do not let long paths, commands, project names, or button text overflow their containers.
 - Do not move command editing away from the command row without updating this spec and tests.
 - Do not add decorative gradient/orb backgrounds or marketing hero sections.
+- Do not make environment preset/rule save trigger native writes, enable blocked repository rows, or
+  replace a displayed plan with a hidden re-plan during apply.
 
 ## 5. New Implementation Checklist
 
@@ -197,6 +254,8 @@ Reference implementation: `frontend/src/scriptComplete.js`.
 - [ ] Keep text truncation/tooltip behavior for long paths and commands.
 - [ ] Keep icon-only run controls titled for hover/accessibility.
 - [ ] Add pure helper tests when state transformation logic changes.
+- [ ] Keep environment operations behind generated Wails bindings and apply behind explicit
+      confirmation of the displayed diff.
 - [ ] Declare `box-sizing: border-box` on any element that combines `width: 100%` with padding or a
       border. There is no global reset in `style.css`, so the default `content-box` silently widens
       the element past its container.
@@ -215,3 +274,6 @@ Reference implementation: `frontend/src/scriptComplete.js`.
 - [ ] Check layout against the app's own stylesheet, not only the VitePress home demo. VitePress
       applies a global `border-box` reset that the app does not, so box-model bugs can look fine in
       the demo and break in the app.
+- [ ] Check environment list and preview layouts at 1024x768 and 1440x900 in light and dark themes.
+- [ ] Verify both `zh-CN` and `en` at 1024x768 and 1440x900 in light and dark themes; check layout,
+      translated accessible names, and `<html lang>` in both locales.

@@ -4,6 +4,12 @@ Rootyard exposes a local control surface for AI agents through the desktop app.
 The desktop app remains the source of truth for projects, process state, logs,
 Docker, and compose operations.
 
+Project environments are the deliberate exception. Top-level `rootyard env`
+uses the same file-backed environment service as the desktop and works while
+the desktop app is stopped. It does not use the control server. File locks,
+configuration revisions, and target fingerprints coordinate concurrent
+desktop and CLI use.
+
 ## Installation and command name
 
 The formal macOS, Linux, and Windows installers expose the same `rootyard`
@@ -37,9 +43,184 @@ ROOTYARD_CONFIG=/path/to/config.json rootyard cli app ping
 rootyard cli --config /path/to/config.json app ping
 ```
 
-## CLI output
+`rootyard env --config /path/to/config.json ...` uses sibling
+`environments.json` and `environment-state.json` files beside that config.
+The former is authoritative; the latter is rebuildable state.
 
-All CLI output is JSON:
+## Offline project environment CLI
+
+Project environments manage the six repository-local Git keys below and five worktree-local Codex
+keys:
+
+```text
+user.name
+user.email
+user.signingKey
+commit.gpgSign
+tag.gpgSign
+gpg.format
+model
+model_reasoning_effort
+sandbox_mode
+approval_policy
+web_search
+```
+
+The workflow is always preset/defaults -> directory rule -> scan -> diff ->
+explicit apply. Saving configuration, scanning, resolving, diffing, and
+running doctor never writes native Git or Codex configuration.
+
+### Global and field flags
+
+`rootyard env` accepts these global flags before or after the command:
+
+```text
+--config PATH   resolve environments.json beside this config.json
+--json          emit the success result in an {ok,data} JSON envelope
+```
+
+Commands that edit or resolve fields accept repeatable session/field flags:
+
+```text
+--git-set key=value   explicitly set one supported key
+--git-clear key       explicitly remove repository-local values
+--git-inherit key     leave the value to an earlier layer or unmanaged scope
+--codex-set key=value
+--codex-clear key
+--codex-inherit key
+```
+
+`inherit`, `set(value)`, and `clear` are distinct persisted intents. Omitting a
+field does not mean clear. Signing booleans use `true` or `false`; `gpg.format`
+uses `openpgp`, `ssh`, or `x509`.
+
+### Defaults and presets
+
+```bash
+rootyard env defaults get
+rootyard env defaults set --preset PRESET_ID
+rootyard env defaults set --no-preset --git-set user.name="Ada Lovelace"
+
+rootyard env preset list
+rootyard env preset get PRESET_ID
+rootyard env preset set --name "Company" --description "Company identity" \
+  --git-set user.name="Ada Lovelace" \
+  --git-set user.email=ada@company.example \
+  --git-set commit.gpgSign=true
+rootyard env preset set --id PRESET_ID --name "Company identity"
+rootyard env preset set --name Company --codex-set model=custom-model
+rootyard env preset clone PRESET_ID --name "Company signing"
+rootyard env preset delete PRESET_ID
+```
+
+`preset set` creates when `--id` is absent and updates that stable ID when it
+is present. A preset referenced by defaults or a rule cannot be deleted.
+
+### Directory rules
+
+```bash
+rootyard env rule list
+rootyard env rule get RULE_ID
+rootyard env rule set --name "Company repositories" \
+  --path /work/company --preset PRESET_ID --recursive --auto-discover
+rootyard env rule set --id RULE_ID --exact --no-auto-discover --no-preset \
+  --git-set user.email=team@example.com
+rootyard env rule delete RULE_ID
+```
+
+Rule flags are:
+
+```text
+--id ID                    update an existing rule
+--name NAME                set its display name
+--path PATH                set its existing directory root
+--preset ID | --no-preset  attach or detach one preset
+--recursive | --exact      match descendants or only the rule path
+--auto-discover | --no-auto-discover
+```
+
+Rule paths are canonicalized and unique. Auto-discovery runs at desktop
+startup and after enabled rule saves; it does not grant permission to apply.
+
+### Scan, resolve, diff, apply, and doctor
+
+```bash
+rootyard env scan
+rootyard env scan --rule RULE_ID
+
+rootyard env resolve /work/company/api
+rootyard env resolve /work/company/api --git-set user.email=session@example.com
+
+rootyard env diff /work/company/api
+rootyard env diff --repo /work/company/api --repo /work/company/web
+rootyard env diff --rule RULE_ID
+rootyard env diff /work/company/api --codex-set sandbox_mode=workspace-write
+
+rootyard env apply /work/company/api
+rootyard env apply --rule RULE_ID --yes
+rootyard env apply --repo /work/company/api --git-clear user.signingKey --yes
+rootyard env apply /work/company/api --codex-clear model --yes
+rootyard env apply /work/company/api --codex-set sandbox_mode=danger-full-access \
+  --codex-set approval_policy=never --yes --accept-dangerous
+
+rootyard env doctor /work/company/api
+rootyard env doctor --rule RULE_ID
+```
+
+`scan --rule` is repeatable; no rule filter scans all rules. `diff` and
+`apply` accept positional repository paths, repeatable `--repo PATH`, repeatable
+`--rule ID`, and session field flags. `doctor` accepts paths and repeatable
+`--rule ID`.
+
+Interactive `apply` first prints the exact change plan and prompts
+`Apply these changes? [y/N]`. It proceeds only for `y` or `yes`. `--json` and
+any other non-interactive input require `--yes`; otherwise the command returns
+`confirmation_required` and includes the unapplied plans. Apply uses the exact
+fingerprint-bound plans it displayed and reports each target independently.
+High-risk Codex plans also require typing `APPLY DANGEROUS` interactively or
+passing `--accept-dangerous` non-interactively. Rootyard never edits global Codex
+configuration and does not verify account or model availability.
+
+### Worktrees and offline diagnostics
+
+Linked worktrees that share a canonical Git common directory also share one
+local config, so Rootyard de-duplicates them into one apply target while
+retaining every path as an alias. If aliases match different rules and resolve
+to different desired fields, `shared_target_conflict` blocks the target.
+Each canonical worktree remains a separate Codex target with its own
+`.codex/config.toml`.
+
+When commit or tag signing resolves to true, `doctor` validates the configured
+program or local fallback without network access:
+
+| Format | Default program | Local check |
+|--------|-----------------|-------------|
+| `openpgp` | `gpg` | secret key lookup |
+| `ssh` | `ssh-keygen` | readable key path and fingerprint lookup |
+| `x509` | `gpgsm` | secret key lookup |
+
+### Environment errors
+
+| Code | Meaning / action |
+|------|------------------|
+| `environment_stale` | `environments.json` changed since it was loaded; reload before saving |
+| `external_local_origin` | a managed value comes from an included local config; edit/detach that origin explicitly |
+| `shared_target_conflict` | aliases of one common directory resolved differently; align their rules |
+| `stale_plan` | native Git or Codex config changed after preview; run diff again before apply |
+| `invalid_codex_config` | project Codex TOML is malformed or a managed value is invalid |
+| `unsafe_codex_config_path` | `.codex` or its config is a symlink/non-regular path |
+| `dangerous_codex_permissions` | sandboxing and approvals are both disabled; explicit high-risk confirmation is required |
+| `codex_unavailable` | local Codex executable was not found; configuration may still be prepared |
+| `lock_timeout` | another desktop/CLI mutation holds an environment file lock; retry after it completes |
+| `signing_key_unavailable` | the resolved key is missing, unreadable, or failed local verification |
+| `signing_program_unavailable` | the required signing program cannot be found |
+
+Project-environment Git operations are local and timeout bounded. They never
+run `fetch`, `pull`, `push`, `merge`, `commit`, or `stash`.
+
+## Runtime CLI output
+
+All `rootyard cli` output is JSON:
 
 ```json
 {"ok":true,"data":{}}

@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
 import { LayoutGrid, List as ListIcon, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { buildProjectTree, buildPinnedList } from '../projectTree'
@@ -19,6 +20,8 @@ import AppIcon from './ui/AppIcon.vue'
 import AppButton from './ui/AppButton.vue'
 
 const emit = defineEmits(['select', 'select-group', 'select-command', 'add', 'scan', 'rescan', 'reset', 'context-menu', 'reorder-pinned'])
+
+const { t } = useI18n()
 
 const props = defineProps({
   projects: Array,
@@ -156,14 +159,14 @@ watch(() => props.branchUpdate, (update) => {
     <div class="search-wrap">
       <div class="search-field">
         <AppIcon :icon="Search" :size="14" class="search-icon" />
-        <input v-model="query" class="search" placeholder="Search projects, path, command…" />
+        <input v-model="query" class="search" :placeholder="t('projects.search')" />
         <AppButton
           variant="secondary"
           size="sm"
           icon-only
           class="rescan-btn"
           :class="{ spinning: rescanning }"
-          title="重新扫描工作区"
+          :title="t('projects.rescan')"
           :disabled="rescanning"
           @click="emit('rescan')"
         >
@@ -174,20 +177,20 @@ watch(() => props.branchUpdate, (update) => {
           size="sm"
           icon-only
           class="reset-btn"
-          title="重置项目列表"
+          :title="t('dialogs.resetProjects.title')"
           :disabled="!(projects || []).length"
           @click="emit('reset')"
         >
           <template #icon><AppIcon :icon="Trash2" :size="14" /></template>
         </AppButton>
       </div>
-      <div class="view-switch" role="group" aria-label="项目导航显示方式">
+      <div class="view-switch" role="group" :aria-label="t('projects.navigationView')">
         <button
           class="view-button"
           :class="{ active: viewMode === 'list' }"
           type="button"
-          title="列表视图"
-          aria-label="列表视图"
+          :title="t('projects.listView')"
+          :aria-label="t('projects.listView')"
           :aria-pressed="viewMode === 'list'"
           data-test="project-view-list"
           @click="setViewMode('list')"
@@ -198,8 +201,8 @@ watch(() => props.branchUpdate, (update) => {
           class="view-button"
           :class="{ active: viewMode === 'card' }"
           type="button"
-          title="卡片视图；右键配置字段"
-          aria-label="卡片视图；右键配置字段"
+          :title="t('projects.cardViewConfigure')"
+          :aria-label="t('projects.cardViewConfigure')"
           :aria-pressed="viewMode === 'card'"
           data-test="project-view-card"
           @click="setViewMode('card')"
@@ -219,7 +222,7 @@ watch(() => props.branchUpdate, (update) => {
     </div>
     <div class="tree-scroll">
       <div v-if="pinned.length" class="pinned-section">
-        <div class="section-title">Pinned</div>
+        <div class="section-title">{{ t('projects.pinned') }}</div>
         <div
           v-for="(node, i) in pinned"
           :key="node.id"
@@ -246,13 +249,14 @@ watch(() => props.branchUpdate, (update) => {
         </div>
       </div>
       <div v-if="(groups || []).length" class="group-section">
-        <div class="section-title">Groups</div>
+        <div class="section-title">{{ t('groups.title') }}</div>
         <GroupTreeItem
           v-for="g in groups"
           :key="g.id"
           :group="g"
           :projects="projects"
           :statuses="statuses"
+          :missingIds="missingIds"
           :selected="g.id === selectedGroupId"
           :expanded="expandedGroups[`group:${g.id}`] !== false"
           :viewMode="viewMode"
@@ -280,10 +284,10 @@ watch(() => props.branchUpdate, (update) => {
         @context-menu="emit('context-menu', $event)"
       />
       <div v-if="tree.length === 0" class="empty">
-        <span v-if="query">没有匹配的项目</span>
-        <span v-else-if="statusFilter === 'running'">当前没有运行中的项目</span>
-        <span v-else-if="statusFilter === 'exited'">当前没有已退出/错误的项目</span>
-        <span v-else>还没有项目。点击 Add 或 Scan 开始。</span>
+        <span v-if="query">{{ t('projects.noMatches') }}</span>
+        <span v-else-if="statusFilter === 'running'">{{ t('projects.noRunning') }}</span>
+        <span v-else-if="statusFilter === 'exited'">{{ t('projects.noExited') }}</span>
+        <span v-else>{{ t('projects.empty') }}</span>
       </div>
     </div>
   </aside>

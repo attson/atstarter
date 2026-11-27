@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
+import { transformSync } from 'esbuild'
 
 const read = (name) => fs.readFileSync(new URL(name, import.meta.url), 'utf8')
 
@@ -84,9 +85,25 @@ test('编辑器有多标签页,关标签才拦截未保存改动', () => {
   assert.match(fileBrowser, /EditorTabs/)
   assert.match(fileBrowser, /function requestClose/)
   assert.match(fileBrowser, /closeGuard/)
-  assert.match(fileBrowser, /保存并关闭/)
+  assert.match(fileBrowser, /id: 'save'/)
   // 每个标签一个常驻实例:切标签不能重载文档。
   assert.match(fileBrowser, /v-for="tab in tabs\.tabs"[\s\S]{0,120}v-show="tab\.path === activePath"/)
+})
+
+test('preview routing returns stable domain codes including the existing SVG dual mode', async () => {
+  const compiled = transformSync(read('./previewKind.ts'), { loader: 'ts', format: 'esm' }).code
+  const { previewKind, isDualMode } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`)
+  for (const [path, binary, expected] of [
+    ['原始 @ {name}|raw.ts', false, 'code'], ['README.MD', false, 'markdown'],
+    ['docs/a.pdf', true, 'pdf'], ['a.PNG', true, 'image'], ['a.webm', true, 'video'],
+    ['a.mp3', true, 'audio'], ['unknown.bin', true, 'binary-unknown'], ['a.svg', false, 'svg'],
+  ]) {
+    assert.equal(previewKind(path, binary), expected)
+    assert.doesNotMatch(previewKind(path, binary), /[\p{Script=Han}\s]/u)
+  }
+  assert.equal(isDualMode('svg'), true)
+  assert.equal(isDualMode('markdown'), true)
+  assert.equal(isDualMode('image'), false)
 })
 
 test('改偏好/切主题不重建编辑器,否则未保存的改动会被丢掉', () => {

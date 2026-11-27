@@ -1,5 +1,8 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { nextTick, ref } from "vue";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   line: number;
@@ -46,15 +49,15 @@ defineExpose({ openGoto });
     <span class="kind">{{ kindLabel }}</span>
     <span class="spacer" />
     <template v-if="showCursor">
-      <span v-if="selected > 0" class="item">已选 {{ selected }} 字符</span>
+      <span v-if="selected > 0" class="item">{{ t('files.selectedCharacters', { count: selected }) }}</span>
       <button
         v-if="!gotoOpen"
         class="item link"
         data-test="status-goto"
-        title="跳转到行"
+        :title="t('files.gotoLine')"
         @click="openGoto"
       >
-        行 {{ line }}:{{ column }} / {{ lines }}
+        {{ t('files.cursorPosition', { line, column, lines }) }}
       </button>
       <span v-else class="item">
         <input
@@ -62,6 +65,7 @@ defineExpose({ openGoto });
           v-model="gotoValue"
           class="goto-input"
           data-test="status-goto-input"
+          :aria-label="t('files.gotoLine')"
           type="text"
           inputmode="numeric"
           @keydown="onKey"

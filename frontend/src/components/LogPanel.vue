@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch, computed, onMounted, onUnmounted, nextTick, inject } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -11,6 +12,7 @@ import { normalizeAppSettings, terminalFontFamily } from '../appSettings.js'
 import { logLinesForRun, terminalChunk } from '../logBatches.js'
 
 const SCROLLBACK = 1000
+const { t } = useI18n()
 
 const props = defineProps({
   projectId: String,
@@ -29,25 +31,36 @@ const banner = computed(() => {
   const st = props.status || {}
   switch (st.State) {
     case 'running':
-      return { cls: 'running', text: '● 运行中' + (empty.value ? '(启动中,等待输出…)' : '') }
+      return { cls: 'running', text: t(empty.value ? 'logs.runningWaiting' : 'logs.running') }
     case 'exited':
       return { cls: st.ExitCode === 0 ? 'exited-ok' : 'exited-bad',
-        text: `● 已退出(exit code ${st.ExitCode}）` }
+        text: t('logs.exited', { code: st.ExitCode }) }
     case 'error':
-      return { cls: 'exited-bad', text: '● 启动错误' }
+      return { cls: 'exited-bad', text: t('logs.startError') }
     default:
-      return { cls: 'stopped', text: '○ 未运行' }
+      return { cls: 'stopped', text: t('logs.stopped') }
   }
 })
 
 let term = null
 let fitAddon = null
 let resizeObserver = null
+let fitFrame = null
 let themeObserver = null
 let loadToken = 0
 let reloading = false
 let needsReload = false
 let cancelLogBatch = () => {}
+
+function scheduleResizeFit() {
+  if (fitFrame !== null) return
+  // Fitting changes terminal geometry. Leave the ResizeObserver delivery
+  // before writing it, and combine notifications from the same frame.
+  fitFrame = window.requestAnimationFrame(() => {
+    fitFrame = null
+    if (fitAddon) fitAddon.fit()
+  })
+}
 
 const logBatchEvent = 'logs:batch'
 
@@ -130,11 +143,11 @@ function onVisibilityChange() {
 
 // ── 右键菜单 ─────────────────────────────────────────
 const menu = ref({ show: false, x: 0, y: 0, hasSelection: false })
-const toast = ref({ show: false, text: '', ok: true })
+const toast = ref({ show: false, key: '', ok: true })
 let toastTimer = 0
 
-function flashToast(text, ok = true) {
-  toast.value = { show: true, text, ok }
+function flashToast(key, ok = true) {
+  toast.value = { show: true, key, ok }
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => { toast.value.show = false }, 1600)
 }
@@ -171,11 +184,11 @@ async function copySelection() {
   const sel = selectionSnapshot || (term ? term.getSelection() : '')
   closeMenu()
   if (!sel) {
-    flashToast('无选中内容', false)
+    flashToast('logs.noSelection', false)
     return
   }
   const ok = await writeClipboard(sel)
-  flashToast(ok ? '已复制' : '复制失败', ok)
+  flashToast(ok ? 'logs.copied' : 'logs.copyFailed', ok)
 }
 
 async function clearLogs() {
@@ -203,7 +216,7 @@ function onKeydown(e) {
   const sel = term ? term.getSelection() : ''
   if (!sel) return
   e.preventDefault()
-  writeClipboard(sel).then((ok) => flashToast(ok ? '已复制' : '复制失败', ok))
+  writeClipboard(sel).then((ok) => flashToast(ok ? 'logs.copied' : 'logs.copyFailed', ok))
 }
 
 watch(() => props.projectId, async (id) => {
@@ -263,7 +276,7 @@ onMounted(() => {
   term.open(termHost.value)
   fitAddon.fit()
 
-  resizeObserver = new ResizeObserver(() => { if (fitAddon) fitAddon.fit() })
+  resizeObserver = new ResizeObserver(scheduleResizeFit)
   resizeObserver.observe(termHost.value)
 
   window.addEventListener('pointerdown', onGlobalPointer, true)
@@ -278,6 +291,8 @@ onMounted(() => {
 onUnmounted(() => {
   cancelLogBatch()
   if (resizeObserver) resizeObserver.disconnect()
+  if (fitFrame !== null) window.cancelAnimationFrame(fitFrame)
+  fitFrame = null
   if (themeObserver) themeObserver.disconnect()
   window.removeEventListener('pointerdown', onGlobalPointer, true)
   window.removeEventListener('keydown', onKeydown)
@@ -295,8 +310,8 @@ onUnmounted(() => {
     <div class="term-area" @contextmenu.prevent="openMenu">
       <div ref="termHost" class="term-host" />
       <div v-if="empty" class="empty-hint">
-        <template v-if="(status || {}).State === 'running'">编译/启动中,暂无输出…</template>
-        <template v-else>暂无日志。点击「▶ 启动」运行该项目。</template>
+        <template v-if="(status || {}).State === 'running'">{{ t('logs.emptyRunning') }}</template>
+        <template v-else>{{ t('logs.empty') }}</template>
       </div>
       <div
         v-if="menu.show"
@@ -305,10 +320,10 @@ onUnmounted(() => {
         @contextmenu.prevent
         @pointerdown.stop
       >
-        <button class="ctx-item" :disabled="!menu.hasSelection" @mousedown.prevent @click="copySelection">复制选中</button>
-        <button class="ctx-item" @mousedown.prevent @click="clearLogs">清空日志</button>
+        <button class="ctx-item" :disabled="!menu.hasSelection" @mousedown.prevent @click="copySelection">{{ t('logs.copySelection') }}</button>
+        <button class="ctx-item" @mousedown.prevent @click="clearLogs">{{ t('logs.clear') }}</button>
       </div>
-      <div v-if="toast.show" :class="['toast', { bad: !toast.ok }]">{{ toast.text }}</div>
+      <div v-if="toast.show" :class="['toast', { bad: !toast.ok }]">{{ t(toast.key) }}</div>
     </div>
   </div>
 </template>

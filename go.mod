@@ -7,6 +7,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/hymkor/trash-go v0.3.0
+	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/wailsapp/wails/v2 v2.12.0
 	golang.org/x/sys v0.30.0
 	gopkg.in/yaml.v3 v3.0.1

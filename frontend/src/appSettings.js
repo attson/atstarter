@@ -1,4 +1,7 @@
+import { normalizeLanguagePreference } from './i18n/locale.js'
+
 export const DEFAULT_APP_SETTINGS = Object.freeze({
+  language: 'system',
   shell: '',
   autoShell: '',
   availableShells: [],
@@ -15,6 +18,7 @@ function clampInteger(value, min, max, fallback) {
 
 export function normalizeAppSettings(value = {}) {
   return {
+    language: normalizeLanguagePreference(value.language),
     shell: typeof value.shell === 'string' ? value.shell.trim() : '',
     autoShell: typeof value.autoShell === 'string' ? value.autoShell.trim() : '',
     availableShells: Array.isArray(value.availableShells)

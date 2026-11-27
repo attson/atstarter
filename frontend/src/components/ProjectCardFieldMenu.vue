@@ -1,5 +1,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const props = defineProps({
   x: { type: Number, default: 0 },
@@ -9,12 +12,12 @@ const props = defineProps({
 const emit = defineEmits(['toggle', 'close'])
 const menuRef = ref(null)
 
-const options = [
-  { key: 'type', label: '项目类型' },
-  { key: 'branch', label: '分支' },
-  { key: 'path', label: '路径' },
-  { key: 'command', label: '启动命令' },
-]
+const options = computed(() => [
+  { key: 'type', label: t('projects.card.fieldType') },
+  { key: 'branch', label: t('projects.card.fieldBranch') },
+  { key: 'path', label: t('projects.card.fieldPath') },
+  { key: 'command', label: t('projects.card.fieldCommand') },
+])
 
 const style = computed(() => {
   const width = 176
@@ -51,15 +54,15 @@ onBeforeUnmount(() => {
     ref="menuRef"
     class="field-menu"
     :style="style"
-    role="menu"
-    aria-label="卡片显示字段"
+    role="group"
+    :aria-label="t('projects.card.fieldsLabel')"
     data-test="project-card-field-menu"
     @contextmenu.prevent
   >
-    <div class="menu-title">显示字段</div>
+    <div class="menu-title">{{ t('projects.card.displayFields') }}</div>
     <label class="field-option fixed-option">
       <input type="checkbox" checked disabled />
-      <span>项目名与运行状态</span>
+      <span>{{ t('projects.card.nameAndStatus') }}</span>
     </label>
     <label v-for="option in options" :key="option.key" class="field-option">
       <input

@@ -1,14 +1,18 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { BrowserOpenURL } from "../../../wailsjs/runtime/runtime";
 import BinaryBanner from "./BinaryBanner.vue";
 import type { FileSystemBridge } from "./fsBridge";
+
+const { t } = useI18n();
 
 const MAX_BYTES = 2 * 1024 * 1024;
 
 const props = defineProps<{ fs: FileSystemBridge; path: string; theme: "dimmed" | "light" }>();
 
 const html = ref<string>("");
+const error = ref("");
 const state = ref<"loading" | "ok" | "error">("loading");
 let disposed = false;
 let generation = 0;
@@ -31,7 +35,7 @@ function decodeFileBytes(data: unknown): string {
   } else if (Array.isArray(data)) {
     bytes = new Uint8Array(data as number[]);
   } else {
-    throw new Error("unexpected content type");
+    throw new Error();
   }
   return new TextDecoder().decode(bytes);
 }
@@ -42,6 +46,7 @@ async function load() {
   const request = ++generation;
   if (disposed) return;
   state.value = "loading";
+  error.value = "";
   try {
     const meta = (await fs.fileMeta(path)) as { size: number; isBinary: boolean };
     if (!isCurrent(fs, path, request)) return;
@@ -59,8 +64,9 @@ async function load() {
     if (!isCurrent(fs, path, request)) return;
     html.value = rendered;
     state.value = "ok";
-  } catch {
+  } catch (err) {
     if (!isCurrent(fs, path, request)) return;
+    error.value = (typeof err === "string" ? err : (err as Error)?.message) || "";
     state.value = "error";
   }
 }
@@ -90,7 +96,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <BinaryBanner v-if="state === 'error'" :fs="fs" :path="path" />
+  <BinaryBanner v-if="state === 'error'" :fs="fs" :path="path" :message="error || undefined" />
   <div
     v-else-if="state === 'ok'"
     class="md-host"
@@ -98,7 +104,7 @@ onBeforeUnmount(() => {
     v-html="html"
     @click="onContainerClick"
   />
-  <div v-else class="md-host placeholder">…</div>
+  <div v-else class="md-host placeholder">{{ t("files.loading") }}</div>
 </template>
 
 <style scoped>

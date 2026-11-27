@@ -7,8 +7,9 @@ AI-generated plans must use these terms consistently.
 
 ## 1. Problem Domain
 
-Rootyard manages local project launchability: it turns filesystem directories into persisted launch
-targets and runtime processes while keeping Docker, files, logs, groups, and updates in one desktop app.
+Rootyard manages local project launchability and project environments: it turns filesystem directories
+into persisted launch targets and runtime processes while centrally resolving repository-local Git and
+Codex intent. Docker, files, logs, groups, environments, and updates remain in one desktop app.
 
 ## 2. Terminology
 
@@ -26,7 +27,11 @@ targets and runtime processes while keeping Docker, files, logs, groups, and upd
 | Editor Tab | `editorTabs` state | One open file in the project file editor, with its dirty flag and view mode | `frontend/src/components/fileExplorer/editorTabs.js` |
 | Branch | `git.Branches` | Local/remote branch list plus worktree status for one project | `internal/git/git.go` |
 | Control State | `control.State` | Runtime-only localhost control discovery for CLI/MCP | `internal/control/protocol.go` |
-| App Settings | `store.AppSettings` | Cross-project shell and log typography preferences | `internal/store/model.go` |
+| App Settings | `store.AppSettings` | Cross-project language, shell, and log typography preferences | `internal/store/model.go` |
+| Environment Preset | `projectenv.Preset` | Named, reusable Git and Codex field intents independent of filesystem paths | `internal/projectenv/model.go` |
+| Directory Rule | `projectenv.Rule` | Canonical directory path, match/discovery scope, optional preset, and inline overrides | `internal/projectenv/model.go` |
+| Resolved Environment | `projectenv.ResolvedEnvironment` | Effective field intents and source provenance for one repository path | `internal/projectenv/model.go` |
+| Change Plan | `projectenv.ChangePlan` | Immutable, fingerprint-bound preview of native adapter operations for one canonical target | `internal/projectenv/adapter.go` |
 
 ### Terminology Constraints
 
@@ -35,6 +40,9 @@ targets and runtime processes while keeping Docker, files, logs, groups, and upd
   after it is added to the store.
 - Use "run ID" for runtime log/status IDs. Project IDs and command IDs are stable configuration IDs.
 - Use "compose service" for Docker compose children. They are not `LaunchCommand` values.
+- Use "environment preset" for reusable values and "directory rule" for path matching. Neither save
+  operation implies repository mutation.
+- A discovered repository is not a launcher `Project`; it becomes an environment target independently.
 
 ## 3. Bounded Contexts
 
@@ -54,6 +62,9 @@ The core domain is project launch management: `Project`, `LaunchCommand`, `Launc
 | Updater | Manages application binary update state | Does not touch project config |
 | Tray | Displays runtime count and exit controls | Delegates process state to runner/app |
 | Local Control | Lets CLI/MCP call desktop runtime operations | Does not own business state |
+| Project Environment | Resolves presets/rules and orchestrates repository plans | Separate authoritative config; no launcher-project dependency |
+| Git Environment Adapter | Maps resolved intent to native Git inspection and apply | Owns Git layout and system `git`; resolver stays adapter-agnostic |
+| Codex Environment Adapter | Maps resolved intent to project-level Codex TOML | Owns worktree identity, minimal TOML edits, and atomic replacement |
 
 ### 3.3 Generic Domains
 
@@ -70,6 +81,13 @@ The core domain is project launch management: `Project`, `LaunchCommand`, `Launc
   assuming OS process behavior.
 - `internal/filetree` always operates relative to a project root. It must not accept arbitrary absolute
   user paths from the frontend.
+- `internal/projectenv` owns `environments.json` and rebuildable `environment-state.json`, not launcher
+  `config.json`. Its core is independent of Wails and the desktop process.
+- `internal/projectenv/gitadapter` alone interprets common directories, config origins, fingerprints,
+  signing tools, and native Git mutations.
+- `internal/projectenv/codexadapter` alone interprets `.codex/config.toml`, validates safe paths and
+  managed values, and applies parser-validated minimal text edits. It never reads or writes global
+  Codex configuration.
 
 ## 4. Aggregates
 
@@ -182,6 +200,69 @@ running -> error
 | exited | Process returned an exit code | Runner appends an exit marker to logs |
 | error | Start or wait failed outside ordinary exit code | Error status is reported through status event |
 
+### 4.5 Project Environment
+
+An Environment Preset is a reusable value object with a stable opaque ID, display name, optional
+description, and independent Git and Codex `FieldMap` values. It has no path and does not inherit from
+another preset. A preset in use by Global Defaults or a Directory Rule cannot be deleted.
+
+A Directory Rule has one stable ID and one canonical absolute path. It can match only that exact path
+or, when `Recursive` is true, repositories below it. It may reference one preset and then override
+fields inline. At most one rule owns a normalized path. `AutoDiscover` controls startup/after-save
+discovery only; it does not permit writes.
+
+Resolution applies layers in this order:
+
+```text
+global defaults preset -> global defaults inline fields
+-> matching rules, shallowest to deepest (each preset then inline fields)
+-> request-scoped session fields
+```
+
+A Resolved Environment records every effective `FieldIntent` and its default, preset, rule, or session
+source for each adapter. Request-scoped session overrides use `EnvironmentFields{Git, Codex}`. A
+Change Plan binds that desired result to a repository snapshot fingerprint and displays each
+`unchanged`, `set`, `replace`, `clear`, `unmanaged`, or `blocked` operation. Apply consumes that exact
+displayed plan; it does not silently resolve or plan again.
+
+#### Field Intent
+
+| Intent | Resolution meaning | Final adapter behavior |
+|--------|--------------------|--------------------|
+| `inherit` | Preserve the lower layer's effective field; missing fields are equivalent | Unmanaged when no lower layer manages the key |
+| `set(value)` | Replace the effective field and provenance | Set the validated project-local value |
+| `clear` | Replace the effective field and provenance with explicit removal | Remove the project-local value for the key |
+
+The Git adapter supports exactly `user.name`, `user.email`, `user.signingKey`, `commit.gpgSign`,
+`tag.gpgSign`, and `gpg.format`.
+
+The Codex adapter supports exactly `model`, `model_reasoning_effort`, `sandbox_mode`,
+`approval_policy`, and `web_search`. Model and reasoning values are non-empty free-form strings.
+
+Sandbox values are `read-only`, `workspace-write`, or `danger-full-access`; approval values are
+`untrusted`, `on-failure`, `on-request`, `granular`, or `never`; web search values are `disabled`,
+`cached`, `indexed`, or `live`.
+
+#### Target Identity
+
+The canonical Git common directory, not an encountered worktree path, identifies a Git apply target.
+Linked worktrees sharing a common directory therefore share one local Git configuration and one target.
+Their paths remain aliases for display and rule resolution. If aliases resolve to different desired
+values, `shared_target_conflict` blocks the target rather than choosing one alias implicitly.
+
+Each canonical worktree root identifies one Codex target whose config path is
+`<worktree>/.codex/config.toml`. Linked worktrees therefore share one Git plan but retain independent
+Codex plans. A plan for a missing Codex file fingerprints the absence distinctly from an empty file.
+
+### 4.6 App Settings
+
+`AppSettings.Language` is persisted in `config.json.settings.language` and accepts exactly
+`system`, `zh-CN`, or `en`. Missing, zero-value, and unknown values normalize to `system`; this
+backward-compatible migration keeps config schema version 1. The backend-normalized settings
+returned by Wails are authoritative. `rootyard.settings.language` in browser storage is only a
+non-authoritative startup cache used before backend settings load; it must not override the loaded
+backend preference.
+
 ## 5. Value Objects
 
 | Value Object | Attributes | Notes |
@@ -190,6 +271,10 @@ running -> error
 | `runner.LogLine` | `ID`, `Stream`, `Text` | `Stream` is `stdout` or `stderr` |
 | `docker.Info` | `Available`, `Version`, `Reason` | Availability probe result |
 | `filetree.FileBytes` | `Data`, `ModTime`, `IsBinary`, `TruncatedAt` | Used for editor/preview bytes |
+| `projectenv.FieldIntent` | `Mode`, `Value` | Explicit `inherit`, `set(value)`, or `clear` intent |
+| `projectenv.Snapshot` | `Target`, `Fingerprint`, `Values`, `Issues`, `Exists` | Current adapter-native state and blockers |
+| `projectenv.Target` | `ID`, `WorktreePath`, `CommonDir`, `ConfigPath` | Canonical adapter target plus an access path |
+| `projectenv.TextEdit` | `Start`, `End`, `Replacement` | Exact parser-guided Codex edit stored in a displayed plan |
 
 ## 6. Data Mapping
 
@@ -202,6 +287,10 @@ running -> error
 | docker CLI snapshots | ContainerState, ComposeService | Runtime only |
 | `<config>.control.json` | Control State | Runtime-only discovery, removed on shutdown |
 | `config.json.settings` | App Settings | Cross-project runtime and log display preferences |
+| `environments.json.defaults` | Global Defaults | First environment resolution layer |
+| `environments.json.presets[]` | Environment Preset | Authoritative reusable field intents |
+| `environments.json.rules[]` | Directory Rule | Authoritative path-scoped field intents |
+| `environment-state.json.repositories[]` | Repository records, aliases, and per-adapter states | Rebuildable version 2 scan/apply status; never resolution input; valid version 1 state migrates into the Git adapter entry |
 
 ## 7. Extension Registry
 

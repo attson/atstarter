@@ -28,6 +28,11 @@ test('home demo imports the real app token and global style sheets', () => {
   assert.match(source, /frontend\/src\/style\.css/)
 })
 
+test('vitepress installs the shared frontend i18n plugin for the real app demo', () => {
+  assert.match(themeSource, /import\s*\{[^}]*\bi18n\b[^}]*\}\s*from\s*['"]\.\.\/\.\.\/\.\.\/\.\.\/frontend\/src\/i18n\/index\.js['"]/)
+  assert.match(themeSource, /enhanceApp\(\s*\{\s*app\s*\}\s*\)\s*\{\s*app\.use\(i18n\)/)
+})
+
 test('vitepress resolves vue from site dependencies for imported app components', () => {
   assert.match(configSource, /alias/)
   assert.match(configSource, /find:\s*\/\^vue\$\/,/)

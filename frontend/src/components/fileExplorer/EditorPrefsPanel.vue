@@ -1,5 +1,8 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { FONT_SIZE_RANGE, TAB_SIZE_RANGE } from "./editorPrefs.js";
+
+const { t } = useI18n();
 
 interface Prefs {
   lineNumbers: boolean;
@@ -24,7 +27,7 @@ function setNumber(key: "tabSize" | "fontSize", value: string) {
 
 <template>
   <div class="prefs-scrim" @click.self="emit('close')" @contextmenu.prevent="emit('close')">
-    <div class="prefs" data-test="editor-prefs-panel" role="dialog" aria-label="编辑器偏好">
+    <div class="prefs" data-test="editor-prefs-panel" role="dialog" :aria-label="t('files.preferences')">
       <label class="row">
         <input
           type="checkbox"
@@ -32,7 +35,7 @@ function setNumber(key: "tabSize" | "fontSize", value: string) {
           :checked="props.prefs.lineNumbers"
           @change="emit('update', { lineNumbers: ($event.target as HTMLInputElement).checked })"
         >
-        <span>显示行号</span>
+        <span>{{ t('files.prefs.lineNumbers') }}</span>
       </label>
       <label class="row">
         <input
@@ -41,7 +44,7 @@ function setNumber(key: "tabSize" | "fontSize", value: string) {
           :checked="props.prefs.wrap"
           @change="emit('update', { wrap: ($event.target as HTMLInputElement).checked })"
         >
-        <span>自动换行</span>
+        <span>{{ t('files.prefs.wrap') }}</span>
       </label>
       <label class="row">
         <input
@@ -50,10 +53,10 @@ function setNumber(key: "tabSize" | "fontSize", value: string) {
           :checked="props.prefs.showHidden"
           @change="emit('update', { showHidden: ($event.target as HTMLInputElement).checked })"
         >
-        <span>显示隐藏文件</span>
+        <span>{{ t('files.prefs.showHidden') }}</span>
       </label>
       <label class="row">
-        <span class="label">Tab 宽度</span>
+        <span class="label">{{ t('files.prefs.tabSize') }}</span>
         <input
           class="num"
           type="number"
@@ -65,7 +68,7 @@ function setNumber(key: "tabSize" | "fontSize", value: string) {
         >
       </label>
       <label class="row">
-        <span class="label">字号</span>
+        <span class="label">{{ t('files.prefs.fontSize') }}</span>
         <input
           class="num"
           type="number"

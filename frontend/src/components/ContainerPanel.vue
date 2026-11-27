@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ChevronDown, Play, Square, RotateCcw, Trash2, ScrollText, RefreshCw } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
 import AppButton from './ui/AppButton.vue'
@@ -18,6 +19,7 @@ import {
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 
 const emit = defineEmits(['confirm-remove', 'summary'])
+const { t } = useI18n()
 const props = defineProps({
   projects: { type: Array, default: () => [] },
 })
@@ -35,6 +37,15 @@ const selectedComposeContainers = computed(() => selectedCompose.value ? (groupe
 const selectedComposeSummary = computed(() => summarizeContainers(selectedComposeContainers.value))
 const selectedComposeProject = computed(() => findComposeProject(props.projects, selectedCompose.value))
 const selectedComposePath = computed(() => selectedComposeSummary.value.workingDir || (selectedComposeProject.value || {}).path || '')
+
+const translatedStates = new Set(['running', 'stopped', 'exited', 'error', 'created', 'paused', 'restarting', 'removing', 'dead'])
+function stateLabel(state) {
+  return translatedStates.has(state) ? t(`status.${state}`) : state || t('status.unknown')
+}
+function containerStatus(container) {
+  const state = stateLabel(container.state)
+  return container.status ? t('containers.statusDetail', { state, detail: container.status }) : state
+}
 
 watch(containers, (list) => {
   emit('summary', summarizeContainers(list))
@@ -118,15 +129,15 @@ defineExpose({ refresh })
 <template>
   <section class="panel">
     <div v-if="!dockerInfo.available" class="banner">
-      Docker 不可用: {{ dockerInfo.reason }}
-      <AppButton variant="secondary" size="sm" @click="retry">重试</AppButton>
+      {{ t('containers.unavailable') }} {{ dockerInfo.reason }}
+      <AppButton variant="secondary" size="sm" @click="retry">{{ t('common.retry') }}</AppButton>
     </div>
     <template v-else>
       <div class="container-layout">
         <aside class="container-list">
           <div class="toolbar">
-            <input class="search" v-model="keyword" placeholder="筛选容器…" />
-            <AppButton variant="secondary" size="sm" iconOnly title="刷新" @click="refresh">
+            <input class="search" v-model="keyword" :placeholder="t('containers.search')" />
+            <AppButton variant="secondary" size="sm" iconOnly :title="t('common.refresh')" :aria-label="t('common.refresh')" @click="refresh">
               <template #icon><AppIcon :icon="RefreshCw" :size="14" /></template>
             </AppButton>
           </div>
@@ -142,12 +153,12 @@ defineExpose({ refresh })
                 <span class="name">{{ c.name }}</span>
               </div>
             </template>
-            <div v-if="grouped.standalone.length" class="group-label">Standalone</div>
+            <div v-if="grouped.standalone.length" class="group-label">{{ t('containers.standalone') }}</div>
             <div v-for="c in grouped.standalone" :key="c.id" class="row" :class="{ active: c.id === selectedId }" @click="select(c)">
               <span class="dot" :class="c.state"></span>
               <span class="name">{{ c.name }}</span>
             </div>
-            <div v-if="filtered.length === 0" class="empty-list">没有匹配的容器</div>
+            <div v-if="filtered.length === 0" class="empty-list">{{ t('containers.noMatches') }}</div>
           </div>
         </aside>
 
@@ -160,24 +171,24 @@ defineExpose({ refresh })
                   <span>{{ selectedCompose }}</span>
                 </div>
                 <div class="detail-meta">
-                  <span>{{ selectedComposeSummary.running }} running</span>
-                  <span>{{ selectedComposeSummary.total }} containers</span>
-                  <span v-if="!selectedComposeProject && !selectedComposePath">按现有容器批量操作</span>
+                  <span>{{ t('containers.runningCount', { count: selectedComposeSummary.running }) }}</span>
+                  <span>{{ t('containers.count', { count: selectedComposeSummary.total }, selectedComposeSummary.total) }}</span>
+                  <span v-if="!selectedComposeProject && !selectedComposePath">{{ t('containers.batchExisting') }}</span>
                 </div>
                 <div v-if="selectedComposePath" class="path-line">{{ selectedComposePath }}</div>
               </div>
               <div class="detail-actions">
                 <AppButton variant="success" size="sm" @click="composeStart">
                   <template #icon><AppIcon :icon="Play" :size="13" /></template>
-                  启动全部
+                  {{ t('containers.startAll') }}
                 </AppButton>
                 <AppButton variant="danger" size="sm" @click="composeStop">
                   <template #icon><AppIcon :icon="Square" :size="13" /></template>
-                  停止全部
+                  {{ t('containers.stopAll') }}
                 </AppButton>
                 <AppButton variant="secondary" size="sm" @click="composeRestart">
                   <template #icon><AppIcon :icon="RotateCcw" :size="13" /></template>
-                  重启全部
+                  {{ t('containers.restartAll') }}
                 </AppButton>
               </div>
             </div>
@@ -186,17 +197,17 @@ defineExpose({ refresh })
                 <span class="dot" :class="c.state"></span>
                 <span class="detail-row-main">
                   <span class="name">{{ c.name }}</span>
-                  <span class="status">{{ c.service || c.status }}</span>
+                  <span class="status">{{ c.service || containerStatus(c) }}</span>
                 </span>
                 <span class="image">{{ c.image }}</span>
                 <span class="detail-actions compact" @click.stop>
-                  <AppButton v-if="c.state !== 'running'" variant="success" size="sm" iconOnly title="start" @click="start(c)"><template #icon><AppIcon :icon="Play" :size="13" /></template></AppButton>
-                  <AppButton v-else variant="danger" size="sm" iconOnly title="stop" @click="stop(c)"><template #icon><AppIcon :icon="Square" :size="13" /></template></AppButton>
-                  <AppButton variant="secondary" size="sm" iconOnly title="restart" @click="restart(c)"><template #icon><AppIcon :icon="RotateCcw" :size="13" /></template></AppButton>
+                  <AppButton v-if="c.state !== 'running'" variant="success" size="sm" iconOnly :title="t('common.start')" :aria-label="t('common.start')" @click="start(c)"><template #icon><AppIcon :icon="Play" :size="13" /></template></AppButton>
+                  <AppButton v-else variant="danger" size="sm" iconOnly :title="t('common.stop')" :aria-label="t('common.stop')" @click="stop(c)"><template #icon><AppIcon :icon="Square" :size="13" /></template></AppButton>
+                  <AppButton variant="secondary" size="sm" iconOnly :title="t('common.restart')" :aria-label="t('common.restart')" @click="restart(c)"><template #icon><AppIcon :icon="RotateCcw" :size="13" /></template></AppButton>
                 </span>
               </div>
               <div v-if="selectedComposeSummary.images.length" class="images-panel">
-                <div class="section-title">Images</div>
+                <div class="section-title">{{ t('containers.images') }}</div>
                 <div v-for="image in selectedComposeSummary.images" :key="image" class="image-line">{{ image }}</div>
               </div>
             </div>
@@ -209,23 +220,23 @@ defineExpose({ refresh })
                   <span>{{ selected.name }}</span>
                 </div>
                 <div class="detail-meta">
-                  <span>{{ selected.status || selected.state }}</span>
+                  <span>{{ containerStatus(selected) }}</span>
                   <span>{{ selected.image }}</span>
-                  <span v-if="selected.compose">Compose · {{ selected.compose }}</span>
+                  <span v-if="selected.compose">{{ t('containers.composeName', { name: selected.compose }) }}</span>
                 </div>
               </div>
               <div class="detail-actions">
-                <AppButton v-if="selected.state !== 'running'" variant="success" size="sm" iconOnly title="start" @click="start(selected)"><template #icon><AppIcon :icon="Play" :size="13" /></template></AppButton>
-                <AppButton v-else variant="danger" size="sm" iconOnly title="stop" @click="stop(selected)"><template #icon><AppIcon :icon="Square" :size="13" /></template></AppButton>
-                <AppButton variant="secondary" size="sm" iconOnly title="restart" @click="restart(selected)"><template #icon><AppIcon :icon="RotateCcw" :size="13" /></template></AppButton>
-                <AppButton variant="secondary" size="sm" iconOnly title="remove" @click="requestRemove(selected)"><template #icon><AppIcon :icon="Trash2" :size="13" /></template></AppButton>
+                <AppButton v-if="selected.state !== 'running'" variant="success" size="sm" iconOnly :title="t('common.start')" :aria-label="t('common.start')" @click="start(selected)"><template #icon><AppIcon :icon="Play" :size="13" /></template></AppButton>
+                <AppButton v-else variant="danger" size="sm" iconOnly :title="t('common.stop')" :aria-label="t('common.stop')" @click="stop(selected)"><template #icon><AppIcon :icon="Square" :size="13" /></template></AppButton>
+                <AppButton variant="secondary" size="sm" iconOnly :title="t('common.restart')" :aria-label="t('common.restart')" @click="restart(selected)"><template #icon><AppIcon :icon="RotateCcw" :size="13" /></template></AppButton>
+                <AppButton variant="secondary" size="sm" iconOnly :title="t('common.remove')" :aria-label="t('common.remove')" @click="requestRemove(selected)"><template #icon><AppIcon :icon="Trash2" :size="13" /></template></AppButton>
               </div>
             </div>
             <LogPanel :projectId="followRunId" :status="{ State: selected.state === 'running' ? 'running' : 'stopped' }" />
           </template>
           <div v-else class="empty-detail">
             <AppIcon :icon="ScrollText" :size="22" />
-            <span>选择一个容器查看日志</span>
+            <span>{{ t('containers.selectForLogs') }}</span>
           </div>
         </main>
       </div>

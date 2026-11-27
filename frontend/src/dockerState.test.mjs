@@ -54,3 +54,23 @@ test('findComposeProject matches compose containers to registered compose projec
   assert.equal(findComposeProject(projects, 'teammanage').id, 'team')
   assert.equal(findComposeProject(projects, 'missing'), null)
 })
+
+test('container grouping and summaries preserve native state codes, names, images, and paths', () => {
+  const compose = '原始 @ {count} | stack'
+  const list = [
+    { id: 'raw-1', compose, name: '原始-web-1', service: 'API @ {name}', state: 'running', image: 'registry/镜像:latest', composeWorkingDir: '/srv/原始 项目' },
+    { id: 'raw-2', compose, name: 'stopped worker', service: 'worker', state: 'dead', image: 'registry/镜像:latest' },
+    { id: 'raw-3', name: 'custom state', state: 'future-native-code', image: 'untagged@sha256:abc' },
+  ]
+  const snapshot = structuredClone(list)
+  const groups = groupContainers(list)
+  assert.deepEqual(groups.compose[compose], list.slice(0, 2))
+  assert.deepEqual(groups.standalone, [list[2]])
+  assert.equal(groups.compose[compose][0], list[0])
+  assert.deepEqual(filterContainers(list, '原始'), [list[0]])
+  assert.deepEqual(summarizeContainers(list), {
+    total: 3, running: 1, exited: 1, workingDir: '/srv/原始 项目',
+    images: ['registry/镜像:latest', 'untagged@sha256:abc'],
+  })
+  assert.deepEqual(list, snapshot)
+})

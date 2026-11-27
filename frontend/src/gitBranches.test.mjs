@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import * as gitBranches from './gitBranches.js'
 import {
   allBranchNames,
   branchGroups,
-  branchPillLabel,
+  branchPillState,
   canCreateFromQuery,
   checkoutWarnings,
   validateBranchName,
@@ -22,6 +23,8 @@ const data = {
 test('branchGroups 分本地与远端两组并标出当前分支', () => {
   const groups = branchGroups(data)
   assert.deepEqual(groups.map((g) => g.id), ['local', 'remote'])
+  assert.equal(Object.hasOwn(groups[0], 'label'), false)
+  assert.equal(Object.hasOwn(groups[1], 'label'), false)
   const main = groups[0].items.find((i) => i.name === 'main')
   assert.equal(main.current, true)
   assert.equal(groups[0].items.find((i) => i.name === 'feature/editor').current, false)
@@ -45,32 +48,31 @@ test('branchGroups 容忍空数据', () => {
   assert.deepEqual(branchGroups({}), [])
 })
 
-test('branchPillLabel 区分普通分支、detached 与非仓库', () => {
-  assert.equal(branchPillLabel(data), 'main')
-  assert.equal(branchPillLabel({ repo: true, detached: true, head: 'abc1234' }), 'detached @ abc1234')
-  assert.equal(branchPillLabel({ repo: true, detached: true }), 'detached')
-  assert.equal(branchPillLabel({ repo: false }), '')
-  assert.equal(branchPillLabel(null), '')
+test('branchPillState separates stable Git states from raw names and hashes', () => {
+  assert.deepEqual(branchPillState(data), { kind: 'branch', value: 'main' })
+  assert.deepEqual(branchPillState({ repo: true, detached: true, head: 'abc1234' }), { kind: 'detached', value: 'abc1234' })
+  assert.deepEqual(branchPillState({ repo: true, detached: true }), { kind: 'detached', value: '' })
+  assert.equal(branchPillState({ repo: false }), null)
+  assert.equal(branchPillState(null), null)
 })
 
 test('validateBranchName 挡住 git 会拒绝的名字', () => {
   assert.equal(validateBranchName('feature/ok'), '')
-  assert.match(validateBranchName(''), /不能为空/)
-  assert.match(validateBranchName('   '), /不能为空/)
-  assert.match(validateBranchName('-f'), /- 开头/)
-  assert.match(validateBranchName('has space'), /空格/)
-  assert.match(validateBranchName('sta*r'), /空格/)
-  assert.match(validateBranchName('/lead'), /\/ 开头/)
-  assert.match(validateBranchName('trail/'), /\/ 开头/)
-  assert.match(validateBranchName('a//b'), /\/\//)
-  assert.match(validateBranchName('.hidden'), /\. 开头/)
-  assert.match(validateBranchName('a..b'), /\.\./)
-  assert.match(validateBranchName('x.lock'), /\.lock/)
-  assert.match(validateBranchName('a@{0}'), /@\{/)
+  for (const [name, code] of [
+    ['', 'empty'], ['   ', 'empty'], ['-f', 'leadingDash'],
+    ['has space', 'invalidCharacters'], ['sta*r', 'invalidCharacters'],
+    ['/lead', 'slash'], ['trail/', 'slash'], ['a//b', 'slash'],
+    ['.hidden', 'dot'], ['a..b', 'dot'], ['x.lock', 'dot'], ['a@{0}', 'reflog'],
+  ]) {
+    assert.deepEqual(validateBranchName(name), { code, values: {} })
+  }
 })
 
 test('validateBranchName 拒绝重名', () => {
-  assert.match(validateBranchName('main', ['main']), /已存在/)
+  assert.deepEqual(validateBranchName('main', ['main']), { code: 'exists', values: { name: 'main' } })
+  assert.deepEqual(validateBranchName(' feature/原始 ', ['feature/原始']), {
+    code: 'exists', values: { name: 'feature/原始' },
+  })
   assert.equal(validateBranchName('main', ['other']), '')
 })
 
@@ -88,7 +90,19 @@ test('canCreateFromQuery 只在输入了合法新名字时才成立', () => {
 
 test('checkoutWarnings 提醒脏工作区与运行中的项目', () => {
   assert.deepEqual(checkoutWarnings(data, false), [])
-  assert.equal(checkoutWarnings({ ...data, dirty: true }, false).length, 1)
-  assert.equal(checkoutWarnings(data, true).length, 1)
-  assert.equal(checkoutWarnings({ ...data, dirty: true }, true).length, 2)
+  assert.deepEqual(checkoutWarnings({ ...data, dirty: true }, false), ['dirty'])
+  assert.deepEqual(checkoutWarnings(data, true), ['running'])
+  assert.deepEqual(checkoutWarnings({ ...data, dirty: true }, true), ['dirty', 'running'])
+})
+
+test('gitErrorDetail preserves string rejections and error messages byte for byte', () => {
+  const { gitErrorDetail } = gitBranches
+  assert.equal(typeof gitErrorDetail, 'function')
+  const raw = '  fatal: 分支 feature/原始\nYour local changes would be overwritten.\n'
+  assert.equal(gitErrorDetail(raw), raw)
+  assert.equal(gitErrorDetail(new Error(raw)), raw)
+  assert.equal(gitErrorDetail({ message: raw }), raw)
+  for (const error of [null, undefined, '', new Error(''), {}]) {
+    assert.equal(gitErrorDetail(error), '')
+  }
 })

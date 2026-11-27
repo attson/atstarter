@@ -1,6 +1,9 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
 import AppButton from './ui/AppButton.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: Boolean,
@@ -12,7 +15,13 @@ const emit = defineEmits(['close', 'save'])
 
 const mode = ref('existing')
 const selectedGroupId = ref('')
-const newGroupName = ref('')
+const editedGroupName = ref(null)
+const newGroupName = computed({
+  get: () => editedGroupName.value ?? (props.project
+    ? t('groups.suggestedName', { name: props.project.name })
+    : ''),
+  set: (value) => { editedGroupName.value = value },
+})
 
 const commandLine = computed(() => props.command
   ? [props.command.command, ...(props.command.args || [])].filter(Boolean).join(' ')
@@ -43,7 +52,7 @@ watch(() => props.show, (show) => {
   const list = props.groups || []
   const firstOpen = list.find((g) => !groupContainsCurrent(g))
   selectedGroupId.value = (firstOpen || list[0])?.id || ''
-  newGroupName.value = props.project ? `${props.project.name} group` : ''
+  editedGroupName.value = null
 })
 
 function save() {
@@ -51,7 +60,7 @@ function save() {
   emit('save', {
     mode: mode.value,
     groupId: selectedGroupId.value,
-    groupName: newGroupName.value.trim(),
+    groupName: newGroupName.value,
   })
 }
 </script>
@@ -61,7 +70,7 @@ function save() {
     <div class="mask" v-if="show" @click.self="emit('close')">
       <Transition name="dlg-pop" appear>
         <div class="dialog">
-          <h3>添加到组</h3>
+          <h3>{{ t('groups.addTo') }}</h3>
           <div class="target">
             <strong>{{ project && project.name }}</strong>
             <span>{{ command && command.name }}</span>
@@ -73,11 +82,11 @@ function save() {
               :class="['mode-tab', { active: mode === 'existing' }]"
               :disabled="!(groups || []).length"
               @click="mode = 'existing'"
-            >已有组</button>
+            >{{ t('groups.existing') }}</button>
             <button
               :class="['mode-tab', { active: mode === 'new' }]"
               @click="mode = 'new'"
-            >新建组</button>
+            >{{ t('groups.newTitle') }}</button>
           </div>
 
           <div v-if="mode === 'existing'" class="group-list">
@@ -88,19 +97,19 @@ function save() {
               @click="selectedGroupId = group.id"
             >
               <span>{{ group.name }}</span>
-              <small v-if="groupContainsCurrent(group)" class="tag-in">已包含</small>
-              <small v-else>{{ (group.items || []).length }} commands</small>
+              <small v-if="groupContainsCurrent(group)" class="tag-in">{{ t('groups.alreadyContains') }}</small>
+              <small v-else>{{ t('commands.count', (group.items || []).length, { count: (group.items || []).length }) }}</small>
             </button>
           </div>
-          <label v-else>组名<input v-model="newGroupName" placeholder="Local dev stack" /></label>
+          <label v-else>{{ t('groups.name') }}<input v-model="newGroupName" :placeholder="t('groups.nameHint')" /></label>
 
           <p v-if="mode === 'existing' && alreadyInSelected" class="hint">
-            此命令已经在该组中,选一个其他组或改用「新建组」。
+            {{ t('groups.alreadyContainsHint') }}
           </p>
 
           <div class="btns">
-            <AppButton variant="secondary" @click="emit('close')">取消</AppButton>
-            <AppButton variant="primary" :disabled="!canSubmit" @click="save">添加</AppButton>
+            <AppButton variant="secondary" @click="emit('close')">{{ t('common.cancel') }}</AppButton>
+            <AppButton variant="primary" :disabled="!canSubmit" @click="save">{{ t('common.add') }}</AppButton>
           </div>
         </div>
       </Transition>

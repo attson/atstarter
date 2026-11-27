@@ -1,6 +1,9 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { nextTick, onMounted, ref } from "vue";
 import { File, Folder } from "lucide-vue-next";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   level: number;
@@ -42,7 +45,8 @@ function onKey(e: KeyboardEvent) {
       ref="inputRef"
       v-model="value"
       class="input"
-      :placeholder="placeholder"
+      :placeholder="placeholder ?? t(icon === 'folder' ? 'files.folderNameHint' : 'files.fileNameHint')"
+      :aria-label="t('files.nameInput')"
       data-test="inline-edit-input"
       @keydown="onKey"
       @blur="emit('cancel')"

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { onMounted, onBeforeUnmount, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { history, defaultKeymap, historyKeymap } from "@codemirror/commands";
@@ -7,22 +8,9 @@ import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/sea
 import { languageForPath } from "./languageMap";
 import { highlightExtensionFor } from "./highlight";
 import type { FileSystemBridge } from "./fsBridge";
+import { editorPhrases, reconfigureEditorPhrases } from "./codeMirrorI18n.js";
 
-// 中文文案(替代 atterm i18n)。
-const T = {
-  loading: "加载中…",
-  binary: "二进制文件,不支持编辑。",
-  tooLarge: "文件较大,不支持编辑。",
-  cancel: "取消",
-  overwrite: "覆盖保存",
-  reload: "重新加载",
-  reloadDiscard: "放弃更改并重载",
-  fileChanged: "文件已被外部修改。",
-  staleModTime: "文件已被外部修改,保存会覆盖对方的改动。",
-  errorPrefix: (message: string) => "出错:" + message,
-  saveFailed: (message: string) => "保存失败:" + message,
-  unexpectedContentType: "文件内容格式异常",
-};
+const { t } = useI18n();
 
 const MAX_BYTES_FRONTEND = 2 * 1024 * 1024;
 
@@ -48,11 +36,12 @@ const emit = defineEmits<{
 const host = ref<HTMLDivElement | null>(null);
 const state = ref<"loading" | "tooLarge" | "binary" | "ok" | "error">("loading");
 const errorMsg = ref<string>("");
+const errorFallback = ref("loadFailed");
 const reloadPending = ref(false);
 const loadedAt = ref<number | null>(null);
 const dirty = ref(false);
 const conflict = ref<{ currentModTime: number } | null>(null);
-const saveError = ref<string>("");
+const saveError = ref<string | null>(null);
 
 let view: EditorView | null = null;
 let off: (() => void) | null = null;
@@ -66,6 +55,8 @@ const numbersComp = new Compartment();
 const wrapComp = new Compartment();
 const tabComp = new Compartment();
 const themeComp = new Compartment();
+const phrasesComp = new Compartment();
+const phrases = computed(() => editorPhrases(t));
 
 function isCurrent(fs: FileSystemBridge, path: string, request: number): boolean {
   return !disposed && loadGeneration === request && props.fs === fs && props.path === path;
@@ -87,7 +78,7 @@ function decodeFileBytes(data: unknown): string {
   } else if (Array.isArray(data)) {
     bytes = new Uint8Array(data as number[]);
   } else {
-    throw new Error(T.unexpectedContentType);
+    throw Object.assign(new Error(), { code: "unexpectedContentType" });
   }
   return new TextDecoder().decode(bytes);
 }
@@ -161,7 +152,7 @@ async function load() {
     originalText = text;
     setDirty(false);
     conflict.value = null;
-    saveError.value = "";
+    saveError.value = null;
 
     const updateListener = EditorView.updateListener.of((v) => {
       if (v.docChanged) setDirty(v.state.doc.toString() !== originalText);
@@ -193,6 +184,7 @@ async function load() {
     ];
     const langExt = await languageForPath(path);
     if (langExt) exts.push(langExt);
+    exts.push(phrasesComp.of(EditorState.phrases.of(phrases.value)));
 
     if (!isCurrent(fs, path, request) || !host.value) return;
     const nextView = new EditorView({
@@ -209,7 +201,8 @@ async function load() {
   } catch (err) {
     if (!isCurrent(fs, path, request)) return;
     state.value = "error";
-    errorMsg.value = (err as Error).message;
+    errorMsg.value = (typeof err === "string" ? err : (err as Error)?.message) || "";
+    errorFallback.value = (err as { code?: string })?.code === "unexpectedContentType" ? "unexpectedContentType" : "loadFailed";
   }
 }
 
@@ -217,7 +210,7 @@ async function save(): Promise<boolean> {
   if (!view || state.value !== "ok") return false;
   const text = view.state.doc.toString();
   const bytes = new TextEncoder().encode(text);
-  saveError.value = "";
+  saveError.value = null;
   try {
     const newModTime = await props.fs.writeBytes(props.path, bytes, loadedAt.value ?? 0, false);
     originalText = text;
@@ -227,7 +220,7 @@ async function save(): Promise<boolean> {
     setDirty(false);
     return true;
   } catch (err) {
-    const msg = (err as Error).message ?? "";
+    const msg = (typeof err === "string" ? err : (err as Error)?.message) ?? "";
     const m = /stale_modtime: current=(\d+)/.exec(msg);
     if (m) {
       conflict.value = { currentModTime: Number(m[1]) };
@@ -309,6 +302,10 @@ watch(() => props.prefs.wrap, (on) => {
 watch(() => props.prefs.tabSize, (size) => {
   view?.dispatch({ effects: tabComp.reconfigure(EditorState.tabSize.of(size)) });
 });
+watch(phrases, (value) => {
+  if (!view) return;
+  reconfigureEditorPhrases(view, phrasesComp.reconfigure(EditorState.phrases.of(value)));
+});
 
 watch(() => props.fs, (fs) => subscribeToDirChanges(fs));
 
@@ -337,30 +334,30 @@ defineExpose({
 <template>
   <div class="file-editor">
     <div v-if="conflict" class="banner err conflict" data-test="conflict-banner">
-      <span class="msg">{{ T.staleModTime }}</span>
+      <span class="msg">{{ t("files.staleModTime") }}</span>
       <button data-test="conflict-overwrite" @click="overwriteWithServerModTime">
-        {{ T.overwrite }}
+        {{ t("files.overwrite") }}
       </button>
       <button data-test="conflict-reload" @click="reloadDiscardChanges">
-        {{ T.reloadDiscard }}
+        {{ t("files.reloadDiscard") }}
       </button>
       <button data-test="conflict-cancel" @click="conflict = null">
-        {{ T.cancel }}
+        {{ t("files.cancel") }}
       </button>
     </div>
-    <div v-if="saveError" class="banner err" data-test="save-error">
-      {{ T.saveFailed(saveError) }}
+    <div v-if="saveError !== null" class="banner err" data-test="save-error">
+      {{ t("files.saveFailed", { message: saveError || t("files.errors.saveFailed") }) }}
     </div>
     <div v-if="reloadPending" class="reload-badge">
-      {{ T.fileChanged }}
+      {{ t("files.fileChanged") }}
       <button @click="load">
-        {{ dirty ? T.reloadDiscard : T.reload }}
+        {{ dirty ? t("files.reloadDiscard") : t("files.reload") }}
       </button>
     </div>
-    <div v-if="state === 'tooLarge'" class="banner muted">{{ T.tooLarge }}</div>
-    <div v-else-if="state === 'binary'" class="banner muted">{{ T.binary }}</div>
-    <div v-else-if="state === 'error'" class="banner err">{{ T.errorPrefix(errorMsg) }}</div>
-    <div v-else-if="state === 'loading'" class="banner muted">{{ T.loading }}</div>
+    <div v-if="state === 'tooLarge'" class="banner muted">{{ t("files.tooLarge") }}</div>
+    <div v-else-if="state === 'binary'" class="banner muted">{{ t("files.binary") }}</div>
+    <div v-else-if="state === 'error'" class="banner err">{{ t("files.errorPrefix", { message: errorMsg || t(`files.errors.${errorFallback}`) }) }}</div>
+    <div v-else-if="state === 'loading'" class="banner muted">{{ t("files.loading") }}</div>
     <div v-show="state === 'ok'" ref="host" class="cm-host" />
   </div>
 </template>

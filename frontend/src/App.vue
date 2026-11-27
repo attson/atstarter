@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, provide } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ProjectList from './components/ProjectList.vue'
 import ProjectDetail from './components/ProjectDetail.vue'
 import GroupDetail from './components/GroupDetail.vue'
@@ -15,6 +16,7 @@ import ThemeToggle from './components/ui/ThemeToggle.vue'
 import UpdateBanner from './components/UpdateBanner.vue'
 import ComposeDetail from './components/ComposeDetail.vue'
 import ContainerPanel from './components/ContainerPanel.vue'
+import EnvironmentWorkspace from './components/environments/EnvironmentWorkspace.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 import SettingsDialog from './components/SettingsDialog.vue'
 import ContextMenu from './components/ui/ContextMenu.vue'
@@ -32,8 +34,12 @@ import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 import { inferWorkspaceRoots } from './workspaceRoots'
 import { applyDetectionOption } from './projectDetection.js'
 import { normalizeAppSettings } from './appSettings.js'
+import { setLanguagePreference } from './i18n/index.js'
+import { applyLoadedSettings, saveSettingsAndApply } from './i18n/settingsFlow.js'
+import { confirmationPresentation, summaryTotalLabel as totalLabelFor } from './i18n/shellPresentation.js'
 import { startVisibleStatusPolling } from './statusPolling.js'
 
+const { t } = useI18n()
 const projects = ref([])
 const groups = ref([])
 const selectedId = ref('')
@@ -53,10 +59,11 @@ const missingIds = ref(new Set()) // 项目 Path 已消失(如 worktree 删除),
 const branchUpdate = ref(null)
 let branchUpdateRevision = 0
 
-const activeTab = ref('projects') // 'projects' | 'containers'
+const activeTab = ref('projects') // 'projects' | 'containers' | 'environments'
 const dockerAvailable = ref(true)
 const containerSummary = ref({ total: 0, running: 0, exited: 0 })
-const confirm = ref({ show: false, kind: '', payload: null, title: '', message: '', confirmText: '', danger: true })
+const confirm = ref({ show: false, kind: '', payload: null, danger: true })
+const confirmPresentation = computed(() => confirmationPresentation(confirm.value, t))
 const containerPanelRef = ref(null)
 const updateBannerRef = ref(null)
 const showSettings = ref(false)
@@ -76,14 +83,13 @@ async function checkDocker() {
 }
 
 function onConfirmDown(projectId) {
-  confirm.value = { show: true, kind: 'down', payload: projectId, title: 'Compose Down', message: '将停止并删除该 compose 项目的所有容器与网络(数据卷保留)。确认继续?', confirmText: 'Down', danger: true }
+  confirm.value = { show: true, kind: 'down', payload: projectId, danger: true }
 }
 function onConfirmRemove(container) {
-  const running = container.state === 'running'
-  confirm.value = { show: true, kind: 'remove', payload: container, title: '删除容器', message: running ? `容器「${container.name}」正在运行,将强制删除(rm -f)。确认?` : `删除容器「${container.name}」?`, confirmText: '删除', danger: true }
+  confirm.value = { show: true, kind: 'remove', payload: container, danger: true }
 }
 function onConfirmResetProjects() {
-  confirm.value = { show: true, kind: 'reset-projects', payload: null, title: '重置项目列表', message: '将清空所有项目和启动分组,保留扫描工作区。正在运行的普通项目会先停止。确认继续?', confirmText: '重置', danger: true }
+  confirm.value = { show: true, kind: 'reset-projects', payload: null, danger: true }
 }
 function onContainerSummary(summary) {
   containerSummary.value = summary || { total: 0, running: 0, exited: 0 }
@@ -102,7 +108,7 @@ async function onConfirmAccept() {
       await refresh()
     }
   } catch (e) {
-    console.error('操作失败:', e)
+    console.error(t('status.operationFailed'), e)
   } finally {
     confirm.value = { ...confirm.value, show: false }
   }
@@ -126,9 +132,9 @@ async function onCheckUpdates() {
 
 async function loadAppSettings() {
   try {
-    appSettings.value = normalizeAppSettings(await GetAppSettings())
+    appSettings.value = applyLoadedSettings(await GetAppSettings(), setLanguagePreference)
   } catch (e) {
-    console.error('读取设置失败:', e)
+    console.error(t('status.loadSettingsFailed'), e)
   }
 }
 
@@ -142,7 +148,7 @@ async function onSaveSettings(value) {
   settingsSaving.value = true
   settingsError.value = ''
   try {
-    appSettings.value = normalizeAppSettings(await SaveAppSettings(value))
+    appSettings.value = await saveSettingsAndApply(value, SaveAppSettings, setLanguagePreference)
     showSettings.value = false
   } catch (e) {
     settingsError.value = String(e)
@@ -159,9 +165,7 @@ const selectedCommand = computed(() => commandsFor(selected.value).find((c) => c
 const selectedStatus = computed(() => statuses.value[selectedRunId.value])
 const runningCount = computed(() => Object.values(statuses.value).filter((s) => s && s.State === 'running').length)
 const exitedCount = computed(() => Object.values(statuses.value).filter((s) => s && (s.State === 'exited' || s.State === 'error')).length)
-const summaryTotalLabel = computed(() => activeTab.value === 'containers'
-  ? `${containerSummary.value.total} containers`
-  : `${projects.value.length} projects`)
+const summaryTotalLabel = computed(() => totalLabelFor(activeTab.value, projects.value.length, containerSummary.value.total, t))
 const summaryRunningCount = computed(() => activeTab.value === 'containers' ? containerSummary.value.running : runningCount.value)
 const summaryExitedCount = computed(() => activeTab.value === 'containers' ? containerSummary.value.exited : exitedCount.value)
 const projectStatuses = computed(() => {
@@ -214,10 +218,10 @@ const contextMenuItems = computed(() => {
   const isPinned = !!(p && p.pinnedOrder > 0)
   const running = projectRunState(id) === 'running'
   return [
-    { key: 'pin', label: isPinned ? '取消置顶' : '置顶', icon: isPinned ? PinOff : Pin },
-    { key: 'toggle', label: running ? '停止' : '启动', icon: running ? Square : Play },
-    { key: 'open', label: '在文件管理器打开', icon: FolderOpen },
-    { key: 'remove', label: '从列表移除', icon: Trash2, danger: true },
+    { key: 'pin', label: t(isPinned ? 'navigation.projectMenu.unpin' : 'navigation.projectMenu.pin'), icon: isPinned ? PinOff : Pin },
+    { key: 'toggle', label: t(running ? 'common.stop' : 'common.start'), icon: running ? Square : Play },
+    { key: 'open', label: t('navigation.projectMenu.openInFileManager'), icon: FolderOpen },
+    { key: 'remove', label: t('navigation.projectMenu.removeFromList'), icon: Trash2, danger: true },
   ]
 })
 
@@ -328,7 +332,7 @@ async function pollStatuses() {
   try {
     statuses.value = (await GetStatuses(runIds)) || {}
   } catch (e) {
-    console.error('刷新运行状态失败:', e)
+    console.error(t('status.refreshStatusFailed'), e)
   }
 }
 
@@ -356,7 +360,7 @@ async function onRescanProjects() {
     await refresh()
     await pollStatuses()
   } catch (e) {
-    console.error('重新扫描失败:', e)
+    console.error(t('status.rescanFailed'), e)
   } finally {
     rescanning.value = false
   }
@@ -459,7 +463,12 @@ onUnmounted(() => {
     <UpdateBanner ref="updateBannerRef" />
     <header class="topbar">
       <div class="brand">Rootyard</div>
-      <div class="summary">
+      <div class="tabs">
+        <button class="tab" :class="{ active: activeTab === 'projects' }" @click="activeTab = 'projects'">{{ t('navigation.projects') }}</button>
+        <button class="tab" :class="{ active: activeTab === 'containers' }" @click="activeTab = 'containers'">{{ t('navigation.containers') }}</button>
+        <button class="tab" :class="{ active: activeTab === 'environments' }" @click="activeTab = 'environments'">{{ t('navigation.environments') }}</button>
+      </div>
+      <div v-if="activeTab !== 'environments'" class="summary">
         <span class="summary-count">{{ summaryTotalLabel }}</span>
         <AppPill
           variant="running"
@@ -467,37 +476,33 @@ onUnmounted(() => {
           :clickable="activeTab === 'projects'"
           :active="activeTab === 'projects' && statusFilter === 'running'"
           @click="toggleStatusFilter('running')"
-        >{{ summaryRunningCount }} running</AppPill>
+        >{{ t('status.runningCount', { count: summaryRunningCount }) }}</AppPill>
         <AppPill
           variant="exited"
           :clickable="activeTab === 'projects'"
           :active="activeTab === 'projects' && statusFilter === 'exited'"
           @click="toggleStatusFilter('exited')"
-        >{{ summaryExitedCount }} exited</AppPill>
-      </div>
-      <div class="tabs">
-        <button class="tab" :class="{ active: activeTab === 'projects' }" @click="activeTab = 'projects'">Projects</button>
-        <button class="tab" :class="{ active: activeTab === 'containers' }" @click="activeTab = 'containers'">Containers</button>
+        >{{ t('status.exitedCount', { count: summaryExitedCount }) }}</AppPill>
       </div>
       <div class="top-actions">
         <ThemeToggle />
-        <AppButton variant="secondary" size="sm" icon-only title="设置" aria-label="设置" @click="openSettings">
+        <AppButton variant="secondary" size="sm" icon-only :title="t('accessibility.settings')" :aria-label="t('accessibility.settings')" @click="openSettings">
           <template #icon><AppIcon :icon="Settings2" :size="14" /></template>
         </AppButton>
-        <AppButton variant="secondary" size="sm" icon-only title="检查更新" aria-label="检查更新" @click="onCheckUpdates">
+        <AppButton variant="secondary" size="sm" icon-only :title="t('accessibility.checkUpdates')" :aria-label="t('accessibility.checkUpdates')" @click="onCheckUpdates">
           <template #icon><AppIcon :icon="RefreshCw" :size="14" /></template>
         </AppButton>
-        <AppButton variant="secondary" size="sm" @click="editingGroup = null; showGroup = true">
+        <AppButton v-if="activeTab !== 'environments'" variant="secondary" size="sm" @click="editingGroup = null; showGroup = true">
           <template #icon><AppIcon :icon="FolderPlus" :size="14" /></template>
-          New Group
+          {{ t('navigation.newGroup') }}
         </AppButton>
-        <AppButton variant="secondary" size="sm" @click="showScan = true">
+        <AppButton v-if="activeTab !== 'environments'" variant="secondary" size="sm" @click="showScan = true">
           <template #icon><AppIcon :icon="Radar" :size="14" /></template>
-          Scan
+          {{ t('navigation.scan') }}
         </AppButton>
-        <AppButton variant="primary" size="sm" @click="showAddProject = true">
+        <AppButton v-if="activeTab !== 'environments'" variant="primary" size="sm" @click="showAddProject = true">
           <template #icon><AppIcon :icon="Plus" :size="14" /></template>
-          Add
+          {{ t('navigation.add') }}
         </AppButton>
       </div>
     </header>
@@ -521,7 +526,8 @@ onUnmounted(() => {
           @add-to-group="showAddToGroup = true" @switch-type="onSwitchDetection" @remove="onRemoveSelectedProject"
           @branch-changed="onBranchChanged" />
       </template>
-      <ContainerPanel v-else ref="containerPanelRef" :projects="projects" @confirm-remove="onConfirmRemove" @summary="onContainerSummary" />
+      <ContainerPanel v-else-if="activeTab === 'containers'" ref="containerPanelRef" :projects="projects" @confirm-remove="onConfirmRemove" @summary="onContainerSummary" />
+      <EnvironmentWorkspace v-else />
     </main>
   </div>
 
@@ -547,8 +553,8 @@ onUnmounted(() => {
       @select="onContextMenuSelect"
       @close="closeContextMenu" />
     <ScanDialog :show="showScan" :projects="projects" @close="showScan = false" @added="refresh" />
-    <ConfirmDialog :show="confirm.show" :title="confirm.title" :message="confirm.message"
-      :confirmText="confirm.confirmText" :danger="confirm.danger"
+    <ConfirmDialog :show="confirm.show" :title="confirmPresentation.title" :message="confirmPresentation.message"
+      :confirmText="confirmPresentation.confirmText" :danger="confirm.danger"
       @close="confirm = { ...confirm, show: false }" @confirm="onConfirmAccept" />
     <SettingsDialog :show="showSettings" :settings="appSettings" :saving="settingsSaving" :error="settingsError"
       @close="showSettings = false" @save="onSaveSettings" />
@@ -560,6 +566,7 @@ html, body, #app { height: 100%; margin: 0; }
 
 .app-shell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 48px 1fr;
   height: 100vh;
   font-family: var(--font-sans);
@@ -620,7 +627,7 @@ html, body, #app { height: 100%; margin: 0; }
   font-weight: var(--fw-medium);
 }
 
-.tabs { display: flex; gap: var(--space-2); }
+.tabs { display: flex; flex-shrink: 0; gap: var(--space-2); }
 .tab { height: 28px; padding: 0 var(--space-5); border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-medium); cursor: pointer; }
 .tab.active { background: var(--elevated); color: var(--text); border-color: var(--border-strong); }
 

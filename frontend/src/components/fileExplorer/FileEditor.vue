@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { defineAsyncComponent, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { previewKind, type PreviewKind } from "./previewKind";
 import ImagePreview from "./ImagePreview.vue";
@@ -7,6 +8,8 @@ import PdfPreview from "./PdfPreview.vue";
 import MarkdownPreview from "./MarkdownPreview.vue";
 import BinaryBanner from "./BinaryBanner.vue";
 import type { FileSystemBridge } from "./fsBridge";
+
+const { t } = useI18n();
 
 const CodeEditor = defineAsyncComponent(() => import("./CodeEditor.vue"));
 
@@ -54,10 +57,8 @@ defineExpose({
   focus: () => codeEditorRef.value?.focus?.(),
 });
 
-const T = { errorPrefix: (message: string) => "出错:" + message };
-
 const kind = ref<PreviewKind | null>(null);
-const error = ref<string>("");
+const error = ref<string | null>(null);
 let disposed = false;
 let generation = 0;
 
@@ -70,7 +71,7 @@ async function resolveKind() {
   const path = props.path;
   const request = ++generation;
   kind.value = null;
-  error.value = "";
+  error.value = null;
   try {
     const meta = (await fs.fileMeta(path)) as { isBinary: boolean };
     if (!isCurrent(fs, path, request)) return;
@@ -78,7 +79,7 @@ async function resolveKind() {
     emit("kind-change", kind.value);
   } catch (e) {
     if (!isCurrent(fs, path, request)) return;
-    error.value = (e as Error).message;
+    error.value = (typeof e === "string" ? e : (e as Error)?.message) || "";
     emit("kind-change", null);
   }
 }
@@ -92,8 +93,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="file-editor-host">
-    <div v-if="error" class="banner err">
-      {{ T.errorPrefix(error) }}
+    <div v-if="error !== null" class="banner err">
+      {{ t("files.errorPrefix", { message: error || t("files.errors.loadFailed") }) }}
     </div>
     <template v-else-if="kind === 'code' || ((kind === 'svg' || kind === 'markdown') && viewMode === 'code')">
       <CodeEditor

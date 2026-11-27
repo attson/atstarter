@@ -63,7 +63,7 @@ export function planPaste(entry, targetProjectId, targetDir) {
   const ops = []
   for (const item of entry.items) {
     if (sameProject && item.isDir && isIntoSelf(item.path, targetDir)) {
-      return { ops: [], error: `不能把「${baseName(item.path)}」粘贴到它自己内部` }
+      return { ops: [], error: { code: 'pasteIntoSelf', name: baseName(item.path) } }
     }
     if (entry.mode === 'cut' && sameProject && isSameDirMove(item.path, targetDir)) continue
     ops.push({
@@ -82,7 +82,7 @@ export function planDrop(paths, projectId, targetDir) {
   const ops = []
   for (const item of paths) {
     if (item.isDir && isIntoSelf(item.path, targetDir)) {
-      return { ops: [], error: `不能把「${baseName(item.path)}」移动到它自己内部` }
+      return { ops: [], error: { code: 'moveIntoSelf', name: baseName(item.path) } }
     }
     if (isSameDirMove(item.path, targetDir)) continue
     ops.push({

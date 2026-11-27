@@ -1,7 +1,10 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { ChevronDown, ChevronRight } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
 import { typeLabel } from '../typeLabel.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   node: Object,
@@ -49,7 +52,7 @@ function lineFor(command) {
       <span class="chevron">
         <AppIcon :icon="isExpanded(node) ? ChevronDown : ChevronRight" :size="12" />
       </span>
-      <span class="dir-name">{{ node.label }}</span>
+      <span class="dir-name">{{ node.labelKey ? t(node.labelKey) : node.label }}</span>
       <span class="count">{{ node.count }}</span>
     </button>
     <template v-if="isExpanded(node)">
@@ -72,7 +75,7 @@ function lineFor(command) {
       <span class="project-dot"></span>
       <span class="project-name">{{ node.project.name }}</span>
       <span v-if="node.children && node.children.length" class="count">{{ node.count }}</span>
-      <span v-else class="type-pill">{{ typeLabel(node.project.detectedType) }}</span>
+      <span v-else class="type-pill">{{ typeLabel(node.project.detectedType) || t('status.unknown') }}</span>
     </div>
     <div class="command-rows">
       <button
