@@ -30,6 +30,10 @@ function mountRuntime(file, { props = {}, native = {}, runtime = {} } = {}) {
   const subscriptions = new Map()
   const writes = []
   let resets = 0
+  let fits = 0
+  let resizeCallback
+  let nextFrame = 0
+  const fitFrames = new Map()
   let selection = ''
   const terminal = {
     options: {}, write: (chunk) => writes.push(chunk), reset: () => { resets++ },
@@ -37,8 +41,10 @@ function mountRuntime(file, { props = {}, native = {}, runtime = {} } = {}) {
   }
   const globals = new Map(['window', 'MutationObserver', 'ResizeObserver', 'getComputedStyle'].map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
   globalThis.window = new EventTarget()
+  globalThis.window.requestAnimationFrame = (callback) => { fitFrames.set(++nextFrame, callback); return nextFrame }
+  globalThis.window.cancelAnimationFrame = (id) => fitFrames.delete(id)
   globalThis.MutationObserver = class { observe() {} disconnect() {} }
-  globalThis.ResizeObserver = class { observe() {} disconnect() {} }
+  globalThis.ResizeObserver = class { constructor(callback) { resizeCallback = callback } observe() {} disconnect() {} }
   globalThis.getComputedStyle = () => ({ getPropertyValue: () => '' })
   const dependencies = {
     vue: { ...vue, Transition: vue.BaseTransition }, 'vue-i18n': { useI18n },
@@ -49,7 +55,7 @@ function mountRuntime(file, { props = {}, native = {}, runtime = {} } = {}) {
     '../i18n/shellPresentation.js': shellPresentation,
     '../composables/useTheme': { useTheme: () => ({ resolvedTheme: vue.ref('dark') }) },
     '@xterm/xterm': { Terminal: class { constructor() { return terminal } } },
-    '@xterm/addon-fit': { FitAddon: class { fit() {} } },
+    '@xterm/addon-fit': { FitAddon: class { fit() { fits++ } } },
     '@xterm/addon-web-links': { WebLinksAddon: class {} },
     '../../wailsjs/go/main/App': {
       GetLogs: async () => [], ClearLogs: async () => {},
@@ -89,10 +95,36 @@ function mountRuntime(file, { props = {}, native = {}, runtime = {} } = {}) {
   }
   return {
     ...host, i18n, subscriptions, writes, resetCount: () => resets,
+    fitCount: () => fits,
+    notifyResize: () => resizeCallback(),
+    pendingFitFrames: () => fitFrames.size,
+    flushFitFrames() { const callbacks = [...fitFrames.values()]; fitFrames.clear(); callbacks.forEach((callback) => callback()) },
     selectText: (raw) => { selection = raw },
     unmount() { try { host.unmount() } finally { restoreGlobals() } },
   }
 }
+
+test('mounted terminal defers and coalesces resize fitting and cancels pending work on unmount', async () => {
+  const host = mountRuntime('LogPanel.vue', { props: { projectId: 'resize-run', status: { State: 'stopped' } } })
+  let beforeUnmount
+  try {
+    await flush()
+    const initial = host.fitCount()
+    host.notifyResize()
+    host.notifyResize()
+    host.notifyResize()
+    assert.equal(host.fitCount(), initial, 'fitting inside ResizeObserver causes a geometry feedback loop')
+    assert.equal(host.pendingFitFrames(), 1)
+    host.flushFitFrames()
+    assert.equal(host.fitCount(), initial + 1)
+    host.notifyResize()
+    assert.equal(host.pendingFitFrames(), 1)
+    beforeUnmount = host.fitCount()
+  } finally { host.unmount() }
+  assert.equal(host.pendingFitFrames(), 0)
+  host.flushFitFrames()
+  assert.equal(host.fitCount(), beforeUnmount)
+})
 
 test('mounted compose aggregate, service states, and accessible actions follow locale without rewriting service data', async () => {
   const project = { id: 'raw-project', name: '原始项目 @ {name}', path: '/srv/原始 project', detectedType: 'compose', detections: [] }

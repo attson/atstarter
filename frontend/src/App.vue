@@ -556,6 +556,7 @@ html, body, #app { height: 100%; margin: 0; }
 
 .app-shell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 48px 1fr;
   height: 100vh;
   font-family: var(--font-sans);

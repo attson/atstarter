@@ -45,11 +45,22 @@ const banner = computed(() => {
 let term = null
 let fitAddon = null
 let resizeObserver = null
+let fitFrame = null
 let themeObserver = null
 let loadToken = 0
 let reloading = false
 let needsReload = false
 let cancelLogBatch = () => {}
+
+function scheduleResizeFit() {
+  if (fitFrame !== null) return
+  // Fitting changes terminal geometry. Leave the ResizeObserver delivery
+  // before writing it, and combine notifications from the same frame.
+  fitFrame = window.requestAnimationFrame(() => {
+    fitFrame = null
+    if (fitAddon) fitAddon.fit()
+  })
+}
 
 const logBatchEvent = 'logs:batch'
 
@@ -265,7 +276,7 @@ onMounted(() => {
   term.open(termHost.value)
   fitAddon.fit()
 
-  resizeObserver = new ResizeObserver(() => { if (fitAddon) fitAddon.fit() })
+  resizeObserver = new ResizeObserver(scheduleResizeFit)
   resizeObserver.observe(termHost.value)
 
   window.addEventListener('pointerdown', onGlobalPointer, true)
@@ -280,6 +291,8 @@ onMounted(() => {
 onUnmounted(() => {
   cancelLogBatch()
   if (resizeObserver) resizeObserver.disconnect()
+  if (fitFrame !== null) window.cancelAnimationFrame(fitFrame)
+  fitFrame = null
   if (themeObserver) themeObserver.disconnect()
   window.removeEventListener('pointerdown', onGlobalPointer, true)
   window.removeEventListener('keydown', onKeydown)
