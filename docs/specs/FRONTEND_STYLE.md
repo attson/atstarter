@@ -68,7 +68,42 @@ Reference implementation: `frontend/src/styles/*`, `components/ui/*`.
 The VitePress home demo imports the same tokens and theme files. Its page-level `html[data-theme]`
 bridge is specified in `SITE.md`; frontend components should not special-case VitePress.
 
-### 3.2 Project Detail Header Pattern
+### 3.2 Project Navigation View Pattern
+
+Applicable to `ProjectList.vue`, `ProjectTreeNode.vue`, and `GroupTreeItem.vue`.
+
+1. Project navigation offers `list` and `card` modes through an icon segmented control. The default is
+   `list`; the current value is stored by the frontend in `localStorage` under
+   `projectList.viewMode`. Missing, inaccessible, or unknown values normalize to `list`.
+2. List mode keeps the compact existing rows and does not read Git branch metadata. Card mode uses the
+   shared `ProjectCardContent.vue` for pinned, regular tree, worktree, and group-member project nodes;
+   group members also retain their selected Launch Command name.
+3. Right-clicking the card-view icon opens the shared checkable field menu without changing the current
+   view. Project name, run status, missing state, and child count stay visible; detected type, branch,
+   shortened path, and Launch Command are independently optional. The menu stays open while toggling and
+   closes on outside click, `Escape`, or a view switch.
+4. Optional card fields are stored as booleans under `projectList.cardFields`; all four default to visible.
+   Missing or invalid fields independently normalize to visible, unknown fields are ignored, and storage
+   failures keep the current in-memory choice without blocking navigation. One preference applies to
+   pinned, regular tree, worktree, and group-member cards; a card without a Launch Command name renders no
+   empty command row.
+5. Card mode reads branches through `GetProjectBranch(project.path)` only while the branch field is
+   visible, caches display state by Project ID, and limits reads to four concurrent calls. Refresh on
+   entering card mode, when the project collection changes, and when the branch field is re-enabled.
+   Hiding the field stops queued reads from starting and ignores results from reads already in flight. Do
+   not poll or perform network Git operations. Empty branch values render `projects.card.noBranch` in
+   the active locale; rejected reads render `projects.card.branchReadFailed` in the active locale.
+   Raw branch names remain unchanged, and neither state blocks navigation.
+6. A successful detail-view branch switch updates the matching card immediately. The event must carry
+   the Project ID captured when the switch started, and an older in-flight branch read must not
+   overwrite the switched value.
+7. Project name, branch, path, and group command remain single-line and ellipsized in the 300px sidebar;
+   each full value is available through `title`, and cards must not introduce horizontal overflow.
+
+Reference implementation: `frontend/src/projectNavigation.js`,
+`frontend/src/components/ProjectCardContent.vue`.
+
+### 3.3 Project Detail Header Pattern
 
 Applicable to `ProjectDetail.vue`.
 
@@ -81,7 +116,7 @@ Applicable to `ProjectDetail.vue`.
 The `Edit` action belongs on the command row because it edits command-related fields: command name,
 line, cwd, and env.
 
-### 3.3 Command Form Pattern
+### 3.4 Command Form Pattern
 
 Applicable to `EditProjectDialog.vue` and add/edit command flows. One command renders as one
 `CommandRow.vue`; the dialog owns the list (add/remove/default), the row owns a single command.
@@ -99,7 +134,7 @@ Applicable to `EditProjectDialog.vue` and add/edit command flows. One command re
 Reference implementation: `frontend/src/commandForms.js`, `frontend/src/envVars.js`,
 `frontend/src/components/CommandRow.vue`.
 
-### 3.4 Script Completion Pattern
+### 3.5 Script Completion Pattern
 
 Applicable to the command-line input in `CommandRow.vue`.
 
@@ -118,7 +153,7 @@ Applicable to the command-line input in `CommandRow.vue`.
 
 Reference implementation: `frontend/src/scriptComplete.js`.
 
-### 3.5 Env Text Pattern
+### 3.6 Env Text Pattern
 
 `envTextToMap` behavior is part of the UI contract:
 
@@ -129,7 +164,7 @@ Reference implementation: `frontend/src/scriptComplete.js`.
 - Later duplicate keys overwrite earlier keys.
 - Serialization sorts keys for stable display.
 
-### 3.6 App Settings Pattern
+### 3.7 App Settings Pattern
 
 1. The top bar gear opens `SettingsDialog.vue`; settings remain a modal tool rather than a new app view.
 2. Default shell offers automatic account-shell discovery, discovered executable shells, and an

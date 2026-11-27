@@ -3,10 +3,22 @@ import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { ChevronDown, ChevronRight, FolderKanban } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
+import ProjectCardContent from './ProjectCardContent.vue'
+import { DEFAULT_PROJECT_CARD_FIELDS } from '../projectNavigation.js'
 
 const { t } = useI18n()
 
-const props = defineProps({ group: Object, projects: Array, statuses: Object, selected: Boolean, expanded: Boolean })
+const props = defineProps({
+  group: Object,
+  projects: Array,
+  statuses: Object,
+  missingIds: { type: Set, default: () => new Set() },
+  selected: Boolean,
+  expanded: Boolean,
+  viewMode: { type: String, default: 'list' },
+  branches: { type: Object, default: () => ({}) },
+  cardFields: { type: Object, default: () => DEFAULT_PROJECT_CARD_FIELDS },
+})
 const emit = defineEmits(['select', 'toggle', 'select-command'])
 
 function stateClass(state) {
@@ -76,12 +88,23 @@ const members = computed(() => {
       <button
         v-for="member in members"
         :key="member.key"
-        class="member-row"
+        :class="['member-row', { 'card-view': viewMode === 'card' }]"
         @click="emit('select-command', { projectId: member.project.id, commandId: member.command.id || 'default' })"
       >
-        <span :class="['member-dot', stateClass((member.status || {}).State)]" />
-        <span class="member-project">{{ member.project.name }}</span>
-        <span class="member-command">{{ member.command.name }}</span>
+        <template v-if="viewMode === 'list'">
+          <span :class="['member-dot', stateClass((member.status || {}).State)]" />
+          <span class="member-project">{{ member.project.name }}</span>
+          <span class="member-command">{{ member.command.name }}</span>
+        </template>
+        <ProjectCardContent
+          v-else
+          :project="member.project"
+          :status="member.status"
+          :missing="missingIds.has(member.project.id)"
+          :branch-entry="branches[member.project.id]"
+          :command-name="member.command.name"
+          :fields="cardFields"
+        />
       </button>
     </div>
   </div>
@@ -206,6 +229,7 @@ const members = computed(() => {
 .members { padding: 1px 0 var(--space-3); }
 
 .member-row {
+  box-sizing: border-box;
   width: 100%;
   min-height: 26px;
   display: grid;
@@ -224,6 +248,17 @@ const members = computed(() => {
 }
 
 .member-row:hover { background: var(--elevated-gradient); }
+
+.member-row.card-view {
+  display: flex;
+  align-items: flex-start;
+  margin: var(--space-3) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm), var(--surface-highlight);
+}
+.member-row.card-view:hover { border-color: var(--border-strong); }
 
 .member-dot {
   width: 7px;

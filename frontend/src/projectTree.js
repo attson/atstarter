@@ -2,7 +2,7 @@ function commandLine(project) {
   return [project.command, ...(project.args || [])].filter(Boolean).join(' ')
 }
 
-function displayPath(path) {
+export function displayPath(path) {
   if (!path) return ''
   return path
     .replace(/^\/home\/[^/]+(?=\/)/, '~')

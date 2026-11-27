@@ -32,6 +32,8 @@ export const AUDITED_UI_FILES = [
   'components/ComposeDetail.vue',
   'components/ContainerPanel.vue',
   'components/LogPanel.vue',
+  'components/ProjectCardContent.vue',
+  'components/ProjectCardFieldMenu.vue',
   'components/UpdateBanner.vue',
   'components/FileBrowser.vue',
   'components/fileExplorer/BinaryBanner.vue',

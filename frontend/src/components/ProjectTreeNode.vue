@@ -2,7 +2,9 @@
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, ChevronDown } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
+import ProjectCardContent from './ProjectCardContent.vue'
 import { typeLabel } from '../typeLabel.js'
+import { DEFAULT_PROJECT_CARD_FIELDS } from '../projectNavigation.js'
 
 const { t } = useI18n()
 
@@ -13,6 +15,9 @@ const props = defineProps({
   expandedDirs: Object,
   forceExpanded: Boolean,
   missingIds: { type: Set, default: () => new Set() },
+  viewMode: { type: String, default: 'list' },
+  branches: { type: Object, default: () => ({}) },
+  cardFields: { type: Object, default: () => DEFAULT_PROJECT_CARD_FIELDS },
 })
 const emit = defineEmits(['select', 'toggle', 'context-menu'])
 
@@ -62,6 +67,10 @@ function onContextMenu(node, event) {
         :level="level + 1"
         :expandedDirs="expandedDirs"
         :forceExpanded="forceExpanded"
+        :missingIds="missingIds"
+        :viewMode="viewMode"
+        :branches="branches"
+        :card-fields="cardFields"
         @select="emit('select', $event)"
         @toggle="emit('toggle', $event)"
         @context-menu="emit('context-menu', $event)"
@@ -71,7 +80,7 @@ function onContextMenu(node, event) {
 
   <div v-else class="tree-group">
     <div
-      :class="['tree-row', 'project-row', { active: node.project.id === selectedId, missing: isMissing(node) }]"
+      :class="['tree-row', 'project-row', { active: node.project.id === selectedId, missing: isMissing(node), 'card-view': viewMode === 'card' }]"
       :style="{ paddingLeft: `${4 + level * 12}px` }"
       role="button"
       tabindex="0"
@@ -89,13 +98,22 @@ function onContextMenu(node, event) {
         <AppIcon :icon="isExpanded(node) ? ChevronDown : ChevronRight" :size="12" />
       </button>
       <span v-else class="project-spacer" />
-      <span class="project-main">
+      <span v-if="viewMode === 'list'" class="project-main">
         <span :class="['status-dot', stateClass((node.status || {}).State)]" />
         <span class="project-name">{{ node.project.name }}</span>
         <span v-if="hasChildren(node)" class="count">{{ node.count }}</span>
         <span v-else-if="isMissing(node)" class="type-pill missing-pill">{{ t('status.missing') }}</span>
         <span v-else class="type-pill">{{ typeLabel(node.project.detectedType) || t('status.unknown') }}</span>
       </span>
+      <ProjectCardContent
+        v-else
+        :project="node.project"
+        :status="node.status"
+        :branch-entry="branches[node.project.id]"
+        :count="node.count"
+        :missing="isMissing(node)"
+        :fields="cardFields"
+      />
     </div>
     <div v-if="hasChildren(node) && isExpanded(node)" class="children">
       <ProjectTreeNode
@@ -107,6 +125,9 @@ function onContextMenu(node, event) {
         :expandedDirs="expandedDirs"
         :forceExpanded="forceExpanded"
         :missingIds="missingIds"
+        :viewMode="viewMode"
+        :branches="branches"
+        :card-fields="cardFields"
         @select="emit('select', $event)"
         @toggle="emit('toggle', $event)"
         @context-menu="emit('context-menu', $event)"
@@ -205,6 +226,23 @@ function onContextMenu(node, event) {
   color: var(--text);
   box-shadow: inset 0 0 0 1px var(--border-strong), var(--surface-highlight);
 }
+
+.project-row.card-view {
+  align-items: flex-start;
+  margin: var(--space-3) 0;
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm), var(--surface-highlight);
+}
+.project-row.card-view:hover { border-color: var(--border-strong); }
+.project-row.card-view.active {
+  border-color: var(--accent-line);
+  box-shadow: inset 3px 0 0 var(--accent), var(--shadow-sm), var(--surface-highlight);
+}
+.project-row.card-view > .project-toggle,
+.project-row.card-view > .project-spacer { margin-top: 1px; }
 
 .status-dot {
   width: 8px;

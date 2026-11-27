@@ -1,10 +1,21 @@
 <script setup>
 import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
-import { RefreshCw, Search, Trash2 } from 'lucide-vue-next'
+import { LayoutGrid, List as ListIcon, RefreshCw, Search, Trash2 } from 'lucide-vue-next'
 import { buildProjectTree, buildPinnedList } from '../projectTree'
+import { GetProjectBranch } from '../../wailsjs/go/main/App'
+import {
+  advanceBranchRevision,
+  applyBranchEntry,
+  loadVisibleProjectBranches,
+  readProjectCardFields,
+  readProjectListView,
+  writeProjectCardFields,
+  writeProjectListView,
+} from '../projectNavigation.js'
 import ProjectTreeNode from './ProjectTreeNode.vue'
 import GroupTreeItem from './GroupTreeItem.vue'
+import ProjectCardFieldMenu from './ProjectCardFieldMenu.vue'
 import AppIcon from './ui/AppIcon.vue'
 import AppButton from './ui/AppButton.vue'
 
@@ -21,10 +32,18 @@ const props = defineProps({
   statusFilter: { type: String, default: null },
   rescanning: { type: Boolean, default: false },
   missingIds: { type: Set, default: () => new Set() },
+  branchUpdate: { type: Object, default: null },
 })
+const storage = typeof localStorage === 'undefined' ? null : localStorage
 const query = ref('')
 const expandedDirs = ref({})
 const expandedGroups = ref({})
+const viewMode = ref(readProjectListView(storage))
+const cardFields = ref(readProjectCardFields(storage))
+const cardFieldMenu = ref(null)
+const branches = ref({})
+let branchLoadToken = 0
+let branchRevisions = {}
 
 const filteredProjects = computed(() => {
   const list = props.projects || []
@@ -69,8 +88,69 @@ function toggleGroup(id) {
   }
 }
 
+function setViewMode(mode) {
+  cardFieldMenu.value = null
+  viewMode.value = writeProjectListView(storage, mode)
+}
+
+function openCardFieldMenu(event) {
+  cardFieldMenu.value = { x: event.clientX, y: event.clientY }
+}
+
+function toggleCardField(field) {
+  cardFields.value = writeProjectCardFields(storage, {
+    ...cardFields.value,
+    [field]: !cardFields.value[field],
+  })
+  if (field !== 'branch') return
+  branchLoadToken += 1
+  if (!cardFields.value.branch) {
+    branches.value = {}
+    return
+  }
+  if (viewMode.value === 'card') void refreshBranches(props.projects || [])
+}
+
+async function refreshBranches(projects) {
+  if (viewMode.value !== 'card' || !cardFields.value.branch) return
+  const token = ++branchLoadToken
+  const loading = {}
+  for (const project of projects || []) {
+    if (project?.id) loading[project.id] = { state: 'loading', branch: '' }
+  }
+  const revisionsAtStart = Object.fromEntries(
+    (projects || []).filter((project) => project?.id).map((project) => [project.id, branchRevisions[project.id] || 0]),
+  )
+  branches.value = loading
+  await loadVisibleProjectBranches(
+    projects,
+    viewMode.value,
+    cardFields.value,
+    GetProjectBranch,
+    (id, entry) => {
+      branches.value = applyBranchEntry(branches.value, branchRevisions, id, entry, revisionsAtStart[id])
+    },
+    () => token === branchLoadToken && viewMode.value === 'card' && cardFields.value.branch,
+  )
+}
+
 watch(() => props.projects, () => {
   expandedDirs.value = {}
+})
+
+watch([() => props.projects, viewMode], ([projects]) => {
+  if (viewMode.value === 'card') void refreshBranches(projects || [])
+}, { immediate: true })
+
+watch(() => props.branchUpdate, (update) => {
+  if (!update?.projectId || viewMode.value !== 'card' || !cardFields.value.branch) return
+  branchRevisions = advanceBranchRevision(branchRevisions, update.projectId)
+  branches.value = applyBranchEntry(
+    branches.value,
+    branchRevisions,
+    update.projectId,
+    { state: 'ready', branch: String(update.branch || '').trim() },
+  )
 })
 </script>
 
@@ -104,6 +184,41 @@ watch(() => props.projects, () => {
           <template #icon><AppIcon :icon="Trash2" :size="14" /></template>
         </AppButton>
       </div>
+      <div class="view-switch" role="group" :aria-label="t('projects.navigationView')">
+        <button
+          class="view-button"
+          :class="{ active: viewMode === 'list' }"
+          type="button"
+          :title="t('projects.listView')"
+          :aria-label="t('projects.listView')"
+          :aria-pressed="viewMode === 'list'"
+          data-test="project-view-list"
+          @click="setViewMode('list')"
+        >
+          <AppIcon :icon="ListIcon" :size="13" />
+        </button>
+        <button
+          class="view-button"
+          :class="{ active: viewMode === 'card' }"
+          type="button"
+          :title="t('projects.cardViewConfigure')"
+          :aria-label="t('projects.cardViewConfigure')"
+          :aria-pressed="viewMode === 'card'"
+          data-test="project-view-card"
+          @click="setViewMode('card')"
+          @contextmenu.prevent.stop="openCardFieldMenu"
+        >
+          <AppIcon :icon="LayoutGrid" :size="13" />
+        </button>
+      </div>
+      <ProjectCardFieldMenu
+        v-if="cardFieldMenu"
+        :x="cardFieldMenu.x"
+        :y="cardFieldMenu.y"
+        :fields="cardFields"
+        @toggle="toggleCardField"
+        @close="cardFieldMenu = null"
+      />
     </div>
     <div class="tree-scroll">
       <div v-if="pinned.length" class="pinned-section">
@@ -124,6 +239,9 @@ watch(() => props.projects, () => {
             :expandedDirs="expandedDirs"
             :forceExpanded="false"
             :missingIds="missingIds"
+            :viewMode="viewMode"
+            :branches="branches"
+            :card-fields="cardFields"
             @select="emit('select', $event)"
             @toggle="toggleDir"
             @context-menu="emit('context-menu', $event)"
@@ -138,8 +256,12 @@ watch(() => props.projects, () => {
           :group="g"
           :projects="projects"
           :statuses="statuses"
+          :missingIds="missingIds"
           :selected="g.id === selectedGroupId"
           :expanded="expandedGroups[`group:${g.id}`] !== false"
+          :viewMode="viewMode"
+          :branches="branches"
+          :card-fields="cardFields"
           @select="emit('select-group', $event)"
           @toggle="toggleGroup"
           @select-command="emit('select-command', $event)"
@@ -154,6 +276,9 @@ watch(() => props.projects, () => {
         :expandedDirs="expandedDirs"
         :forceExpanded="forceExpanded"
         :missingIds="missingIds"
+        :viewMode="viewMode"
+        :branches="branches"
+        :card-fields="cardFields"
         @select="emit('select', $event)"
         @toggle="toggleDir"
         @context-menu="emit('context-menu', $event)"
@@ -192,6 +317,34 @@ watch(() => props.projects, () => {
   align-items: center;
   position: relative;
 }
+
+.view-switch {
+  width: fit-content;
+  display: grid;
+  grid-template-columns: 28px 28px;
+  margin: var(--space-3) 0 0 auto;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--surface-highlight);
+}
+
+.view-button {
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-right: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.view-button:last-child { border-right: 0; }
+.view-button:hover { color: var(--text); background: var(--elevated); }
+.view-button.active { color: var(--accent); background: var(--success-soft); }
+.view-button:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--focus-ring); }
 
 .search-icon {
   position: absolute;
