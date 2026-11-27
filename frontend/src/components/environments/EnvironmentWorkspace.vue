@@ -35,6 +35,8 @@ const activeView = ref('overview')
 const loading = ref(true)
 const error = ref('')
 const scanID = ref('')
+const scanStarting = ref(false)
+const pendingScanCompletions = new Map()
 const scanProgress = ref({})
 const plans = ref([])
 const selectedRepositories = ref(new Set())
@@ -65,13 +67,19 @@ async function refreshEnvironmentData() {
 }
 
 async function startScan(ruleIDs = []) {
-  if (scanID.value) return
+  if (scanStarting.value || scanID.value) return
+  scanStarting.value = true
   error.value = ''
   scanProgress.value = {}
   try {
     scanID.value = await StartEnvironmentScan(ruleIDs)
+    const completion = pendingScanCompletions.get(scanID.value)
+    if (completion) await onScanComplete(completion)
   } catch (cause) {
     error.value = String(cause)
+  } finally {
+    scanStarting.value = false
+    pendingScanCompletions.clear()
   }
 }
 
@@ -185,10 +193,15 @@ function onScanProgress(payload) {
 }
 
 async function onScanComplete(payload) {
-  if (!payload || payload.scanId !== scanID.value) return
+  if (!payload?.scanId) return
+  if (scanStarting.value && !scanID.value) {
+    pendingScanCompletions.set(payload.scanId, payload)
+    return
+  }
+  if (payload.scanId !== scanID.value) return
   scanID.value = ''
-  if (payload.error && !payload.result?.canceled) error.value = payload.error
   await refreshEnvironmentData()
+  if (payload.error && !payload.result?.canceled) error.value = payload.error
 }
 
 onMounted(async () => {
@@ -230,7 +243,7 @@ onUnmounted(() => {
         :document="document"
         :state="state"
         :plans="plans"
-        :scanning="Boolean(scanID)"
+        :scanning="scanStarting || Boolean(scanID)"
         :progress="scanProgress"
         @scan="startScan"
         @open-repositories="activeView = 'repositories'"

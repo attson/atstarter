@@ -9,6 +9,7 @@ import { confirmationPresentation, summaryTotalLabel } from './shellPresentation
 
 function flattenMessages(messages, prefix = '') {
   assert.ok(messages && typeof messages === 'object' && !Array.isArray(messages), prefix || 'catalog')
+  assert.ok(Object.keys(messages).length > 0, `${prefix || 'catalog'} must not be an empty namespace`)
   return Object.entries(messages).flatMap(([key, value]) => {
     const path = prefix ? `${prefix}.${key}` : key
     if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -95,3 +96,30 @@ test('every catalog leaf renders without leaking its key in either locale', () =
     }
   }
 })
+
+for (const [key, english, chinese] of [
+  ['environments.overview.repositoryCount', ['0 repositories', '1 repository', '2 repositories'], ['0 个仓库', '1 个仓库', '2 个仓库']],
+  ['environments.overview.warningCount', ['0 warnings', '1 warning', '2 warnings'], ['0 条警告', '1 条警告', '2 条警告']],
+  ['environments.diff.changes', ['0 changes', '1 change', '2 changes'], ['0 项更改', '1 项更改', '2 项更改']],
+  ['files.selectedCharacters', ['0 characters selected', '1 character selected', '2 characters selected'], ['已选 0 字符', '已选 1 字符', '已选 2 字符']],
+]) {
+  test(`${key} renders zero, singular, and plural counts in both locales`, () => {
+    const composer = createI18n({ legacy: false, locale: 'en', messages: { en, 'zh-CN': zhCN } }).global
+    for (const [locale, expected] of [['en', english], ['zh-CN', chinese]]) {
+      composer.locale.value = locale
+      assert.deepEqual([0, 1, 2].map((count) => composer.t(key, { count })), expected)
+    }
+  })
+}
+
+for (const [fixture, namespace] of [
+  [{}, 'catalog'],
+  [{ common: {} }, 'common'],
+  [{ common: { save: 'Save', nested: {} } }, 'common.nested'],
+]) {
+  test(`catalog validation rejects an empty ${namespace} namespace`, () => {
+    assert.throws(() => flattenMessages(fixture), {
+      name: 'AssertionError', message: `${namespace} must not be an empty namespace`,
+    })
+  })
+}

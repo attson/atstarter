@@ -53,6 +53,14 @@ function valueFor(value, lower, upper, fallback) {
   return value?.[lower] ?? value?.[upper] ?? fallback
 }
 
+function sourceLabel(change) {
+  const source = valueFor(change, 'source', 'Source', {})
+  const kind = valueFor(source, 'kind', 'Kind', '')
+  if (kind === 'default') return t('environments.globalDefaults')
+  if (kind === 'session') return t('environments.sessionOverrides')
+  return valueFor(source, 'name', 'Name', '')
+}
+
 function targetLabel(plan) {
   const target = valueFor(plan, 'target', 'Target', {})
   return valueFor(target, 'worktreePath', 'WorktreePath', '') || valueFor(plan, 'repoPath', 'RepoPath', '')
@@ -119,7 +127,7 @@ watch(() => props.plans, () => {
             <span>{{ currentValues(change) }}</span>
             <strong>{{ operationLabel(change.operation || change.Operation) }}</strong>
             <span>{{ (change.desired || change.Desired).value || (change.desired || change.Desired).Value || t('environments.diff.clear') }}</span>
-            <small>{{ (change.source || change.Source).name || (change.source || change.Source).Name }}</small>
+            <small>{{ sourceLabel(change) }}</small>
           </div>
           <pre v-if="(plan.nativeDiff || plan.NativeDiff || []).length" class="native-diff"><code>{{ (plan.nativeDiff || plan.NativeDiff).join('\n') }}</code></pre>
         </div>

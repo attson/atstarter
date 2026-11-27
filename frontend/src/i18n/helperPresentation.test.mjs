@@ -38,3 +38,31 @@ for (const name of ['ProjectTreeNode', 'GroupTreeNode']) {
     } finally { host.unmount() }
   })
 }
+
+for (const name of ['ProjectTreeNode', 'GroupTreeNode']) {
+  test(`${name} translates the detector unknown sentinel without rewriting detected types`, async () => {
+    const component = compileComponent(read(`../components/${name}.vue`), {
+      vue, 'vue-i18n': { useI18n }, 'lucide-vue-next': icons, '../typeLabel.js': { typeLabel },
+      './ui/AppIcon.vue': compileComponent(read('../components/ui/AppIcon.vue'), { vue }),
+    })
+    const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, 'zh-CN': zhCN } })
+    const host = mountVueComponent(component, {
+      props: { node: { type: 'project', project: { id: 'raw-id', name: 'raw name', detectedType: 'unknown' } }, level: 0, expandedDirs: {}, checked: {} }, i18n,
+      beforeMount: ({ app }) => app.component(name, component),
+    })
+    try {
+      for (const [locale, fallback] of [['en', 'Unknown'], ['zh-CN', '未知']]) {
+        i18n.global.locale.value = locale
+        for (const [detectedType, expected] of [
+          ['unknown', fallback], ['', fallback], [undefined, fallback],
+          ['node-pnpm', 'pnpm'], ['java-maven', 'maven'], ['future-tool @ {name}|原始', 'future-tool @ {name}|原始'],
+        ]) {
+          host.props.node.project.detectedType = detectedType
+          await vue.nextTick()
+          assert.equal(host.find((element) => element.props.class === 'type-pill').text, expected)
+          assert.equal(host.props.node.project.detectedType, detectedType)
+        }
+      }
+    } finally { host.unmount() }
+  })
+}

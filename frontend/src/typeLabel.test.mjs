@@ -23,3 +23,9 @@ test('leaves empty types empty for the presentation layer to translate', () => {
   assert.equal(typeLabel(''), '')
   assert.equal(typeLabel(undefined), '')
 })
+
+test('the detector unknown sentinel uses the localized fallback while future identifiers stay raw', () => {
+  assert.equal(typeLabel('unknown'), '')
+  assert.equal(typeLabel(null), '')
+  assert.equal(typeLabel('future-tool @ {name}|原始'), 'future-tool @ {name}|原始')
+})

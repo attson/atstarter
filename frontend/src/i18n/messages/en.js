@@ -280,7 +280,7 @@ export default {
       "tabSize": "Tab width",
       "fontSize": "Font size"
     },
-    "selectedCharacters": "{count} characters selected",
+    "selectedCharacters": "{count} character selected | {count} characters selected",
     "gotoLine": "Go to line",
     "cursorPosition": "Ln {line}:{column} / {lines}",
     "unsavedChanges": "Unsaved changes",
@@ -351,6 +351,7 @@ export default {
     "saved": "Saved",
     "conflict": "Configuration changed on disk. Review this draft and save again.",
     "globalDefaults": "Global Defaults",
+    "sessionOverrides": "Session overrides",
     "directoryRules": "Directory rules",
     "repositoriesLabel": "Repositories",
     "fields": {
@@ -441,8 +442,8 @@ export default {
       "scanning": "Scanning",
       "scan": "Scan repositories",
       "preparing": "Preparing scan",
-      "repositoryCount": "{count} repositories",
-      "warningCount": "{count} warnings",
+      "repositoryCount": "{count} repository | {count} repositories",
+      "warningCount": "{count} warning | {count} warnings",
       "awaitingReview": "Repositories awaiting review"
     },
     "presets": {
@@ -491,7 +492,7 @@ export default {
     },
     "diff": {
       "title": "Native environment changes",
-      "changes": "{count} changes",
+      "changes": "{count} change | {count} changes",
       "close": "Close preview",
       "risk": "Codex sandboxing and approvals are both disabled.",
       "absent": "(absent)",

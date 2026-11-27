@@ -11,12 +11,12 @@ import { compileComponent, mountVueComponent } from '../testUtils/vueComponentHa
 
 const read = (file) => readFileSync(new URL(`../components/${file}`, import.meta.url), 'utf8')
 const flush = async () => { await new Promise((resolve) => setImmediate(resolve)); await vue.nextTick() }
-function mountEnvironment(file, props, native = {}) {
+function mountEnvironment(file, props, native = {}, runtime = {}) {
   const dependencies = {
     vue, 'vue-i18n': { useI18n }, 'lucide-vue-next': icons,
     '../../projectEnvironmentUi.js': environmentUi,
     '../../../wailsjs/go/main/App': native,
-    '../../../wailsjs/runtime/runtime': { EventsOn() {}, EventsOff() {} },
+    '../../../wailsjs/runtime/runtime': { EventsOn() {}, EventsOff() {}, ...runtime },
   }
   for (const name of ['AppButton', 'AppIcon']) {
     dependencies[`../ui/${name}.vue`] = compileComponent(read(`ui/${name}.vue`), dependencies)
@@ -365,3 +365,81 @@ test('workspace navigation and native failure surface react to locale without tr
     assert.equal(host.find((element) => element.props.role === 'alert').text, raw)
   } finally { host.unmount() }
 })
+
+function scanWorkspace(start) {
+  const events = new Map()
+  const host = mountEnvironment('EnvironmentWorkspace.vue', {}, {
+    GetEnvironmentDocument: async () => ({}),
+    GetEnvironmentState: async () => ({}),
+    StartEnvironmentScan: start,
+    CancelEnvironmentScan() {},
+  }, {
+    EventsOn: (name, callback) => events.set(name, callback),
+    EventsOff: (name) => events.delete(name),
+  })
+  return { ...host, complete: (payload) => events.get('projectenv:scan-complete')(payload) }
+}
+
+test('a completion delivered before the scan ID settles the mounted workspace and allows another scan', async () => {
+  let resolveStart
+  const host = scanWorkspace(() => new Promise((resolve) => { resolveStart = resolve }))
+  const scanButton = () => host.find((element) => element.type === 'button' && element.props.class?.includes('variant-primary'))
+  try {
+    await flush()
+    scanButton().props.onClick({})
+    await host.complete({ scanId: 'unrelated', result: {} })
+    await host.complete({ scanId: 'fast-scan', result: {} })
+    resolveStart('fast-scan')
+    await flush()
+    assert.equal(scanButton().props.disabled, false, 'the completed scan must not remain in progress')
+    assert.ok(host.visibleText().includes('Scan repositories'))
+    scanButton().props.onClick({})
+    await flush()
+    assert.equal(scanButton().props.disabled, true, 'startup itself prevents duplicate scans')
+    resolveStart('next-scan')
+    await flush()
+    assert.equal(scanButton().props.disabled, true)
+    await host.complete({ scanId: 'fast-scan', result: {} })
+    await flush()
+    assert.equal(scanButton().props.disabled, true, 'an old completion cannot end the current scan')
+    await host.complete({ scanId: 'next-scan', result: {} })
+    await flush()
+    assert.equal(scanButton().props.disabled, false)
+  } finally { host.unmount() }
+})
+
+test('a failed scan completion stays visible after successful state refresh in either locale', async () => {
+  const host = scanWorkspace(async () => 'failed-scan')
+  try {
+    await flush()
+    await host.state.startScan()
+    await host.complete({ scanId: 'failed-scan', error: raw, result: {} })
+    await flush()
+    assert.equal(host.find((element) => element.props.role === 'alert')?.text, raw)
+    host.i18n.global.locale.value = 'zh-CN'
+    await vue.nextTick()
+    assert.equal(host.find((element) => element.props.role === 'alert')?.text, raw)
+  } finally { host.unmount() }
+})
+
+for (const shape of ['native', 'Go']) {
+  test(`${shape} preview localizes built-in source kinds and preserves custom names`, async () => {
+    const host = mountEnvironment('EnvironmentDiffPanel.vue', { plans: [plan()] })
+    try {
+      for (const [locale, defaults, session] of [['en', 'Global Defaults', 'Session overrides'], ['zh-CN', '全局默认值', '会话覆盖']]) {
+        host.i18n.global.locale.value = locale
+        for (const [kind, name, expected] of [
+          ['default', 'Global Defaults', defaults], ['session', 'Session overrides', session],
+          ['preset', raw, raw], ['rule', 'Global Defaults', 'Global Defaults'],
+          ['future-kind', 'Session overrides', 'Session overrides'], ['', raw, raw],
+        ]) {
+          const source = shape === 'Go' ? { Kind: kind, Name: name } : { kind, name }
+          host.props.plans = [{ ...plan(), changes: [{ ...plan().changes[0], source }] }]
+          await vue.nextTick()
+          assert.equal(host.find((element) => element.type === 'small')?.text, expected)
+          assert.deepEqual(source, shape === 'Go' ? { Kind: kind, Name: name } : { kind, name })
+        }
+      }
+    } finally { host.unmount() }
+  })
+}

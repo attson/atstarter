@@ -351,6 +351,7 @@ export default {
     "saved": "已保存",
     "conflict": "磁盘上的配置已更改。请检查此草稿并重新保存。",
     "globalDefaults": "全局默认值",
+    "sessionOverrides": "会话覆盖",
     "directoryRules": "目录规则",
     "repositoriesLabel": "仓库",
     "fields": {
