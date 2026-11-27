@@ -23,6 +23,7 @@ const (
 	ErrInvalidCodexConfig        ErrorCode = "invalid_codex_config"
 	ErrUnsafeCodexConfigPath     ErrorCode = "unsafe_codex_config_path"
 	ErrDangerousCodexPermissions ErrorCode = "dangerous_codex_permissions"
+	ErrCodexUnavailable          ErrorCode = "codex_unavailable"
 	ErrStalePlan                 ErrorCode = "stale_plan"
 	ErrApplyFailed               ErrorCode = "apply_failed"
 	ErrSigningKeyUnavailable     ErrorCode = "signing_key_unavailable"

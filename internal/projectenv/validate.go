@@ -69,6 +69,13 @@ func ValidateConfig(cfg Config) error {
 	return nil
 }
 
+func ValidateEnvironmentFields(fields EnvironmentFields) error {
+	if err := validateFields(fields.Git); err != nil {
+		return err
+	}
+	return validateCodexFields(fields.Codex)
+}
+
 func validatePresetReference(id string, presets map[string]Preset) error {
 	if id == "" {
 		return nil

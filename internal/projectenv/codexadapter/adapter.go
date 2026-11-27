@@ -3,8 +3,11 @@ package codexadapter
 import (
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
 	"time"
+
+	"rootyard/internal/projectenv"
 )
 
 const defaultGitTimeout = 10 * time.Second
@@ -32,15 +35,22 @@ func (r commandRunner) Run(ctx context.Context, dir string, args ...string) (str
 }
 
 type Adapter struct {
-	runner runner
+	runner      runner
+	lookPath    func(string) (string, error)
+	atomicWrite func(string, []byte, os.FileMode) error
 }
+
+var _ projectenv.Adapter = (*Adapter)(nil)
 
 func New() *Adapter {
 	path, err := exec.LookPath("git")
 	if err != nil {
 		path = "git"
 	}
-	return &Adapter{runner: commandRunner{path: path, timeout: defaultGitTimeout}}
+	return &Adapter{
+		runner:   commandRunner{path: path, timeout: defaultGitTimeout},
+		lookPath: exec.LookPath, atomicWrite: atomicWriteConfig,
+	}
 }
 
 func (a *Adapter) Name() string { return "codex" }

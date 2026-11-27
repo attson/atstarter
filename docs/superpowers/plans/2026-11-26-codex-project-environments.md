@@ -387,7 +387,7 @@ git commit -m "feat: plan minimal Codex configuration edits"
 - Produces: `Adapter.Doctor(context.Context, projectenv.Target, projectenv.ResolvedEnvironment) []projectenv.Issue`.
 - Consumes: exact serialized edits and fingerprint from Task 4.
 
-- [ ] **Step 1: Write failing atomic apply tests**
+- [x] **Step 1: Write failing atomic apply tests**
 
 Cover creation, replacement, clear, no-op, target substitution, stale existing file, file appearing after a missing-file preview, invalid stored edit bounds, invalid rendered TOML, preservation of existing mode, temporary-write failure, and linked-worktree independence. For each failure before rename, assert original bytes remain unchanged.
 
@@ -398,7 +398,7 @@ Add Doctor tests with an injected executable lookup function so they determinist
 - dangerous final permissions warn without blocking;
 - Doctor never runs a subprocess or network request.
 
-- [ ] **Step 2: Run apply and Doctor tests and verify failure**
+- [x] **Step 2: Run apply and Doctor tests and verify failure**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/codexadapter -run 'Test(Apply|Doctor)' -count=1
@@ -406,7 +406,7 @@ Add Doctor tests with an injected executable lookup function so they determinist
 
 Expected: FAIL because `Apply` and `Doctor` are absent.
 
-- [ ] **Step 3: Implement stale-safe atomic apply**
+- [x] **Step 3: Implement stale-safe atomic apply**
 
 Apply must:
 
@@ -420,11 +420,11 @@ re-identify -> compare target -> acquire <config>.rootyard.lock
 
 Use mode `0600` for a new file and preserve `Perm()` for an existing file. Create `.codex` only after all pre-write validation passes. Reject plans with blockers, unsafe paths, changed targets, or stale fingerprints. Ensure the absent-file fingerprint cannot equal an empty existing file.
 
-- [ ] **Step 4: Implement offline Doctor**
+- [x] **Step 4: Implement offline Doctor**
 
 Use injected `exec.LookPath` only. Reuse inspection and final resolved-field validation. Return typed issues with paths and managed keys but no unrelated TOML values. Emit the dangerous warning based on final resolved values even when those values came from different layers.
 
-- [ ] **Step 5: Run the complete adapter suite with race detection**
+- [x] **Step 5: Run the complete adapter suite with race detection**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test -race ./internal/projectenv/codexadapter -count=1
@@ -432,7 +432,7 @@ Use injected `exec.LookPath` only. Reuse inspection and final resolved-field val
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit apply and Doctor**
+- [x] **Step 6: Commit apply and Doctor**
 
 ```bash
 git add internal/projectenv/codexadapter
