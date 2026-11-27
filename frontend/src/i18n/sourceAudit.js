@@ -27,6 +27,10 @@ function isPresentationTarget(node) {
   return node?.type === 'MemberExpression' && propertyName(node) === 'value' && isPresentationTarget(node.object)
 }
 
+function isStaticString(node) {
+  return node.type === 'StringLiteral' || (node.type === 'TemplateLiteral' && node.expressions.length === 0)
+}
+
 /**
  * Return source-ordered { line, text, kind } findings. `filename` identifies SFCs
  * and excludes catalogs; the caller adds it to diagnostics and applies exact
@@ -59,7 +63,19 @@ export function findHardcodedPresentationCopy(source, filename) {
         walk(node.declaration, kind)
         return
       }
-      if (node.type === 'BinaryExpression' && comparisons.has(node.operator)) return
+      if (node.type === 'BinaryExpression' && comparisons.has(node.operator)) {
+        // Direct strings are domain codes; nested calls/objects can own UI copy.
+        for (const operand of [node.left, node.right]) {
+          if (!isStaticString(operand)) walk(operand, kind)
+        }
+        return
+      }
+      if (node.type === 'MemberExpression' || node.type === 'OptionalMemberExpression') {
+        walk(node.object, kind)
+        // Lookup keys describe structure, including when forwarding err['message'].
+        if (node.computed && !isStaticString(node.property)) walk(node.property, null)
+        return
+      }
       if (node.type === 'CallExpression' || node.type === 'OptionalCallExpression') {
         const name = propertyName(node.callee)
         if (name === 't' || name === '$t' || name === 'defineEmits' || name === 'require' || node.callee.type === 'Import') return

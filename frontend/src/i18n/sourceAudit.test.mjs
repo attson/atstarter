@@ -112,6 +112,28 @@ test('audits JavaScript helpers but excludes message catalogs', () => {
   assert.deepEqual(findHardcodedPresentationCopy(source, 'C:\\repo\\i18n\\messages\\zh-CN.js'), [])
 })
 
+test('comparison operands retain nested presentation fields while direct domain literals stay ignored', () => {
+  const source = `const same = renderDialog({ title: 'Project settings' }) === previous
+const reversed = previous !== renderDialog({ message: 'Try again' })
+const active = state === '运行中'
+const stopped = '已停止' !== state`
+  assert.deepEqual(findHardcodedPresentationCopy(source, 'Comparisons.js'), [
+    { line: 1, text: 'Project settings', kind: 'presentation-field' },
+    { line: 2, text: 'Try again', kind: 'presentation-field' },
+  ])
+})
+
+test('computed member lookup keys are structural when forwarding errors and labels', () => {
+  const source = `const message = err['message']
+const label = item['name']
+const title = item?.['title']
+const description = item['中文键']
+const text = renderDialog({ label: 'Open project' })['name']`
+  assert.deepEqual(findHardcodedPresentationCopy(source, 'LookupKeys.js'), [
+    { line: 5, text: 'Open project', kind: 'presentation-field' },
+  ])
+})
+
 test('fails visibly on invalid source instead of silently skipping coverage', () => {
   assert.throws(() => findHardcodedPresentationCopy('<template><div></template>', 'Broken.vue'), /Broken.vue/)
   assert.throws(() => findHardcodedPresentationCopy('const label =', 'Broken.js'), /Broken.js/)
