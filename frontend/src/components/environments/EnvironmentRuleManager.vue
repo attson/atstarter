@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
 import { FolderOpen, Plus, Radar, Save, Trash2 } from 'lucide-vue-next'
 import AppButton from '../ui/AppButton.vue'
@@ -6,6 +7,8 @@ import AppIcon from '../ui/AppIcon.vue'
 import CodexEnvironmentFieldEditor from './CodexEnvironmentFieldEditor.vue'
 import EnvironmentFieldEditor from './EnvironmentFieldEditor.vue'
 import { isEnvironmentStaleError, mergeCodexFields, validatePresetDraft, validateRuleDraft } from '../../projectEnvironmentUi.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   document: { type: Object, required: true },
@@ -23,11 +26,16 @@ const draft = ref(null)
 const saving = ref(false)
 const conflict = ref(false)
 const message = ref('')
+const saveSucceeded = ref(false)
 const confirmDelete = ref(false)
 const fieldTab = ref('git')
 const rules = computed(() => props.document.config.rules || [])
 const presets = computed(() => props.document.config.presets || [])
 const isDefaults = computed(() => selectedID.value === 'defaults')
+const draftName = computed({
+  get: () => isDefaults.value ? t('environments.globalDefaults') : draft.value?.name || '',
+  set: (name) => { if (draft.value && !isDefaults.value) draft.value.name = name },
+})
 const presetCodex = (id) => presets.value.find((preset) => preset.id === id)?.codex || {}
 const effectiveDefaultsCodex = computed(() => mergeCodexFields(
   presetCodex(props.document.config.defaults.presetId),
@@ -54,6 +62,7 @@ function selectDefaults() {
     codex: JSON.parse(JSON.stringify(props.document.config.defaults.codex || {})),
   }
   conflict.value = false
+  saveSucceeded.value = false
   message.value = ''
 }
 
@@ -61,6 +70,7 @@ function selectRule(rule) {
   selectedID.value = rule.id
   draft.value = JSON.parse(JSON.stringify(rule))
   conflict.value = false
+  saveSucceeded.value = false
   message.value = ''
   confirmDelete.value = false
 }
@@ -79,6 +89,7 @@ async function save() {
   if (!validation.value.valid || saving.value) return
   saving.value = true
   conflict.value = false
+  saveSucceeded.value = false
   message.value = ''
   try {
     const saved = isDefaults.value ? await props.saveDefaults(draft.value) : await props.saveRule(draft.value)
@@ -94,9 +105,10 @@ async function save() {
       const current = saved.config.rules.find((rule) => rule.id === draft.value.id) || saved.config.rules.at(-1)
       if (current) selectRule(current)
     }
-    message.value = 'Saved'
+    saveSucceeded.value = true
   } catch (error) {
     conflict.value = isEnvironmentStaleError(error)
+    saveSucceeded.value = false
     message.value = conflict.value ? '' : String(error)
   } finally {
     saving.value = false
@@ -113,6 +125,7 @@ async function remove() {
     selectDefaults()
   } catch (error) {
     conflict.value = isEnvironmentStaleError(error)
+    saveSucceeded.value = false
     message.value = String(error)
   }
 }
@@ -127,11 +140,11 @@ selectDefaults()
   <section class="rule-layout">
     <aside class="rule-list">
       <button type="button" class="rule-row protected" :class="{ active: selectedID === 'defaults' }" @click="selectDefaults">
-        <span>Global Defaults</span><small>Protected</small>
+        <span>{{ t('environments.globalDefaults') }}</span><small>{{ t('environments.rules.protected') }}</small>
       </button>
       <div class="rule-list-heading">
-        <span>Directory rules</span>
-        <AppButton variant="secondary" size="sm" icon-only title="New directory rule" aria-label="New directory rule" @click="createRule">
+        <span>{{ t('environments.directoryRules') }}</span>
+        <AppButton variant="secondary" size="sm" icon-only :title="t('environments.rules.new')" :aria-label="t('environments.rules.new')" @click="createRule">
           <template #icon><AppIcon :icon="Plus" :size="14" /></template>
         </AppButton>
       </div>
@@ -143,52 +156,52 @@ selectDefaults()
 
     <div v-if="draft" class="rule-editor">
       <div class="rule-heading">
-        <input v-model="draft.name" class="title-input" :disabled="isDefaults" placeholder="Rule name">
+        <input v-model="draftName" class="title-input" :disabled="isDefaults" :placeholder="t('environments.rules.name')">
         <div class="rule-actions">
           <AppButton v-if="draft.id && !isDefaults" variant="secondary" size="sm" @click="scanRule(draft.id)">
             <template #icon><AppIcon :icon="Radar" :size="14" /></template>
-            Scan
+            {{ t('environments.rules.scan') }}
           </AppButton>
           <AppButton v-if="draft.id && !isDefaults" variant="secondary" size="sm" @click="remove">
             <template #icon><AppIcon :icon="Trash2" :size="14" /></template>
-            {{ confirmDelete ? 'Confirm delete' : 'Delete' }}
+            {{ confirmDelete ? t('environments.presets.confirmDelete') : t('environments.presets.delete') }}
           </AppButton>
           <AppButton variant="primary" size="sm" :disabled="!validation.valid || saving" @click="save">
             <template #icon><AppIcon :icon="Save" :size="14" /></template>
-            Save
+            {{ t('common.save') }}
           </AppButton>
         </div>
       </div>
-      <div v-if="conflict" class="conflict-banner">Configuration changed on disk. Review this draft and save again.</div>
-      <div v-else-if="message" class="rule-message">{{ message }}</div>
+      <div v-if="conflict" class="conflict-banner">{{ t('environments.conflict') }}</div>
+      <div v-else-if="message || saveSucceeded" class="rule-message">{{ saveSucceeded ? t('environments.saved') : message }}</div>
 
       <template v-if="!isDefaults">
         <div class="path-row">
-          <input v-model="draft.path" class="path-input" title="Directory path" placeholder="Directory path">
-          <AppButton variant="secondary" size="sm" icon-only title="Choose directory" aria-label="Choose directory" @click="chooseDirectory">
+          <input v-model="draft.path" class="path-input" :title="t('environments.rules.directory')" :placeholder="t('environments.rules.directory')">
+          <AppButton variant="secondary" size="sm" icon-only :title="t('environments.rules.chooseDirectory')" :aria-label="t('environments.rules.chooseDirectory')" @click="chooseDirectory">
             <template #icon><AppIcon :icon="FolderOpen" :size="14" /></template>
           </AppButton>
         </div>
         <div class="rule-options">
-          <div class="segmented" aria-label="Rule scope">
-            <button type="button" :class="{ active: !draft.recursive }" @click="draft.recursive = false">Exact</button>
-            <button type="button" :class="{ active: draft.recursive }" @click="draft.recursive = true">Recursive</button>
+          <div class="segmented" :aria-label="t('environments.rules.scope')">
+            <button type="button" :class="{ active: !draft.recursive }" @click="draft.recursive = false">{{ t('environments.rules.exact') }}</button>
+            <button type="button" :class="{ active: draft.recursive }" @click="draft.recursive = true">{{ t('environments.rules.recursive') }}</button>
           </div>
-          <label><input v-model="draft.autoDiscover" type="checkbox"> Auto-discover</label>
-          <span>{{ matchedCount }} matched</span>
+          <label><input v-model="draft.autoDiscover" type="checkbox"> {{ t('environments.rules.autoDiscover') }}</label>
+          <span>{{ t('environments.rules.matched', { count: matchedCount }) }}</span>
         </div>
       </template>
 
       <label class="preset-row">
-        <span>Preset</span>
+        <span>{{ t('environments.rules.preset') }}</span>
         <select v-model="draft.presetId">
-          <option value="">No preset</option>
+          <option value="">{{ t('environments.rules.noPreset') }}</option>
           <option v-for="preset in presets" :key="preset.id" :value="preset.id">{{ preset.name }}</option>
         </select>
       </label>
-      <div class="field-tabs" role="tablist" aria-label="Environment fields">
-        <button type="button" role="tab" :aria-selected="fieldTab === 'git'" :class="{ active: fieldTab === 'git' }" @click="fieldTab = 'git'">Git</button>
-        <button type="button" role="tab" :aria-selected="fieldTab === 'codex'" :class="{ active: fieldTab === 'codex' }" @click="fieldTab = 'codex'">Codex</button>
+      <div class="field-tabs" role="tablist" :aria-label="t('environments.fields.label')">
+        <button type="button" role="tab" :aria-selected="fieldTab === 'git'" :class="{ active: fieldTab === 'git' }" @click="fieldTab = 'git'">{{ t('environments.fields.git') }}</button>
+        <button type="button" role="tab" :aria-selected="fieldTab === 'codex'" :class="{ active: fieldTab === 'codex' }" @click="fieldTab = 'codex'">{{ t('environments.fields.codex') }}</button>
       </div>
       <EnvironmentFieldEditor v-if="fieldTab === 'git'" v-model="draft.git" />
       <CodexEnvironmentFieldEditor

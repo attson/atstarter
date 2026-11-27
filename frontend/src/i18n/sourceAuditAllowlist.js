@@ -3,6 +3,7 @@
 // e.g. "Rootyard product name", "native config key", or "shell path example".
 // Do not use regular expressions, globs, substring matching, or blanket reasons.
 export const SOURCE_AUDIT_ALLOWLIST = [
+  { file: 'components/environments/EnvironmentDiffPanel.vue', text: '×', reason: 'This existing close symbol stays unchanged; its accessible label is translated at render time.' },
   { file: 'App.vue', text: 'Rootyard', reason: 'Rootyard is the product display name and remains unchanged in every locale.' },
   { file: 'components/AddProjectDialog.vue', text: '/home/attson/GolandProjects/rootyard', reason: 'This literal example is a filesystem path, which remains raw in every locale.' },
   { file: 'components/GroupTreeNode.vue', text: '✓', reason: 'This check mark is the existing selected-command indicator, independent of locale.' },

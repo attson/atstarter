@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, ref } from 'vue'
 import { CheckSquare, Search, ShieldCheck, Square, Workflow } from 'lucide-vue-next'
 import AppButton from '../ui/AppButton.vue'
@@ -10,6 +11,8 @@ import {
   selectAllRepositories,
   toggleRepositorySelection,
 } from '../../projectEnvironmentUi.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   state: { type: Object, required: true },
@@ -26,6 +29,16 @@ const ruleID = ref('')
 const repositories = computed(() => props.state.repositories || props.state.Repositories || [])
 const visible = computed(() => filterEnvironmentRepositories(repositories.value, { search: search.value, status: status.value, ruleId: ruleID.value }))
 const statuses = ['all', 'pending', 'consistent', 'drifted', 'blocked', 'failed']
+
+const statusKeys = {
+  all: 'environments.status.all', pending: 'environments.status.pending',
+  consistent: 'environments.status.consistent', drifted: 'environments.status.drifted',
+  blocked: 'environments.status.blocked', failed: 'environments.status.failed',
+  success: 'environments.status.success', unchanged: 'environments.status.unchanged', stale: 'environments.status.stale',
+}
+function statusLabel(status) {
+  return Object.hasOwn(statusKeys, status) ? t(statusKeys[status]) : status
+}
 
 function valueFor(value, lower, upper, fallback) {
   return value?.[lower] ?? value?.[upper] ?? fallback
@@ -71,25 +84,25 @@ function preview() {
     <div class="repository-toolbar">
       <label class="repository-search">
         <AppIcon :icon="Search" :size="14" />
-        <input v-model="search" aria-label="Search repositories" placeholder="Search repositories">
+        <input v-model="search" :aria-label="t('environments.repositories.search')" :placeholder="t('environments.repositories.search')">
       </label>
-      <select v-model="ruleID" aria-label="Filter by rule">
-        <option value="">All rules</option>
+      <select v-model="ruleID" :aria-label="t('environments.repositories.filterRule')">
+        <option value="">{{ t('environments.repositories.allRules') }}</option>
         <option v-for="rule in rules" :key="rule.id" :value="rule.id">{{ rule.name }}</option>
       </select>
-      <select v-model="status" aria-label="Filter by status">
-        <option v-for="item in statuses" :key="item" :value="item">{{ item }}</option>
+      <select v-model="status" :aria-label="t('environments.repositories.filterStatus')">
+        <option v-for="item in statuses" :key="item" :value="item">{{ statusLabel(item) }}</option>
       </select>
-      <AppButton variant="secondary" size="sm" icon-only title="Select all eligible repositories" aria-label="Select all eligible repositories" @click="toggleAll">
+      <AppButton variant="secondary" size="sm" icon-only :title="t('environments.repositories.selectAll')" :aria-label="t('environments.repositories.selectAll')" @click="toggleAll">
         <template #icon><AppIcon :icon="selection.size ? CheckSquare : Square" :size="14" /></template>
       </AppButton>
       <AppButton variant="secondary" size="sm" @click="$emit('doctor')">
         <template #icon><AppIcon :icon="ShieldCheck" :size="14" /></template>
-        Doctor
+        {{ t('environments.repositories.doctor') }}
       </AppButton>
       <AppButton variant="primary" size="sm" :disabled="selection.size === 0 || planning" @click="preview">
         <template #icon><AppIcon :icon="Workflow" :size="14" /></template>
-        Preview {{ selection.size }}
+        {{ t('environments.repositories.preview', { count: selection.size }) }}
       </AppButton>
     </div>
 
@@ -102,26 +115,26 @@ function preview() {
 
     <div class="repository-table" role="table">
       <div class="repository-header" role="row">
-        <span></span><span>Repository</span><span>Rules</span><span>Status</span>
+        <span></span><span>{{ t('environments.repositories.repository') }}</span><span>{{ t('environments.repositories.rules') }}</span><span>{{ t('environments.repositories.status') }}</span>
       </div>
       <div v-for="repository in visible" :key="repositoryID(repository)" class="repository-row" role="row">
         <input
           type="checkbox"
           :checked="selection.has(repositoryID(repository))"
           :disabled="repositoryStatus(repository) === 'blocked'"
-          :aria-label="`Select ${repositoryID(repository)}`"
+          :aria-label="t('environments.repositories.select', { id: repositoryID(repository) })"
           @change="toggle(repository)"
         >
         <div class="repository-paths">
           <code v-for="alias in aliases(repository)" :key="alias.path || alias.Path" :title="alias.path || alias.Path">{{ alias.path || alias.Path }}</code>
         </div>
         <span>{{ (repository.matchingRuleIds || repository.MatchingRuleIDs || []).length }}</span>
-        <span class="repository-status" :class="repositoryStatus(repository)">{{ repositoryStatus(repository) }}</span>
+        <span class="repository-status" :class="repositoryStatus(repository)">{{ statusLabel(repositoryStatus(repository)) }}</span>
         <div v-if="blockers(repository).length" class="repository-blockers">
           <span v-for="(blocker, index) in blockers(repository)" :key="index">{{ blocker.message || blocker.Message }}</span>
         </div>
       </div>
-      <div v-if="visible.length === 0" class="repository-empty">No repositories</div>
+      <div v-if="visible.length === 0" class="repository-empty">{{ t('environments.repositories.empty') }}</div>
     </div>
   </section>
 </template>

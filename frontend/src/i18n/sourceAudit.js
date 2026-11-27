@@ -5,6 +5,14 @@ import { babelParse, parse as parseSfc } from 'vue/compiler-sfc'
 
 export const AUDITED_UI_FILES = [
   'App.vue',
+  'components/environments/CodexEnvironmentFieldEditor.vue',
+  'components/environments/EnvironmentDiffPanel.vue',
+  'components/environments/EnvironmentFieldEditor.vue',
+  'components/environments/EnvironmentOverview.vue',
+  'components/environments/EnvironmentPresetManager.vue',
+  'components/environments/EnvironmentRepositoryManager.vue',
+  'components/environments/EnvironmentRuleManager.vue',
+  'components/environments/EnvironmentWorkspace.vue',
   'components/ConfirmDialog.vue',
   'components/DetectionSwitch.vue',
   'components/SettingsDialog.vue',

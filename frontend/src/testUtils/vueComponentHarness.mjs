@@ -30,10 +30,17 @@ export function compileComponent(source, dependencies) {
 
 
 export function mountVueComponent(component, { props, i18n, beforeMount = () => {} }) {
-  const node = (type, text = '') => Object.assign(new EventTarget(), {
-    type, text, props: {}, style: {}, children: [], parent: null, focus() {}, select() {},
-    getRootNode: () => globalThis.document,
-  })
+  const node = (type, text = '') => {
+    const element = Object.assign(new EventTarget(), {
+      type, text, props: {}, style: {}, children: [], parent: null, focus() {}, select() {},
+      getRootNode: () => globalThis.document,
+    })
+    Object.defineProperties(element, {
+      options: { get: () => element.children.flatMap((child) => child.type === 'option' ? [child] : child.options) },
+      value: { get: () => element.props.value, set: (value) => { element.props.value = value } },
+    })
+    return element
+  }
   const detach = (child) => {
     if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1)
     child.parent = null

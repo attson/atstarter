@@ -157,6 +157,14 @@ test('allowlist entries require exact file/text strings and a concrete reason', 
 
 test('audited UI files have no hardcoded presentation copy without an exact exception', async () => {
   for (const file of [
+    'components/environments/CodexEnvironmentFieldEditor.vue',
+    'components/environments/EnvironmentDiffPanel.vue',
+    'components/environments/EnvironmentFieldEditor.vue',
+    'components/environments/EnvironmentOverview.vue',
+    'components/environments/EnvironmentPresetManager.vue',
+    'components/environments/EnvironmentRepositoryManager.vue',
+    'components/environments/EnvironmentRuleManager.vue',
+    'components/environments/EnvironmentWorkspace.vue',
     'App.vue', 'components/ConfirmDialog.vue', 'components/DetectionSwitch.vue',
     'components/SettingsDialog.vue', 'components/ui/AppButton.vue',
     'components/ui/AppIcon.vue', 'components/ui/AppPill.vue',

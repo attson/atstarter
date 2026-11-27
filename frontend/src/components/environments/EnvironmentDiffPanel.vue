@@ -1,9 +1,12 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldAlert } from 'lucide-vue-next'
 import AppButton from '../ui/AppButton.vue'
 import AppIcon from '../ui/AppIcon.vue'
 import { planChangeCount, plansHaveIssueCode, sharedTargetConflict, summarizeApplyResults } from '../../projectEnvironmentUi.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   plans: { type: Array, required: true },
@@ -27,6 +30,25 @@ const groups = computed(() => {
   return [...grouped.values()]
 })
 
+const statusKeys = {
+  all: 'environments.status.all', pending: 'environments.status.pending',
+  consistent: 'environments.status.consistent', drifted: 'environments.status.drifted',
+  blocked: 'environments.status.blocked', failed: 'environments.status.failed',
+  success: 'environments.status.success', unchanged: 'environments.status.unchanged', stale: 'environments.status.stale',
+}
+function statusLabel(status) {
+  return Object.hasOwn(statusKeys, status) ? t(statusKeys[status]) : status
+}
+
+const operationKeys = {
+  set: 'environments.operation.set', replace: 'environments.operation.replace',
+  clear: 'environments.operation.clear', unchanged: 'environments.operation.unchanged',
+  unmanaged: 'environments.operation.unmanaged', blocked: 'environments.operation.blocked',
+}
+function operationLabel(operation) {
+  return Object.hasOwn(operationKeys, operation) ? t(operationKeys[operation]) : operation
+}
+
 function valueFor(value, lower, upper, fallback) {
   return value?.[lower] ?? value?.[upper] ?? fallback
 }
@@ -37,7 +59,7 @@ function targetLabel(plan) {
 }
 
 function currentValues(change) {
-  return (valueFor(change, 'current', 'Current', []) || []).map((item) => valueFor(item, 'value', 'Value', '')).join(', ') || '(absent)'
+  return (valueFor(change, 'current', 'Current', []) || []).map((item) => valueFor(item, 'value', 'Value', '')).join(', ') || t('environments.diff.absent')
 }
 
 function planAdapter(plan) {
@@ -63,20 +85,20 @@ watch(() => props.plans, () => {
 <template>
   <aside class="diff-panel">
     <div class="diff-heading">
-      <div><strong>Native environment changes</strong><span>{{ changes }} changes</span></div>
-      <button type="button" aria-label="Close preview" @click="$emit('close')">×</button>
+      <div><strong>{{ t('environments.diff.title') }}</strong><span>{{ t('environments.diff.changes', { count: changes }) }}</span></div>
+      <button type="button" :aria-label="t('environments.diff.close')" @click="$emit('close')">×</button>
     </div>
 
-    <div v-if="blockers.length" class="diff-blockers">
+    <div v-if="blockers.length" class="diff-blockers" :aria-label="t('environments.diff.blockers')">
       <AppIcon :icon="ShieldAlert" :size="16" />
       <div>
         <span v-for="(blocker, index) in blockers" :key="index">{{ blocker.message || blocker.Message }}</span>
       </div>
     </div>
 
-    <div v-if="highRisk" class="diff-risk" role="alert">
+    <div v-if="highRisk" class="diff-risk" role="alert" :aria-label="t('environments.diff.warnings')">
       <AppIcon :icon="AlertTriangle" :size="16" />
-      <span>Codex sandboxing and approvals are both disabled.</span>
+      <span>{{ t('environments.diff.risk') }}</span>
     </div>
 
     <div class="diff-plans">
@@ -85,7 +107,7 @@ watch(() => props.plans, () => {
         <div v-for="plan in group.plans" :key="`${planAdapter(plan)}-${(plan.target || plan.Target).id || (plan.target || plan.Target).ID}`" class="adapter-plan">
           <div class="adapter-heading">
             <strong>{{ planAdapter(plan) }}</strong>
-            <span>{{ planChangeCount([plan]) }} changes</span>
+            <span>{{ t('environments.diff.changes', { count: planChangeCount([plan]) }) }}</span>
           </div>
           <code class="config-path" :title="configPath(plan)">{{ configPath(plan) }}</code>
           <div v-if="sharedTargetConflict(plan)" class="shared-conflict">
@@ -95,8 +117,8 @@ watch(() => props.plans, () => {
           <div v-for="change in displayChanges(plan)" :key="change.key || change.Key" class="diff-change">
             <code>{{ change.key || change.Key }}</code>
             <span>{{ currentValues(change) }}</span>
-            <strong>{{ change.operation || change.Operation }}</strong>
-            <span>{{ (change.desired || change.Desired).value || (change.desired || change.Desired).Value || '(clear)' }}</span>
+            <strong>{{ operationLabel(change.operation || change.Operation) }}</strong>
+            <span>{{ (change.desired || change.Desired).value || (change.desired || change.Desired).Value || t('environments.diff.clear') }}</span>
             <small>{{ (change.source || change.Source).name || (change.source || change.Source).Name }}</small>
           </div>
           <pre v-if="(plan.nativeDiff || plan.NativeDiff || []).length" class="native-diff"><code>{{ (plan.nativeDiff || plan.NativeDiff).join('\n') }}</code></pre>
@@ -105,14 +127,14 @@ watch(() => props.plans, () => {
     </div>
 
     <div v-if="results.length" class="apply-results">
-      <div><AppIcon :icon="CheckCircle2" :size="15" /><span>{{ summary.success }} applied</span></div>
+      <div><AppIcon :icon="CheckCircle2" :size="15" /><span>{{ t('environments.diff.applied', { count: summary.success }) }}</span></div>
       <div v-for="result in results" :key="(result.target || result.Target).id || (result.target || result.Target).ID" class="result-row">
         <code>{{ (result.target || result.Target).id || (result.target || result.Target).ID }}</code>
-        <strong :class="result.status || result.Status">{{ result.status || result.Status }}</strong>
+        <strong :class="result.status || result.Status">{{ statusLabel(result.status || result.Status) }}</strong>
       </div>
       <AppButton v-if="summary.stale" variant="secondary" size="sm" @click="$emit('repreview')">
         <template #icon><AppIcon :icon="RefreshCw" :size="14" /></template>
-        Re-preview stale targets
+        {{ t('environments.diff.repreview') }}
       </AppButton>
     </div>
 
@@ -120,15 +142,15 @@ watch(() => props.plans, () => {
       <div class="confirmation-checks">
         <label>
           <input v-model="confirmed" type="checkbox">
-          <span>I reviewed these exact native environment changes</span>
+          <span>{{ t('environments.diff.reviewed') }}</span>
         </label>
         <label v-if="highRisk" class="dangerous-confirmation">
           <input v-model="dangerousConfirmed" type="checkbox">
-          <span>I understand this disables both sandboxing and approvals</span>
+          <span>{{ t('environments.diff.dangerousConfirmed') }}</span>
         </label>
       </div>
       <AppButton variant="primary" size="sm" :disabled="!confirmed || (highRisk && !dangerousConfirmed) || applying || blockers.length > 0" @click="$emit('apply', plans)">
-        Apply changes
+        {{ t('environments.diff.apply') }}
       </AppButton>
     </div>
   </aside>

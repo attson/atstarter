@@ -1,9 +1,12 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { AlertTriangle, FileDiff, GitBranch, RefreshCw, Route, ScanSearch } from 'lucide-vue-next'
 import AppButton from '../ui/AppButton.vue'
 import AppIcon from '../ui/AppIcon.vue'
 import { environmentSummary } from '../../projectEnvironmentUi.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   document: { type: Object, required: true },
@@ -16,11 +19,11 @@ defineEmits(['scan', 'open-repositories'])
 
 const summary = computed(() => environmentSummary(props.document, props.state, props.plans))
 const metrics = computed(() => [
-  { label: 'Directory rules', value: summary.value.rules, icon: Route },
-  { label: 'Repositories', value: summary.value.repositories, icon: GitBranch },
-  { label: 'Pending', value: summary.value.pending, icon: RefreshCw },
-  { label: 'Native changes', value: summary.value.changes, icon: FileDiff },
-  { label: 'Blockers', value: summary.value.blockers, icon: AlertTriangle },
+  { labelKey: 'environments.overview.rules', value: summary.value.rules, icon: Route },
+  { labelKey: 'environments.overview.repositories', value: summary.value.repositories, icon: GitBranch },
+  { labelKey: 'environments.overview.pending', value: summary.value.pending, icon: RefreshCw },
+  { labelKey: 'environments.overview.nativeChanges', value: summary.value.changes, icon: FileDiff },
+  { labelKey: 'environments.overview.blockers', value: summary.value.blockers, icon: AlertTriangle },
 ])
 </script>
 
@@ -28,30 +31,30 @@ const metrics = computed(() => [
   <section class="environment-overview">
     <div class="environment-view-heading">
       <div>
-        <h1>Environment overview</h1>
+        <h1>{{ t('environments.overview.title') }}</h1>
       </div>
       <AppButton variant="primary" size="sm" :disabled="scanning" @click="$emit('scan')">
         <template #icon><AppIcon :icon="scanning ? RefreshCw : ScanSearch" :size="14" :class="{ spinning: scanning }" /></template>
-        {{ scanning ? 'Scanning' : 'Scan repositories' }}
+        {{ scanning ? t('environments.overview.scanning') : t('environments.overview.scan') }}
       </AppButton>
     </div>
 
     <div class="environment-metrics">
-      <div v-for="metric in metrics" :key="metric.label" class="environment-metric">
+      <div v-for="metric in metrics" :key="metric.labelKey" class="environment-metric">
         <AppIcon :icon="metric.icon" :size="16" />
-        <span>{{ metric.label }}</span>
+        <span>{{ t(metric.labelKey) }}</span>
         <strong>{{ metric.value }}</strong>
       </div>
     </div>
 
     <div v-if="scanning" class="scan-progress" aria-live="polite">
-      <span class="scan-progress-path" :title="progress.path || ''">{{ progress.path || 'Preparing scan' }}</span>
-      <span>{{ progress.repositories || 0 }} repositories</span>
-      <span>{{ progress.warnings || 0 }} warnings</span>
+      <span class="scan-progress-path" :title="progress.path || ''">{{ progress.path || t('environments.overview.preparing') }}</span>
+      <span>{{ t('environments.overview.repositoryCount', { count: progress.repositories || 0 }) }}</span>
+      <span>{{ t('environments.overview.warningCount', { count: progress.warnings || 0 }) }}</span>
     </div>
 
     <button class="environment-pending-row" type="button" @click="$emit('open-repositories')">
-      <span>Repositories awaiting review</span>
+      <span>{{ t('environments.overview.awaitingReview') }}</span>
       <strong>{{ summary.pending }}</strong>
     </button>
   </section>

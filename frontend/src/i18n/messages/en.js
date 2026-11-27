@@ -336,4 +336,170 @@ export default {
     "errorPrefix": "Error: {message}",
     "saveFailed": "Save failed: {message}"
   },
+  environments: {
+    "views": {
+      "overview": "Overview",
+      "presets": "Presets",
+      "rules": "Directory Rules",
+      "repositories": "Repositories",
+      "label": "Environment views"
+    },
+    "loading": "Loading environments...",
+    "saved": "Saved",
+    "conflict": "Configuration changed on disk. Review this draft and save again.",
+    "globalDefaults": "Global Defaults",
+    "directoryRules": "Directory rules",
+    "repositoriesLabel": "Repositories",
+    "fields": {
+      "model": {
+        "label": "Model",
+        "description": "Project model"
+      },
+      "reasoning": {
+        "label": "Reasoning effort",
+        "description": "Project reasoning effort"
+      },
+      "sandbox": {
+        "label": "Sandbox",
+        "description": "Filesystem and process isolation",
+        "options": {
+          "readOnly": "Read only",
+          "workspaceWrite": "Workspace write",
+          "dangerFullAccess": "Danger full access"
+        }
+      },
+      "approval": {
+        "label": "Approval policy",
+        "description": "Command approval behavior",
+        "options": {
+          "untrusted": "Untrusted",
+          "onFailure": "On failure",
+          "onRequest": "On request",
+          "granular": "Granular",
+          "never": "Never"
+        }
+      },
+      "webSearch": {
+        "label": "Web search",
+        "description": "Search data source",
+        "options": {
+          "disabled": "Disabled",
+          "cached": "Cached",
+          "indexed": "Indexed",
+          "live": "Live"
+        }
+      },
+      "managementMode": "{field} management mode",
+      "valueLabel": "{field} value",
+      "notManaged": "Not managed",
+      "set": "Set",
+      "clear": "Clear",
+      "selectValue": "Select value",
+      "selectFormat": "Select format",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "value": "Value",
+      "label": "Environment fields",
+      "git": "Git",
+      "codex": "Codex",
+      "formats": {
+        "openpgp": "OpenPGP",
+        "ssh": "SSH",
+        "x509": "X.509"
+      },
+      "dangerous": "Codex will run without sandboxing or approvals."
+    },
+    "status": {
+      "all": "All",
+      "pending": "Pending",
+      "consistent": "Consistent",
+      "drifted": "Drifted",
+      "blocked": "Blocked",
+      "failed": "Failed",
+      "success": "Applied",
+      "unchanged": "Unchanged",
+      "stale": "Stale"
+    },
+    "operation": {
+      "set": "Set",
+      "replace": "Replace",
+      "clear": "Clear",
+      "unchanged": "Unchanged",
+      "unmanaged": "Unmanaged",
+      "blocked": "Blocked"
+    },
+    "overview": {
+      "title": "Environment overview",
+      "rules": "Directory rules",
+      "repositories": "Repositories",
+      "pending": "Pending",
+      "nativeChanges": "Native changes",
+      "blockers": "Blockers",
+      "scanning": "Scanning",
+      "scan": "Scan repositories",
+      "preparing": "Preparing scan",
+      "repositoryCount": "{count} repositories",
+      "warningCount": "{count} warnings",
+      "awaitingReview": "Repositories awaiting review"
+    },
+    "presets": {
+      "search": "Search presets",
+      "new": "New preset",
+      "name": "Preset name",
+      "clone": "Clone preset",
+      "cloneName": "{name} copy",
+      "confirmDelete": "Confirm delete",
+      "delete": "Delete",
+      "description": "Description",
+      "fields": "Fields",
+      "usage": "Usage",
+      "referenced": "Referenced",
+      "notReferenced": "Not referenced",
+      "empty": "No presets"
+    },
+    "rules": {
+      "protected": "Protected",
+      "new": "New directory rule",
+      "name": "Rule name",
+      "scan": "Scan",
+      "directory": "Directory path",
+      "chooseDirectory": "Choose directory",
+      "scope": "Rule scope",
+      "exact": "Exact",
+      "recursive": "Recursive",
+      "autoDiscover": "Auto-discover",
+      "matched": "{count} matched",
+      "preset": "Preset",
+      "noPreset": "No preset"
+    },
+    "repositories": {
+      "search": "Search repositories",
+      "filterRule": "Filter by rule",
+      "allRules": "All rules",
+      "filterStatus": "Filter by status",
+      "selectAll": "Select all eligible repositories",
+      "doctor": "Doctor",
+      "preview": "Preview {count}",
+      "repository": "Repository",
+      "rules": "Rules",
+      "status": "Status",
+      "select": "Select {id}",
+      "empty": "No repositories"
+    },
+    "diff": {
+      "title": "Native environment changes",
+      "changes": "{count} changes",
+      "close": "Close preview",
+      "risk": "Codex sandboxing and approvals are both disabled.",
+      "absent": "(absent)",
+      "clear": "(clear)",
+      "applied": "{count} applied",
+      "repreview": "Re-preview stale targets",
+      "reviewed": "I reviewed these exact native environment changes",
+      "dangerousConfirmed": "I understand this disables both sandboxing and approvals",
+      "apply": "Apply changes",
+      "blockers": "Blockers",
+      "warnings": "Warnings"
+    }
+  },
 }

@@ -1,6 +1,9 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed } from 'vue'
 import { editFieldMode, editFieldValue, fieldRows } from '../../projectEnvironmentUi.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Object, default: () => ({}) },
@@ -21,28 +24,29 @@ function setValue(key, value) {
   <div class="field-editor">
     <div v-for="row in rows" :key="row.key" class="field-row">
       <label :for="`mode-${row.key}`" class="field-key">{{ row.key }}</label>
-      <select :id="`mode-${row.key}`" :value="row.intent.mode" @change="setMode(row.key, $event.target.value)">
-        <option value="inherit">Not managed</option>
-        <option value="set">Set</option>
-        <option value="clear">Clear</option>
+      <select :id="`mode-${row.key}`" :aria-label="t('environments.fields.managementMode', { field: row.key })" :value="row.intent.mode" @change="setMode(row.key, $event.target.value)">
+        <option value="inherit">{{ t('environments.fields.notManaged') }}</option>
+        <option value="set">{{ t('environments.fields.set') }}</option>
+        <option value="clear">{{ t('environments.fields.clear') }}</option>
       </select>
 
       <label v-if="row.intent.mode === 'set' && (row.key === 'commit.gpgSign' || row.key === 'tag.gpgSign')" class="boolean-control">
-        <input type="checkbox" :checked="row.intent.value === 'true'" @change="setValue(row.key, $event.target.checked ? 'true' : 'false')">
-        <span>{{ row.intent.value === 'true' ? 'Enabled' : 'Disabled' }}</span>
+        <input type="checkbox" :aria-label="t('environments.fields.valueLabel', { field: row.key })" :checked="row.intent.value === 'true'" @change="setValue(row.key, $event.target.checked ? 'true' : 'false')">
+        <span>{{ row.intent.value === 'true' ? t('environments.fields.enabled') : t('environments.fields.disabled') }}</span>
       </label>
-      <select v-else-if="row.intent.mode === 'set' && row.key === 'gpg.format'" :value="row.intent.value" @change="setValue(row.key, $event.target.value)">
-        <option value="">Select format</option>
-        <option value="openpgp">OpenPGP</option>
-        <option value="ssh">SSH</option>
-        <option value="x509">X.509</option>
+      <select v-else-if="row.intent.mode === 'set' && row.key === 'gpg.format'" :aria-label="t('environments.fields.valueLabel', { field: row.key })" :value="row.intent.value" @change="setValue(row.key, $event.target.value)">
+        <option value="">{{ t('environments.fields.selectFormat') }}</option>
+        <option value="openpgp">{{ t('environments.fields.formats.openpgp') }}</option>
+        <option value="ssh">{{ t('environments.fields.formats.ssh') }}</option>
+        <option value="x509">{{ t('environments.fields.formats.x509') }}</option>
       </select>
       <input
         v-else
         class="field-value"
+        :aria-label="t('environments.fields.valueLabel', { field: row.key })"
         :disabled="row.intent.mode !== 'set'"
         :value="row.intent.value"
-        :placeholder="row.intent.mode === 'set' ? 'Value' : ''"
+        :placeholder="row.intent.mode === 'set' ? t('environments.fields.value') : ''"
         @input="setValue(row.key, $event.target.value)"
       >
     </div>

@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, getCurrentInstance } from 'vue'
 import { TriangleAlert } from 'lucide-vue-next'
 import AppIcon from '../ui/AppIcon.vue'
@@ -8,6 +9,8 @@ import {
   editFieldMode,
   editFieldValue,
 } from '../../projectEnvironmentUi.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Object, default: () => ({}) },
@@ -38,36 +41,36 @@ function setValue(key, value) {
   <div class="codex-field-editor">
     <div v-if="dangerous" class="dangerous-warning" role="alert">
       <AppIcon :icon="TriangleAlert" :size="15" />
-      <span>Codex will run without sandboxing or approvals.</span>
+      <span>{{ t('environments.fields.dangerous') }}</span>
     </div>
     <div v-for="row in rows" :key="row.key" class="codex-field-row">
-      <label :for="`codex-mode-${instanceID}-${row.key}`" class="codex-field-key" :title="row.description">
-        <span>{{ row.label }}</span>
+      <label :for="`codex-mode-${instanceID}-${row.key}`" class="codex-field-key" :title="t(row.descriptionKey)">
+        <span>{{ t(row.labelKey) }}</span>
         <code>{{ row.key }}</code>
       </label>
       <select
         :id="`codex-mode-${instanceID}-${row.key}`"
-        :aria-label="`${row.label} management mode`"
+        :aria-label="t('environments.fields.managementMode', { field: t(row.labelKey) })"
         :value="row.intent.mode"
         @change="setMode(row.key, $event.target.value)"
       >
-        <option value="inherit">Not managed</option>
-        <option value="set">Set</option>
-        <option value="clear">Clear</option>
+        <option value="inherit">{{ t('environments.fields.notManaged') }}</option>
+        <option value="set">{{ t('environments.fields.set') }}</option>
+        <option value="clear">{{ t('environments.fields.clear') }}</option>
       </select>
       <select
         v-if="row.control === 'select'"
-        :aria-label="`${row.label} value`"
+        :aria-label="t('environments.fields.valueLabel', { field: t(row.labelKey) })"
         :disabled="row.intent.mode !== 'set'"
         :value="row.intent.value"
         @change="setValue(row.key, $event.target.value)"
       >
-        <option value="">Select value</option>
-        <option v-for="option in row.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+        <option value="">{{ t('environments.fields.selectValue') }}</option>
+        <option v-for="option in row.options" :key="option.value" :value="option.value">{{ t(option.labelKey) }}</option>
       </select>
       <div v-else class="codex-value-control">
         <input
-          :aria-label="`${row.label} value`"
+          :aria-label="t('environments.fields.valueLabel', { field: t(row.labelKey) })"
           :disabled="row.intent.mode !== 'set'"
           :value="row.intent.value"
           :list="`codex-suggestions-${instanceID}-${row.key}`"

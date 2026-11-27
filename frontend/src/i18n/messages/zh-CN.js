@@ -336,4 +336,170 @@ export default {
     "errorPrefix": "出错:{message}",
     "saveFailed": "保存失败:{message}"
   },
+  environments: {
+    "views": {
+      "overview": "概览",
+      "presets": "预设",
+      "rules": "目录规则",
+      "repositories": "仓库",
+      "label": "环境视图"
+    },
+    "loading": "正在加载环境...",
+    "saved": "已保存",
+    "conflict": "磁盘上的配置已更改。请检查此草稿并重新保存。",
+    "globalDefaults": "全局默认值",
+    "directoryRules": "目录规则",
+    "repositoriesLabel": "仓库",
+    "fields": {
+      "model": {
+        "label": "模型",
+        "description": "项目模型"
+      },
+      "reasoning": {
+        "label": "推理强度",
+        "description": "项目推理强度"
+      },
+      "sandbox": {
+        "label": "沙箱",
+        "description": "文件系统和进程隔离",
+        "options": {
+          "readOnly": "仅限读取",
+          "workspaceWrite": "允许写入工作区",
+          "dangerFullAccess": "危险的完全访问"
+        }
+      },
+      "approval": {
+        "label": "审批策略",
+        "description": "命令审批行为",
+        "options": {
+          "untrusted": "不受信任时",
+          "onFailure": "失败时",
+          "onRequest": "请求时",
+          "granular": "细粒度",
+          "never": "从不"
+        }
+      },
+      "webSearch": {
+        "label": "网页搜索",
+        "description": "搜索数据来源",
+        "options": {
+          "disabled": "已禁用",
+          "cached": "缓存",
+          "indexed": "索引",
+          "live": "实时"
+        }
+      },
+      "managementMode": "{field}管理方式",
+      "valueLabel": "{field}值",
+      "notManaged": "不管理",
+      "set": "设置",
+      "clear": "清除",
+      "selectValue": "选择值",
+      "selectFormat": "选择格式",
+      "enabled": "已启用",
+      "disabled": "已禁用",
+      "value": "值",
+      "label": "环境字段",
+      "git": "Git",
+      "codex": "Codex",
+      "formats": {
+        "openpgp": "OpenPGP",
+        "ssh": "SSH",
+        "x509": "X.509"
+      },
+      "dangerous": "Codex 将在没有沙箱和审批的情况下运行。"
+    },
+    "status": {
+      "all": "全部",
+      "pending": "待处理",
+      "consistent": "一致",
+      "drifted": "有偏差",
+      "blocked": "已阻止",
+      "failed": "失败",
+      "success": "已应用",
+      "unchanged": "无更改",
+      "stale": "已过期"
+    },
+    "operation": {
+      "set": "设置",
+      "replace": "替换",
+      "clear": "清除",
+      "unchanged": "无更改",
+      "unmanaged": "不管理",
+      "blocked": "已阻止"
+    },
+    "overview": {
+      "title": "环境概览",
+      "rules": "目录规则",
+      "repositories": "仓库",
+      "pending": "待处理",
+      "nativeChanges": "原生更改",
+      "blockers": "阻塞项",
+      "scanning": "正在扫描",
+      "scan": "扫描仓库",
+      "preparing": "正在准备扫描",
+      "repositoryCount": "{count} 个仓库",
+      "warningCount": "{count} 条警告",
+      "awaitingReview": "待检查的仓库"
+    },
+    "presets": {
+      "search": "搜索预设",
+      "new": "新建预设",
+      "name": "预设名称",
+      "clone": "克隆预设",
+      "cloneName": "{name} 副本",
+      "confirmDelete": "确认删除",
+      "delete": "删除",
+      "description": "描述",
+      "fields": "字段",
+      "usage": "使用情况",
+      "referenced": "已引用",
+      "notReferenced": "未引用",
+      "empty": "没有预设"
+    },
+    "rules": {
+      "protected": "受保护",
+      "new": "新建目录规则",
+      "name": "规则名称",
+      "scan": "扫描",
+      "directory": "目录路径",
+      "chooseDirectory": "选择目录",
+      "scope": "规则范围",
+      "exact": "仅此目录",
+      "recursive": "包含子目录",
+      "autoDiscover": "自动发现",
+      "matched": "匹配 {count} 个",
+      "preset": "预设",
+      "noPreset": "不使用预设"
+    },
+    "repositories": {
+      "search": "搜索仓库",
+      "filterRule": "按规则筛选",
+      "allRules": "全部规则",
+      "filterStatus": "按状态筛选",
+      "selectAll": "选择所有符合条件的仓库",
+      "doctor": "诊断",
+      "preview": "预览 {count}",
+      "repository": "仓库",
+      "rules": "规则",
+      "status": "状态",
+      "select": "选择 {id}",
+      "empty": "没有仓库"
+    },
+    "diff": {
+      "title": "原生环境更改",
+      "changes": "{count} 项更改",
+      "close": "关闭预览",
+      "risk": "Codex 沙箱和审批均已禁用。",
+      "absent": "（不存在）",
+      "clear": "（清除）",
+      "applied": "已应用 {count} 项",
+      "repreview": "重新预览已过期的目标",
+      "reviewed": "我已检查这些确切的原生环境更改",
+      "dangerousConfirmed": "我了解这会同时禁用沙箱和审批",
+      "apply": "应用更改",
+      "blockers": "阻塞项",
+      "warnings": "警告"
+    }
+  },
 }

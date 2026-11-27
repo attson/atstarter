@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
 import { Copy, Plus, Save, Search, Trash2 } from 'lucide-vue-next'
 import AppButton from '../ui/AppButton.vue'
@@ -6,6 +7,8 @@ import AppIcon from '../ui/AppIcon.vue'
 import CodexEnvironmentFieldEditor from './CodexEnvironmentFieldEditor.vue'
 import EnvironmentFieldEditor from './EnvironmentFieldEditor.vue'
 import { isEnvironmentStaleError, presetUsage, validatePresetDraft } from '../../projectEnvironmentUi.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   document: { type: Object, required: true },
@@ -23,6 +26,7 @@ const tab = ref('fields')
 const fieldTab = ref('git')
 const saving = ref(false)
 const message = ref('')
+const saveSucceeded = ref(false)
 const conflict = ref(false)
 const confirmDelete = ref(false)
 
@@ -34,6 +38,7 @@ const validation = computed(() => validatePresetDraft(draft.value || {}))
 function selectPreset(preset) {
   selectedID.value = preset.id
   draft.value = JSON.parse(JSON.stringify(preset))
+  saveSucceeded.value = false
   message.value = ''
   conflict.value = false
   confirmDelete.value = false
@@ -43,21 +48,24 @@ function createPreset() {
   selectedID.value = ''
   draft.value = { id: '', name: '', description: '', git: {}, codex: {} }
   tab.value = 'fields'
+  saveSucceeded.value = false
   message.value = ''
 }
 
 async function save() {
   if (!validation.value.valid || saving.value) return
   saving.value = true
+  saveSucceeded.value = false
   message.value = ''
   conflict.value = false
   try {
     const saved = await props.savePreset(draft.value)
     const current = saved.config.presets.find((preset) => preset.id === draft.value.id) || saved.config.presets.at(-1)
     if (current) selectPreset(current)
-    message.value = 'Saved'
+    saveSucceeded.value = true
   } catch (error) {
     conflict.value = isEnvironmentStaleError(error)
+    saveSucceeded.value = false
     message.value = conflict.value ? '' : String(error)
   } finally {
     saving.value = false
@@ -67,10 +75,11 @@ async function save() {
 async function clone() {
   if (!draft.value?.id) return
   try {
-    const saved = await props.clonePreset(draft.value.id, `${draft.value.name} copy`)
+    const saved = await props.clonePreset(draft.value.id, t('environments.presets.cloneName', { name: draft.value.name }))
     const cloned = saved.config.presets.at(-1)
     if (cloned) selectPreset(cloned)
   } catch (error) {
+    saveSucceeded.value = false
     message.value = String(error)
   }
 }
@@ -86,6 +95,7 @@ async function remove() {
     selectedID.value = ''
   } catch (error) {
     conflict.value = isEnvironmentStaleError(error)
+    saveSucceeded.value = false
     message.value = String(error)
   }
 }
@@ -101,9 +111,9 @@ watch(presets, (next) => {
       <div class="manager-list-tools">
         <label class="search-box">
           <AppIcon :icon="Search" :size="14" />
-          <input v-model="search" aria-label="Search presets" placeholder="Search presets">
+          <input v-model="search" :aria-label="t('environments.presets.search')" :placeholder="t('environments.presets.search')">
         </label>
-        <AppButton variant="secondary" size="sm" icon-only title="New preset" aria-label="New preset" @click="createPreset">
+        <AppButton variant="secondary" size="sm" icon-only :title="t('environments.presets.new')" :aria-label="t('environments.presets.new')" @click="createPreset">
           <template #icon><AppIcon :icon="Plus" :size="14" /></template>
         </AppButton>
       </div>
@@ -114,44 +124,44 @@ watch(presets, (next) => {
 
     <div v-if="draft" class="manager-editor">
       <div class="manager-heading">
-        <input v-model="draft.name" class="title-input" placeholder="Preset name">
+        <input v-model="draft.name" class="title-input" :placeholder="t('environments.presets.name')">
         <div class="manager-actions">
-          <AppButton v-if="draft.id" variant="secondary" size="sm" icon-only title="Clone preset" aria-label="Clone preset" @click="clone">
+          <AppButton v-if="draft.id" variant="secondary" size="sm" icon-only :title="t('environments.presets.clone')" :aria-label="t('environments.presets.clone')" @click="clone">
             <template #icon><AppIcon :icon="Copy" :size="14" /></template>
           </AppButton>
           <AppButton v-if="draft.id" variant="secondary" size="sm" :disabled="usage.total > 0" @click="remove">
             <template #icon><AppIcon :icon="Trash2" :size="14" /></template>
-            {{ confirmDelete ? 'Confirm delete' : 'Delete' }}
+            {{ confirmDelete ? t('environments.presets.confirmDelete') : t('environments.presets.delete') }}
           </AppButton>
           <AppButton variant="primary" size="sm" :disabled="!validation.valid || saving" @click="save">
             <template #icon><AppIcon :icon="Save" :size="14" /></template>
-            Save
+            {{ t('common.save') }}
           </AppButton>
         </div>
       </div>
 
-      <div v-if="conflict" class="conflict-banner">Configuration changed on disk. Review this draft and save again.</div>
-      <div v-else-if="message" class="manager-message">{{ message }}</div>
-      <textarea v-model="draft.description" rows="2" placeholder="Description"></textarea>
+      <div v-if="conflict" class="conflict-banner">{{ t('environments.conflict') }}</div>
+      <div v-else-if="message || saveSucceeded" class="manager-message">{{ saveSucceeded ? t('environments.saved') : message }}</div>
+      <textarea v-model="draft.description" rows="2" :placeholder="t('environments.presets.description')"></textarea>
       <div class="manager-tabs">
-        <button type="button" :class="{ active: tab === 'fields' }" @click="tab = 'fields'">Fields</button>
-        <button type="button" :class="{ active: tab === 'usage' }" @click="tab = 'usage'">Usage <span>{{ usage.total }}</span></button>
+        <button type="button" :class="{ active: tab === 'fields' }" @click="tab = 'fields'">{{ t('environments.presets.fields') }}</button>
+        <button type="button" :class="{ active: tab === 'usage' }" @click="tab = 'usage'">{{ t('environments.presets.usage') }} <span>{{ usage.total }}</span></button>
       </div>
       <div v-if="tab === 'fields'" class="field-section">
-        <div class="field-tabs" role="tablist" aria-label="Environment fields">
-          <button type="button" role="tab" :aria-selected="fieldTab === 'git'" :class="{ active: fieldTab === 'git' }" @click="fieldTab = 'git'">Git</button>
-          <button type="button" role="tab" :aria-selected="fieldTab === 'codex'" :class="{ active: fieldTab === 'codex' }" @click="fieldTab = 'codex'">Codex</button>
+        <div class="field-tabs" role="tablist" :aria-label="t('environments.fields.label')">
+          <button type="button" role="tab" :aria-selected="fieldTab === 'git'" :class="{ active: fieldTab === 'git' }" @click="fieldTab = 'git'">{{ t('environments.fields.git') }}</button>
+          <button type="button" role="tab" :aria-selected="fieldTab === 'codex'" :class="{ active: fieldTab === 'codex' }" @click="fieldTab = 'codex'">{{ t('environments.fields.codex') }}</button>
         </div>
         <EnvironmentFieldEditor v-if="fieldTab === 'git'" v-model="draft.git" />
         <CodexEnvironmentFieldEditor v-else v-model="draft.codex" :model-suggestions="modelSuggestions" />
       </div>
       <div v-else class="usage-list">
-        <div><span>Global Defaults</span><strong>{{ usage.defaults ? 'Referenced' : 'Not referenced' }}</strong></div>
-        <div><span>Directory rules</span><strong>{{ usage.rules.length }}</strong></div>
-        <div><span>Repositories</span><strong>{{ usage.repositories.length }}</strong></div>
+        <div><span>{{ t('environments.globalDefaults') }}</span><strong>{{ usage.defaults ? t('environments.presets.referenced') : t('environments.presets.notReferenced') }}</strong></div>
+        <div><span>{{ t('environments.directoryRules') }}</span><strong>{{ usage.rules.length }}</strong></div>
+        <div><span>{{ t('environments.repositoriesLabel') }}</span><strong>{{ usage.repositories.length }}</strong></div>
       </div>
     </div>
-    <div v-else class="manager-empty">No presets</div>
+    <div v-else class="manager-empty">{{ t('environments.presets.empty') }}</div>
   </section>
 </template>
 

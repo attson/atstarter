@@ -65,6 +65,32 @@ test('Codex field rows retain free-form reasoning and expose fixed enums', () =>
   ])
 })
 
+test('Codex metadata exposes stable presentation keys while preserving native values and suggestions', () => {
+  const rows = codexFieldRows({})
+  assert.deepEqual(rows.find((row) => row.key === 'sandbox_mode').options, [
+    { value: 'read-only', labelKey: 'environments.fields.sandbox.options.readOnly' },
+    { value: 'workspace-write', labelKey: 'environments.fields.sandbox.options.workspaceWrite' },
+    { value: 'danger-full-access', labelKey: 'environments.fields.sandbox.options.dangerFullAccess' },
+  ])
+  assert.equal(rows.find((row) => row.key === 'model').labelKey, 'environments.fields.model.label')
+  assert.deepEqual(rows.map((row) => row.descriptionKey), [
+    'environments.fields.model.description', 'environments.fields.reasoning.description',
+    'environments.fields.sandbox.description', 'environments.fields.approval.description',
+    'environments.fields.webSearch.description',
+  ])
+  for (const row of rows) {
+    assert.equal(Object.hasOwn(row, 'label'), false)
+    assert.equal(Object.hasOwn(row, 'description'), false)
+    for (const option of row.options) {
+      assert.equal(Object.hasOwn(option, 'label'), false)
+      assert.ok(option.labelKey.startsWith('environments.fields.'))
+      assert.deepEqual(editFieldValue({}, row.key, option.value), { [row.key]: { mode: 'set', value: option.value } })
+    }
+  }
+  assert.deepEqual(rows.find((row) => row.key === 'model_reasoning_effort').suggestions, ['low', 'medium', 'high', 'xhigh'])
+  assert.deepEqual(rows.find((row) => row.key === 'web_search').options.map((option) => option.value), ['disabled', 'cached', 'indexed', 'live'])
+})
+
 test('recent Codex model suggestions are deduplicated from managed documents and plans', () => {
   const document = normalizeEnvironmentDocument({ config: {
     version: 1,

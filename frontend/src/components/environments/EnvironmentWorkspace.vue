@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { FolderTree, GitBranch, LayoutDashboard, SlidersHorizontal } from 'lucide-vue-next'
 import AppIcon from '../ui/AppIcon.vue'
@@ -26,6 +27,8 @@ import {
 import { EventsOff, EventsOn } from '../../../wailsjs/runtime/runtime'
 import { codexModelSuggestions, normalizeEnvironmentDocument } from '../../projectEnvironmentUi.js'
 
+const { t } = useI18n()
+
 const document = ref(normalizeEnvironmentDocument())
 const state = ref({ version: 1, ruleScans: [], repositories: [] })
 const activeView = ref('overview')
@@ -42,10 +45,10 @@ const doctorIssues = ref([])
 const modelSuggestions = computed(() => codexModelSuggestions(document.value, plans.value))
 
 const views = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'presets', label: 'Presets', icon: SlidersHorizontal },
-  { id: 'rules', label: 'Directory Rules', icon: FolderTree },
-  { id: 'repositories', label: 'Repositories', icon: GitBranch },
+  { id: 'overview', labelKey: 'environments.views.overview', icon: LayoutDashboard },
+  { id: 'presets', labelKey: 'environments.views.presets', icon: SlidersHorizontal },
+  { id: 'rules', labelKey: 'environments.views.rules', icon: FolderTree },
+  { id: 'repositories', labelKey: 'environments.views.repositories', icon: GitBranch },
 ]
 
 async function refreshEnvironmentData() {
@@ -203,22 +206,24 @@ onUnmounted(() => {
 
 <template>
   <div class="environment-workspace">
-    <aside class="environment-sidebar" aria-label="Environment views">
+    <aside class="environment-sidebar" :aria-label="t('environments.views.label')">
       <button
         v-for="view in views"
         :key="view.id"
         type="button"
         class="environment-nav-item"
+        :title="t(view.labelKey)"
+        :aria-label="t(view.labelKey)"
         :class="{ active: activeView === view.id }"
         @click="activeView = view.id"
       >
         <AppIcon :icon="view.icon" :size="15" />
-        <span>{{ view.label }}</span>
+        <span>{{ t(view.labelKey) }}</span>
       </button>
     </aside>
 
     <div class="environment-content">
-      <div v-if="loading" class="environment-state-message">Loading environments...</div>
+      <div v-if="loading" class="environment-state-message">{{ t('environments.loading') }}</div>
       <div v-else-if="error" class="environment-state-message error" role="alert">{{ error }}</div>
       <EnvironmentOverview
         v-else-if="activeView === 'overview'"
