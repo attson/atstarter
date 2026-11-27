@@ -22,30 +22,41 @@ export function editorPhrases(t) {
   }
 }
 
-// EditorView internally redraws panels when its phrases facet changes. Snapshot
-// only the search panel's controls around the Compartment transaction so a live
-// language change preserves even uncommitted field text, focus, and selection.
-// CodeMirror retains the document, history, search state, and EditorView itself.
+// EditorView redraws every panel when its phrases facet changes. Preserve the
+// current controls by panel/control order, including uncommitted input and focus
+// outside the editor. The phrase transaction retains document/history state.
 export function reconfigureEditorPhrases(view, effect) {
-  const panel = view.dom.querySelector('.cm-search')
   const active = view.dom.ownerDocument.activeElement
-  const focusedName = panel?.contains(active) ? active?.getAttribute('name') : null
-  const fields = Array.from(panel?.querySelectorAll('input[name]') || []).map((input) => ({
-    name: input.name, value: input.value, checked: input.checked,
-    start: input.selectionStart, end: input.selectionEnd, direction: input.selectionDirection,
-  }))
+  const panels = Array.from(view.dom.querySelectorAll('.cm-panel'))
+  const controls = (panel) => Array.from(panel.querySelectorAll('input, textarea, select, button, [tabindex]'))
+  const snapshots = panels.map((panel) => controls(panel).map((control) => ({
+    value: control.value, checked: control.checked, focused: control === active,
+    start: control.selectionStart, end: control.selectionEnd, direction: control.selectionDirection,
+  })))
+  const external = panels.some((panel) => panel.contains(active)) ? null : active
   view.dispatch({ effects: effect })
-  const nextPanel = view.dom.querySelector('.cm-search')
-  if (!nextPanel) return
-  for (const field of fields) {
-    const input = nextPanel.querySelector(`input[name="${field.name}"]`)
-    if (!input) continue
-    input.value = field.value
-    input.checked = field.checked
-  }
-  if (focusedName) nextPanel.querySelector(`[name="${focusedName}"]`)?.focus({ preventScroll: true })
-  for (const field of fields) {
-    if (typeof field.start !== 'number' || typeof field.end !== 'number') continue
-    nextPanel.querySelector(`input[name="${field.name}"]`)?.setSelectionRange(field.start, field.end, field.direction)
-  }
+  const nextPanels = Array.from(view.dom.querySelectorAll('.cm-panel'))
+  nextPanels.forEach((panel, index) => {
+    // gotoLine passes opening-time translated strings to showDialog. Unlike
+    // search controls, these two labels are captured in the panel constructor.
+    const line = panel.querySelector('input[name="line"]')
+    if (line && panel.classList.contains('cm-dialog')) {
+      const label = Array.from(line.parentElement.childNodes).find((node) => node.nodeType === 3)
+      if (label) label.nodeValue = `${view.state.phrase('Go to line')}: `
+      const submit = panel.querySelector('button[type="submit"]')
+      if (submit) submit.textContent = view.state.phrase('go')
+    }
+    const nextControls = controls(panel)
+    for (const [controlIndex, field] of (snapshots[index] || []).entries()) {
+      const control = nextControls[controlIndex]
+      if (!control) continue
+      if (field.value !== undefined) control.value = field.value
+      if (field.checked !== undefined) control.checked = field.checked
+      if (field.focused) control.focus({ preventScroll: true })
+      if (typeof field.start === 'number' && typeof field.end === 'number') {
+        control.setSelectionRange(field.start, field.end, field.direction)
+      }
+    }
+  })
+  if (external?.isConnected) external.focus({ preventScroll: true })
 }

@@ -199,7 +199,7 @@ test('save errors preserve native details and use a reactive fallback without ch
   const writes = []
   class EditorViewBoundary extends cmView.EditorView {
     constructor({ state }) {
-      return { state, dom: { querySelector: () => null, ownerDocument: { activeElement: null } },
+      return { state, dom: { querySelector: () => null, querySelectorAll: () => [], ownerDocument: { activeElement: null } },
         dispatch(transaction) { this.state = this.state.update(transaction).state }, destroy() {}, focus() {} }
     }
   }
