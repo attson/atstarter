@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -102,5 +103,42 @@ func TestStateStoreMigratesVersionOneRepositoryTargetToGitAdapter(t *testing.T) 
 	}
 	if record.Status != "blocked" || len(gitState.Blockers) != 1 || record.Aliases[0].RuleIDs[0] != "rule" {
 		t.Fatalf("record = %+v", record)
+	}
+}
+
+func TestStateStoreConcurrentUpdatesPreserveBothMutations(t *testing.T) {
+	store := NewStateStore(filepath.Join(t.TempDir(), "config.json"))
+	start := make(chan struct{})
+	errors := make(chan error, 2)
+	var ready sync.WaitGroup
+	ready.Add(2)
+	for _, ruleID := range []string{"one", "two"} {
+		ruleID := ruleID
+		go func() {
+			ready.Done()
+			<-start
+			errors <- store.Update(context.Background(), func(state *StateDocument) error {
+				state.RuleScans = append(state.RuleScans, RuleScanState{RuleID: ruleID})
+				return nil
+			})
+		}()
+	}
+	ready.Wait()
+	close(start)
+	for range 2 {
+		if err := <-errors; err != nil {
+			t.Fatal(err)
+		}
+	}
+	state, err := store.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, scan := range state.RuleScans {
+		seen[scan.RuleID] = true
+	}
+	if len(state.RuleScans) != 2 || !seen["one"] || !seen["two"] {
+		t.Fatalf("state = %+v", state)
 	}
 }

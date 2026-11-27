@@ -221,10 +221,6 @@ func (s *Service) Scan(ctx context.Context, request ScanRequest, emit func(ScanP
 		return ScanResult{}, err
 	}
 	result := Discover(ctx, doc.Config.Rules, DiscoverOptions{RuleIDs: request.RuleIDs, AutoOnly: request.AutoOnly}, emit)
-	state, err := s.state.Load(ctx)
-	if err != nil {
-		return result, err
-	}
 	selectedRules := selectedRules(doc.Config.Rules, request.RuleIDs, request.AutoOnly)
 	scanID, err := s.idGenerator("scan_")
 	if err != nil {
@@ -235,8 +231,10 @@ func (s *Service) Scan(ctx context.Context, request ScanRequest, emit func(ScanP
 	for _, rule := range selectedRules {
 		selectedScanStates = append(selectedScanStates, RuleScanState{RuleID: rule.ID, ScanID: scanID, LastScanAt: when, Warnings: warningsForRule(result.Warnings, rule)})
 	}
-	reconcileScanState(&state, result.Repositories, selectedRules, selectedScanStates)
-	if err := s.state.Save(ctx, state); err != nil {
+	if err := s.state.Update(ctx, func(state *StateDocument) error {
+		reconcileScanState(state, result.Repositories, selectedRules, selectedScanStates)
+		return nil
+	}); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -662,65 +660,63 @@ func hasIssueCode(issues []Issue, code ErrorCode) bool {
 }
 
 func (s *Service) persistApplyResults(ctx context.Context, plans []ChangePlan, results []ApplyResult) {
-	state, err := s.state.Load(ctx)
-	if err != nil {
-		return
-	}
-	byTarget := make(map[string][]int, len(state.Repositories))
-	byAlias := make(map[string]int, len(state.Repositories))
-	for index, repository := range state.Repositories {
-		for adapter, adapterState := range repository.Adapters {
-			if adapterState.TargetID != "" {
-				key := adapter + "\x00" + adapterState.TargetID
-				byTarget[key] = append(byTarget[key], index)
+	_ = s.state.Update(ctx, func(state *StateDocument) error {
+		byTarget := make(map[string][]int, len(state.Repositories))
+		byAlias := make(map[string]int, len(state.Repositories))
+		for index, repository := range state.Repositories {
+			for adapter, adapterState := range repository.Adapters {
+				if adapterState.TargetID != "" {
+					key := adapter + "\x00" + adapterState.TargetID
+					byTarget[key] = append(byTarget[key], index)
+				}
+			}
+			for _, alias := range repository.Aliases {
+				byAlias[alias.Path] = index
 			}
 		}
-		for _, alias := range repository.Aliases {
-			byAlias[alias.Path] = index
-		}
-	}
-	for index, result := range results {
-		if index >= len(plans) {
-			continue
-		}
-		plan := plans[index]
-		recordIndexes := append([]int(nil), byTarget[plan.Adapter+"\x00"+result.Target.ID]...)
-		for _, alias := range plan.Aliases {
-			if recordIndex, exists := byAlias[alias.Path]; exists && !containsInt(recordIndexes, recordIndex) {
-				recordIndexes = append(recordIndexes, recordIndex)
+		for index, result := range results {
+			if index >= len(plans) {
+				continue
+			}
+			plan := plans[index]
+			recordIndexes := append([]int(nil), byTarget[plan.Adapter+"\x00"+result.Target.ID]...)
+			for _, alias := range plan.Aliases {
+				if recordIndex, exists := byAlias[alias.Path]; exists && !containsInt(recordIndexes, recordIndex) {
+					recordIndexes = append(recordIndexes, recordIndex)
+				}
+			}
+			if len(recordIndexes) == 0 && plan.RepoPath != "" {
+				if recordIndex, exists := byAlias[plan.RepoPath]; exists {
+					recordIndexes = append(recordIndexes, recordIndex)
+				}
+			}
+			if len(recordIndexes) == 0 {
+				aliases := append([]RepositoryAlias(nil), plan.Aliases...)
+				if len(aliases) == 0 && plan.RepoPath != "" {
+					aliases = append(aliases, RepositoryAlias{Path: plan.RepoPath})
+				}
+				recordID := plan.RepoPath
+				if recordID == "" {
+					recordID = result.Target.WorktreePath
+				}
+				recordIndexes = append(recordIndexes, len(state.Repositories))
+				state.Repositories = append(state.Repositories, RepositoryRecord{ID: recordID, Aliases: aliases, Adapters: map[string]AdapterState{}})
+			}
+			for _, recordIndex := range recordIndexes {
+				record := &state.Repositories[recordIndex]
+				if record.Adapters == nil {
+					record.Adapters = map[string]AdapterState{}
+				}
+				record.Adapters[plan.Adapter] = AdapterState{
+					TargetID: result.Target.ID, Fingerprint: result.Fingerprint, Status: statusForApply(result.Status),
+					LastApplyAt: s.now().UTC().Format(time.RFC3339Nano), LastApplyResult: string(result.Status),
+					Blockers: append([]Issue(nil), result.Issues...),
+				}
+				record.Status = aggregateAdapterStatus(record.Adapters)
 			}
 		}
-		if len(recordIndexes) == 0 && plan.RepoPath != "" {
-			if recordIndex, exists := byAlias[plan.RepoPath]; exists {
-				recordIndexes = append(recordIndexes, recordIndex)
-			}
-		}
-		if len(recordIndexes) == 0 {
-			aliases := append([]RepositoryAlias(nil), plan.Aliases...)
-			if len(aliases) == 0 && plan.RepoPath != "" {
-				aliases = append(aliases, RepositoryAlias{Path: plan.RepoPath})
-			}
-			recordID := plan.RepoPath
-			if recordID == "" {
-				recordID = result.Target.WorktreePath
-			}
-			recordIndexes = append(recordIndexes, len(state.Repositories))
-			state.Repositories = append(state.Repositories, RepositoryRecord{ID: recordID, Aliases: aliases, Adapters: map[string]AdapterState{}})
-		}
-		for _, recordIndex := range recordIndexes {
-			record := &state.Repositories[recordIndex]
-			if record.Adapters == nil {
-				record.Adapters = map[string]AdapterState{}
-			}
-			record.Adapters[plan.Adapter] = AdapterState{
-				TargetID: result.Target.ID, Fingerprint: result.Fingerprint, Status: statusForApply(result.Status),
-				LastApplyAt: s.now().UTC().Format(time.RFC3339Nano), LastApplyResult: string(result.Status),
-				Blockers: append([]Issue(nil), result.Issues...),
-			}
-			record.Status = aggregateAdapterStatus(record.Adapters)
-		}
-	}
-	_ = s.state.Save(ctx, state)
+		return nil
+	})
 }
 
 func containsInt(values []int, target int) bool {

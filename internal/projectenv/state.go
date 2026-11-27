@@ -58,38 +58,45 @@ func NewStateStore(configPath string) *StateStore {
 func (s *StateStore) Load(ctx context.Context) (StateDocument, error) {
 	var state StateDocument
 	err := withFileLock(ctx, s.paths.StateLock, func() error {
-		data, err := os.ReadFile(s.paths.State)
-		if errors.Is(err, os.ErrNotExist) {
-			state = emptyState()
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		var header struct {
-			Version int `json:"version"`
-		}
-		if err := json.Unmarshal(data, &header); err != nil {
-			return s.quarantineCorruptState(&state)
-		}
-		switch header.Version {
-		case 1:
-			var legacy legacyStateDocument
-			if err := decodeStrictJSON(data, &legacy); err != nil {
-				return s.quarantineCorruptState(&state)
-			}
-			state = migrateLegacyState(legacy)
-		case 2:
-			if err := decodeStrictJSON(data, &state); err != nil {
-				return s.quarantineCorruptState(&state)
-			}
-		default:
-			return s.quarantineCorruptState(&state)
-		}
-		normalizeStateCollections(&state)
-		return nil
+		var err error
+		state, err = s.loadUnlocked()
+		return err
 	})
 	return state, err
+}
+
+func (s *StateStore) loadUnlocked() (StateDocument, error) {
+	data, err := os.ReadFile(s.paths.State)
+	if errors.Is(err, os.ErrNotExist) {
+		return emptyState(), nil
+	}
+	if err != nil {
+		return StateDocument{}, err
+	}
+	var header struct {
+		Version int `json:"version"`
+	}
+	if err := json.Unmarshal(data, &header); err != nil {
+		var state StateDocument
+		return state, s.quarantineCorruptState(&state)
+	}
+	var state StateDocument
+	switch header.Version {
+	case 1:
+		var legacy legacyStateDocument
+		if err := decodeStrictJSON(data, &legacy); err != nil {
+			return state, s.quarantineCorruptState(&state)
+		}
+		state = migrateLegacyState(legacy)
+	case 2:
+		if err := decodeStrictJSON(data, &state); err != nil {
+			return state, s.quarantineCorruptState(&state)
+		}
+	default:
+		return state, s.quarantineCorruptState(&state)
+	}
+	normalizeStateCollections(&state)
+	return state, nil
 }
 
 func (s *StateStore) quarantineCorruptState(state *StateDocument) error {
@@ -103,20 +110,37 @@ func (s *StateStore) quarantineCorruptState(state *StateDocument) error {
 
 func (s *StateStore) Save(ctx context.Context, state StateDocument) error {
 	return withFileLock(ctx, s.paths.StateLock, func() error {
-		if state.Version == 0 {
-			state.Version = 2
-		}
-		if state.Version != 2 {
-			return newError(ErrUnsupportedVersion, "unsupported project environment state version", fmt.Sprintf("version %d", state.Version))
-		}
-		normalizeStateCollections(&state)
-		data, err := json.MarshalIndent(state, "", "  ")
+		return s.saveUnlocked(state)
+	})
+}
+
+func (s *StateStore) Update(ctx context.Context, mutate func(*StateDocument) error) error {
+	return withFileLock(ctx, s.paths.StateLock, func() error {
+		state, err := s.loadUnlocked()
 		if err != nil {
 			return err
 		}
-		data = append(data, '\n')
-		return atomicWriteFile(s.paths.State, data, 0o600)
+		if err := mutate(&state); err != nil {
+			return err
+		}
+		return s.saveUnlocked(state)
 	})
+}
+
+func (s *StateStore) saveUnlocked(state StateDocument) error {
+	if state.Version == 0 {
+		state.Version = 2
+	}
+	if state.Version != 2 {
+		return newError(ErrUnsupportedVersion, "unsupported project environment state version", fmt.Sprintf("version %d", state.Version))
+	}
+	normalizeStateCollections(&state)
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	return atomicWriteFile(s.paths.State, data, 0o600)
 }
 
 func emptyState() StateDocument {

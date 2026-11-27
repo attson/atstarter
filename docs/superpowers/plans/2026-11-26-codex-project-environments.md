@@ -852,19 +852,19 @@ Commit: `fix: isolate environment previews and scoped scans`
 - Produces: `StateStore.Update(context.Context, func(*StateDocument) error) error` holding one cross-process lock across load, mutation, normalization, and atomic save.
 - Preserves: version 1 migration and corrupt-state quarantine behavior.
 
-- [ ] **Step 1: Add a failing concurrent-update test**
+- [x] **Step 1: Add a failing concurrent-update test**
 
 Start two independent store updates and assert both changes survive. Add a service-level scan/apply persistence regression that would lose one mutation under separate Load/Save transactions.
 
-- [ ] **Step 2: Run state tests and verify failure or missing API**
+- [x] **Step 2: Run state tests and verify failure or missing API**
 
 Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv -run 'TestStateStoreConcurrentUpdatesPreserveBothMutations|TestServiceConcurrentStateMutations' -count=1`
 
-- [ ] **Step 3: Implement locked state update and migrate service mutations**
+- [x] **Step 3: Implement locked state update and migrate service mutations**
 
 Extract `loadUnlocked` and `saveUnlocked`; have Load and Save keep their existing one-operation locks while Update acquires once and invokes both helpers. Change Scan and `persistApplyResults` to mutate via Update so no caller performs a state read-modify-write across separate locks.
 
-- [ ] **Step 4: Run race tests and commit**
+- [x] **Step 4: Run race tests and commit**
 
 Run: `/Users/attson/sdk/go1.23.12/bin/go test -race ./internal/projectenv/... -count=1`
 
