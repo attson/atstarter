@@ -59,7 +59,7 @@ func (a *Adapter) Plan(resolved projectenv.ResolvedEnvironment, snapshot project
 		plan.NativeEdits = append(plan.NativeEdits, insertionEdit(doc, missing))
 	}
 	plan.NativeDiff = nativeDiff(snapshot.NativeContent, plan.NativeEdits)
-	if dangerousCodexPermissions(resolved.Codex) {
+	if dangerousCodexPermissions(resolved.Codex, snapshot) {
 		plan.Warnings = append(plan.Warnings, projectenv.Issue{
 			Code:    projectenv.ErrDangerousCodexPermissions,
 			Message: "Codex will run without sandboxing or approval prompts",
@@ -92,10 +92,20 @@ func codexOperation(intent projectenv.FieldIntent, current []projectenv.OriginVa
 	}
 }
 
-func dangerousCodexPermissions(fields map[string]projectenv.ResolvedField) bool {
-	sandbox, sandboxOK := fields["sandbox_mode"]
-	approval, approvalOK := fields["approval_policy"]
-	return sandboxOK && approvalOK &&
-		sandbox.Intent.Mode == projectenv.ModeSet && sandbox.Intent.Value == "danger-full-access" &&
-		approval.Intent.Mode == projectenv.ModeSet && approval.Intent.Value == "never"
+func dangerousCodexPermissions(fields map[string]projectenv.ResolvedField, snapshot projectenv.Snapshot) bool {
+	effective := map[string]string{}
+	for _, key := range []string{"sandbox_mode", "approval_policy"} {
+		if current := snapshot.Values[key]; len(current) == 1 {
+			effective[key] = current[0].Value
+		}
+		if field, managed := fields[key]; managed {
+			switch field.Intent.Mode {
+			case projectenv.ModeSet:
+				effective[key] = field.Intent.Value
+			case projectenv.ModeClear:
+				delete(effective, key)
+			}
+		}
+	}
+	return effective["sandbox_mode"] == "danger-full-access" && effective["approval_policy"] == "never"
 }

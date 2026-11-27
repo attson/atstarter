@@ -8,7 +8,8 @@ import (
 )
 
 func (a *Adapter) Doctor(ctx context.Context, target projectenv.Target, resolved projectenv.ResolvedEnvironment) []projectenv.Issue {
-	if _, err := a.Inspect(ctx, target); err != nil {
+	snapshot, err := a.Inspect(ctx, target)
+	if err != nil {
 		code := projectenv.ErrInvalidCodexConfig
 		var typed *projectenv.Error
 		if errors.As(err, &typed) {
@@ -22,7 +23,7 @@ func (a *Adapter) Doctor(ctx context.Context, target projectenv.Target, resolved
 			Code: projectenv.ErrCodexUnavailable, Message: "Codex executable is unavailable", Path: target.WorktreePath,
 		})
 	}
-	if dangerousCodexPermissions(resolved.Codex) {
+	if dangerousCodexPermissions(resolved.Codex, snapshot) {
 		issues = append(issues, projectenv.Issue{
 			Code:    projectenv.ErrDangerousCodexPermissions,
 			Message: "Codex will run without sandboxing or approval prompts", Path: target.ConfigPath,

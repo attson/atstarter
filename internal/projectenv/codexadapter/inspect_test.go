@@ -59,6 +59,9 @@ func TestInspectRejectsInvalidOrUnsafeCodexConfiguration(t *testing.T) {
 		{name: "syntax", content: "model = [\n", want: projectenv.ErrInvalidCodexConfig},
 		{name: "duplicate", content: "model = \"one\"\nmodel = \"two\"\n", want: projectenv.ErrInvalidCodexConfig},
 		{name: "wrong managed type", content: "web_search = true\n", want: projectenv.ErrInvalidCodexConfig},
+		{name: "invalid sandbox", content: "sandbox_mode = \"full\"\n", want: projectenv.ErrInvalidCodexConfig},
+		{name: "invalid approval", content: "approval_policy = \"always\"\n", want: projectenv.ErrInvalidCodexConfig},
+		{name: "invalid web search", content: "web_search = \"enabled\"\n", want: projectenv.ErrInvalidCodexConfig},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -93,3 +93,22 @@ func TestPlanAllInheritedDoesNotCreateMissingConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanWarnsForMixedCurrentAndManagedDangerousPermissions(t *testing.T) {
+	repo := makeRepository(t)
+	writeCodexConfig(t, repo, "approval_policy = \"never\"\n")
+	adapter := New()
+	target, _ := adapter.Identify(context.Background(), repo)
+	snapshot, err := adapter.Inspect(context.Background(), target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved := projectenv.ResolvedEnvironment{RepoPath: repo, Codex: map[string]projectenv.ResolvedField{
+		"sandbox_mode": {Intent: projectenv.FieldIntent{Mode: projectenv.ModeSet, Value: "danger-full-access"}},
+	}}
+
+	plan := adapter.Plan(resolved, snapshot)
+	if len(plan.Warnings) != 1 || plan.Warnings[0].Code != projectenv.ErrDangerousCodexPermissions {
+		t.Fatalf("warnings = %+v", plan.Warnings)
+	}
+}

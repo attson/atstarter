@@ -42,8 +42,16 @@ func parseDocument(data []byte) (document, error) {
 		if !ok {
 			continue
 		}
-		if _, ok := value.(string); !ok {
+		stringValue, ok := value.(string)
+		if !ok {
 			return document{}, &projectenv.Error{Code: projectenv.ErrInvalidCodexConfig, Message: "managed Codex field must be a string", Detail: key}
+		}
+		if err := projectenv.ValidateEnvironmentFields(projectenv.EnvironmentFields{Codex: projectenv.FieldMap{
+			key: {Mode: projectenv.ModeSet, Value: stringValue},
+		}}); err != nil {
+			return document{}, &projectenv.Error{
+				Code: projectenv.ErrInvalidCodexConfig, Message: "invalid managed Codex field", Detail: key, Cause: err,
+			}
 		}
 	}
 

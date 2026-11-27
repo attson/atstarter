@@ -779,3 +779,129 @@ git log --oneline --max-count=12
 ```
 
 Expected: clean worktree and a reviewable sequence of focused Phase 2 commits.
+
+---
+
+### Task 11: Close Codex Validation and Dangerous-Combination Gaps
+
+**Files:**
+- Modify: `internal/projectenv/codexadapter/{toml.go,plan.go,doctor.go}`
+- Test: `internal/projectenv/codexadapter/{inspect_test.go,plan_test.go,doctor_test.go}`
+
+**Interfaces:**
+- Produces: post-plan effective Codex values by overlaying `set`/`clear` intent on inspected project values.
+- Preserves: free-form `model` and `model_reasoning_effort`; validates only the three fixed enums.
+
+- [x] **Step 1: Add failing enum and mixed-current-value tests**
+
+Add inspection cases for invalid `sandbox_mode`, `approval_policy`, and `web_search` strings. Add Plan and Doctor cases where one dangerous value is already in `.codex/config.toml` and the other is supplied by resolved intent; assert `dangerous_codex_permissions` is emitted.
+
+- [x] **Step 2: Run focused tests and verify the expected failures**
+
+Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/codexadapter -run 'Test(InspectRejectsInvalidOrUnsafeCodexConfiguration|PlanWarnsForMixedCurrentAndManagedDangerousPermissions|DoctorWarnsForMixedCurrentAndManagedDangerousPermissions)' -count=1`
+
+- [x] **Step 3: Validate parsed enum values and compute post-plan permissions**
+
+Reuse `projectenv.ValidateEnvironmentFields` for each parsed fixed-enum assignment. Add a helper that starts from snapshot values, applies resolved `set`/`clear` operations, and checks the final sandbox/approval pair. Plan uses its existing snapshot; Doctor uses the snapshot returned by Inspect.
+
+- [x] **Step 4: Run all Codex adapter tests and commit**
+
+Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/codexadapter -count=1`
+
+Commit: `fix: close Codex environment safety gaps`
+
+---
+
+### Task 12: Isolate Preview Failures and Reconcile Scoped Scans
+
+**Files:**
+- Modify: `internal/projectenv/service.go`
+- Test: `internal/projectenv/service_test.go`
+
+**Interfaces:**
+- Produces: blocked `ChangePlan` entries for adapter Identify/Inspect failures while independent paths and adapters continue.
+- Produces: scoped scan reconciliation that updates selected rule aliases and scan metadata while preserving unrelated records and adapter state.
+
+- [ ] **Step 1: Add failing multi-target preview and scoped-scan tests**
+
+Use fake adapters to prove one Inspect error becomes one blocked plan while another adapter and repository still plan. Seed state with manual and automatic rule aliases plus adapter results; assert an `AutoOnly` scan or explicit `RuleIDs` scan replaces only selected rule membership and preserves unrelated rules, aliases, and adapter maps.
+
+- [ ] **Step 2: Run focused service tests and verify failure**
+
+Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv -run 'TestService(PlanContinuesAfterAdapterFailure|ScopedScanPreservesUnselectedState)' -count=1`
+
+- [ ] **Step 3: Convert adapter errors to blocked plans and merge scan state**
+
+Build a typed blocker from each adapter error and the best-known path/target data. Reconcile selected rule IDs by removing only their old alias memberships, merging newly discovered aliases by canonical repository ID, retaining adapter state on matching records, dropping records only when they have no remaining aliases, and replacing only selected `RuleScanState` entries.
+
+- [ ] **Step 4: Run service tests and commit**
+
+Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv -run 'TestService|TestState' -count=1`
+
+Commit: `fix: isolate environment previews and scoped scans`
+
+---
+
+### Task 13: Make Derived-State Mutations Transactional
+
+**Files:**
+- Modify: `internal/projectenv/{state.go,service.go}`
+- Test: `internal/projectenv/{state_test.go,service_test.go}`
+
+**Interfaces:**
+- Produces: `StateStore.Update(context.Context, func(*StateDocument) error) error` holding one cross-process lock across load, mutation, normalization, and atomic save.
+- Preserves: version 1 migration and corrupt-state quarantine behavior.
+
+- [ ] **Step 1: Add a failing concurrent-update test**
+
+Start two independent store updates and assert both changes survive. Add a service-level scan/apply persistence regression that would lose one mutation under separate Load/Save transactions.
+
+- [ ] **Step 2: Run state tests and verify failure or missing API**
+
+Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv -run 'TestStateStoreConcurrentUpdatesPreserveBothMutations|TestServiceConcurrentStateMutations' -count=1`
+
+- [ ] **Step 3: Implement locked state update and migrate service mutations**
+
+Extract `loadUnlocked` and `saveUnlocked`; have Load and Save keep their existing one-operation locks while Update acquires once and invokes both helpers. Change Scan and `persistApplyResults` to mutate via Update so no caller performs a state read-modify-write across separate locks.
+
+- [ ] **Step 4: Run race tests and commit**
+
+Run: `/Users/attson/sdk/go1.23.12/bin/go test -race ./internal/projectenv/... -count=1`
+
+Commit: `fix: serialize environment state mutations`
+
+---
+
+### Task 14: Harden Adapter Locks and Codex Directory Writes
+
+**Files:**
+- Modify: `internal/projectenv/filelock.go`
+- Modify: `internal/projectenv/codexadapter/{adapter.go,inspect.go,apply.go}`
+- Create: `internal/projectenv/codexadapter/securefs_unix.go`
+- Create: `internal/projectenv/codexadapter/securefs_windows.go`
+- Modify: `internal/projectenv/gitadapter/apply.go`
+- Test: `internal/projectenv/{codexadapter,gitadapter}/*_test.go`
+
+**Interfaces:**
+- Produces: bounded advisory adapter lock acquisition with typed `lock_timeout` failures and no stale sentinel deadlock.
+- Produces: Codex inspection/write operations relative to held no-follow worktree and `.codex` directory handles, with directory identity revalidation before replacement.
+
+- [ ] **Step 1: Add failing stale-lock, timeout, and directory-swap tests**
+
+Pre-create old sentinel files and prove Git/Codex apply no longer hangs. Hold the advisory lock and assert apply returns a typed timeout within the adapter bound. Add an apply hook that swaps `.codex` after inspection and assert neither the replacement directory nor an outside symlink target is written.
+
+- [ ] **Step 2: Run focused apply tests and verify failure**
+
+Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/codexadapter ./internal/projectenv/gitadapter -run 'TestApply(RecoversFromStaleLockFile|TimesOutWaitingForLock|RejectsCodexDirectorySwap)' -count=1`
+
+- [ ] **Step 3: Replace sentinel locks and path-based Codex I/O**
+
+Expose bounded advisory lock acquisition from `projectenv` and use hashed lock files under the OS temporary lock directory, so crash remnants are harmless. On Unix use `openat`/`renameat` with `O_NOFOLLOW` and retained directory descriptors; on Windows use reparse-point checks plus directory identity validation. Revalidate the held `.codex` directory against the held worktree directory immediately before replacing `config.toml`.
+
+- [ ] **Step 4: Run adapter, race, full, frontend, and diff checks**
+
+Run Go adapter tests, `go test -race ./internal/projectenv/...`, `go test ./...`, all frontend tests, `npm run build`, and `git diff --check`.
+
+- [ ] **Step 5: Commit the hardening and request final review**
+
+Commit: `fix: harden environment adapter persistence`
