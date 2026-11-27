@@ -10,4 +10,9 @@ export const SOURCE_AUDIT_ALLOWLIST = [
   { file: 'components/ScanDialog.vue', text: '✓', reason: 'This check mark is the existing selected-candidate indicator, independent of locale.' },
   { file: 'components/ScanDialog.vue', text: '—', reason: 'This em dash indicates an absent detected command without introducing presentation words.' },
   { file: 'components/ComposeDetail.vue', text: ',', reason: 'This comma separates raw Docker port mappings in their existing order; it contains no presentation words.' },
+  { file: 'components/FileBrowser.vue', text: '›', reason: 'This existing chevron expands the file tree; its translated title supplies the presentation copy.' },
+  { file: 'components/FileBrowser.vue', text: '‹', reason: 'This existing chevron collapses the file tree; its translated title supplies the presentation copy.' },
+  { file: 'components/fileExplorer/EditorStatusBar.vue', text: 'UTF-8', reason: 'UTF-8 is the document encoding identifier and must remain unchanged in every locale.' },
+  { file: 'components/fileExplorer/EditorTabs.vue', text: '●', reason: 'This existing dot indicates unsaved edits; its translated title supplies the presentation copy.' },
+  { file: 'components/fileExplorer/EditorToolbar.vue', text: '/', reason: 'This slash separates raw relative-path segments and must remain unchanged in every locale.' },
 ]

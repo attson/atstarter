@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { File, FilePlus2, Folder, FolderPlus, RefreshCw, Search, X } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
@@ -25,6 +26,8 @@ import {
 } from './fileExplorer/editorTabs.js'
 import { baseName, rewritePrefix } from './fileExplorer/pathOps.js'
 import './fileExplorer/theme-bridge.css'
+
+const { t } = useI18n()
 
 const props = defineProps({ projectId: { type: String, required: true } })
 
@@ -152,17 +155,7 @@ const isCodeView = computed(() => {
 })
 const activeCursor = computed(() => cursors[activePath.value] ?? { line: 1, column: 1, selected: 0, lines: 1 })
 
-const KIND_LABELS = {
-  code: '文本',
-  markdown: 'Markdown',
-  svg: 'SVG',
-  image: '图片',
-  video: '视频',
-  audio: '音频',
-  pdf: 'PDF',
-  'binary-unknown': '二进制',
-}
-const kindLabel = computed(() => KIND_LABELS[activeKind.value] ?? '')
+const kindLabel = computed(() => activeKind.value ? t(`files.previewKind.${activeKind.value}`) : '')
 
 function toggleViewMode() {
   const tab = activeTab.value
@@ -187,13 +180,17 @@ async function revealActive() {
   try {
     await fs.value.reveal(activePath.value)
   } catch (err) {
-    treeError.value = err?.message || '无法在文件管理器中显示'
+    treeError.value = (typeof err === 'string' ? err : err?.message) || { code: 'revealFailed' }
   }
 }
 
 /* ---------------------------------------------------- 文件树回调与错误 */
 
 const treeError = ref('')
+const treeErrorText = computed(() => typeof treeError.value === 'string'
+  ? treeError.value : t(`files.errors.${treeError.value.code}`, { name: treeError.value.name }))
+const searchErrorText = computed(() => typeof searchError.value === 'string'
+  ? searchError.value : t(`files.errors.${searchError.value.code}`))
 
 function onTreeError(message) {
   treeError.value = message
@@ -273,7 +270,7 @@ async function runSearch(bridge, query, request) {
     if (request !== searchGeneration || fs.value !== bridge || trimmedSearchQuery.value !== query) return
     searchResults.value = []
     searchTruncated.value = false
-    searchError.value = err?.message || '搜索失败'
+    searchError.value = (typeof err === 'string' ? err : err?.message) || { code: 'searchFailed' }
   } finally {
     if (request === searchGeneration && fs.value === bridge && trimmedSearchQuery.value === query) {
       searchLoading.value = false
@@ -353,23 +350,23 @@ onBeforeUnmount(() => {
 <template>
   <div class="file-browser fe-scope" :class="{ 'tree-collapsed': treeCollapsed }">
     <!-- 收起态:窄条,点击展开树 -->
-    <button v-if="treeCollapsed" class="tree-expand-strip" title="展开文件树" @click="toggleTree">›</button>
+    <button v-if="treeCollapsed" class="tree-expand-strip" :title="t('files.expandTree')" @click="toggleTree">›</button>
     <div v-show="!treeCollapsed" class="tree-col">
       <div class="tree-head">
         <div class="tree-title-row">
-          <span class="tree-title">文件</span>
+          <span class="tree-title">{{ t('files.title') }}</span>
           <span class="tree-tools">
             <!-- 最外层新建的固定入口:不依赖右键选中了哪一行。 -->
-            <button class="icon-btn" data-test="tree-new-file" title="在项目根新建文件" @click="treeRef?.newFile()">
+            <button class="icon-btn" data-test="tree-new-file" :title="t('files.newFileAtRoot')" @click="treeRef?.newFile()">
               <FilePlus2 :size="14" :stroke-width="1.8" />
             </button>
-            <button class="icon-btn" data-test="tree-new-folder" title="在项目根新建文件夹" @click="treeRef?.newFolder()">
+            <button class="icon-btn" data-test="tree-new-folder" :title="t('files.newFolderAtRoot')" @click="treeRef?.newFolder()">
               <FolderPlus :size="14" :stroke-width="1.8" />
             </button>
-            <button class="icon-btn" data-test="tree-refresh" title="刷新" @click="treeRef?.refresh()">
+            <button class="icon-btn" data-test="tree-refresh" :title="t('files.refresh')" @click="treeRef?.refresh()">
               <RefreshCw :size="14" :stroke-width="1.8" />
             </button>
-            <button class="icon-btn" title="收起文件树" @click="toggleTree">‹</button>
+            <button class="icon-btn" :title="t('files.collapseTree')" @click="toggleTree">‹</button>
           </span>
         </div>
         <label class="search-box">
@@ -378,20 +375,20 @@ onBeforeUnmount(() => {
             v-model="searchQuery"
             data-test="file-search-input"
             type="search"
-            placeholder="搜索文件名"
+            :placeholder="t('files.searchHint')"
             autocomplete="off"
             spellcheck="false"
           >
-          <button v-if="searchQuery" class="search-clear" title="清空搜索" type="button" @click="clearSearch">
+          <button v-if="searchQuery" class="search-clear" :title="t('files.clearSearch')" type="button" @click="clearSearch">
             <X :size="13" :stroke-width="1.8" />
           </button>
         </label>
       </div>
       <div v-if="searching" class="search-results" data-test="file-search-results">
-        <div v-if="searchLoading" class="search-state">搜索中...</div>
-        <div v-else-if="searchError" class="search-state search-error">{{ searchError }}</div>
+        <div v-if="searchLoading" class="search-state">{{ t('files.searching') }}</div>
+        <div v-else-if="searchError" class="search-state search-error">{{ searchErrorText }}</div>
         <div v-else-if="!searchResults.length" class="search-state">
-          {{ searchTruncated ? '搜索达到上限,请缩小关键词。' : '没有匹配文件。' }}
+          {{ t(searchTruncated ? 'files.searchLimit' : 'files.noMatches') }}
         </div>
         <template v-else>
           <button
@@ -408,7 +405,7 @@ onBeforeUnmount(() => {
             <span class="result-name">{{ result.name }}</span>
             <span class="result-path">{{ result.path }}</span>
           </button>
-          <div v-if="searchTruncated" class="search-state">结果较多,已显示前 100 项。</div>
+          <div v-if="searchTruncated" class="search-state">{{ t('files.searchTruncated', { count: 100 }) }}</div>
         </template>
       </div>
       <FileTree
@@ -432,7 +429,7 @@ onBeforeUnmount(() => {
         @activate="activate"
         @close="requestClose"
       />
-      <div v-if="!activePath" class="msg">从左侧选择文件查看内容。</div>
+      <div v-if="!activePath" class="msg">{{ t('files.selectFile') }}</div>
       <template v-else>
         <EditorToolbar
           :path="activePath"
@@ -475,7 +472,7 @@ onBeforeUnmount(() => {
           @goto="gotoLine"
         />
       </template>
-      <div v-if="treeError" class="browser-error" data-test="file-browser-error">{{ treeError }}</div>
+      <div v-if="treeError" class="browser-error" data-test="file-browser-error">{{ treeErrorText }}</div>
     </div>
 
     <EditorPrefsPanel
@@ -487,12 +484,12 @@ onBeforeUnmount(() => {
 
     <FileConfirmDialog
       v-if="closeGuard"
-      :title="`「${baseName(closeGuard)}」有未保存的改动`"
-      message="关闭标签会丢失这些改动。"
+      :title="t('files.unsavedTitle', { name: baseName(closeGuard) })"
+      :message="t('files.unsavedMessage')"
       :buttons="[
-        { id: 'save', label: '保存并关闭', kind: 'primary' },
-        { id: 'discard', label: '不保存', kind: 'danger' },
-        { id: 'cancel', label: '取消', kind: 'secondary' },
+        { id: 'save', kind: 'primary' },
+        { id: 'discard', kind: 'danger' },
+        { id: 'cancel', kind: 'secondary' },
       ]"
       @resolve="resolveCloseGuard"
     />

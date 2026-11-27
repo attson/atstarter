@@ -1,5 +1,6 @@
 import * as vue from 'vue'
 import { babelParse, compileScript, compileTemplate, parse } from 'vue/compiler-sfc'
+import { transformSync } from 'esbuild'
 
 export function compileComponent(source, dependencies) {
   const { descriptor } = parse(source)
@@ -8,10 +9,11 @@ export function compileComponent(source, dependencies) {
     source: descriptor.template.content,
     filename: 'BranchUiTest.vue',
     id: 'branch-ui-test',
-    compilerOptions: { bindingMetadata: script.bindings },
+    compilerOptions: { bindingMetadata: script.bindings, expressionPlugins: ['typescript'] },
   })
   let code = script.content.replace('export default ', 'const component = ') + '\n' +
     template.code.replace('export function render', 'function render')
+  code = transformSync(code, { loader: 'ts', target: 'esnext' }).code
   const bindings = {}
   const imports = babelParse(code, { sourceType: 'module' }).program.body
     .filter((node) => node.type === 'ImportDeclaration')
@@ -29,7 +31,7 @@ export function compileComponent(source, dependencies) {
 
 export function mountVueComponent(component, { props, i18n, beforeMount = () => {} }) {
   const node = (type, text = '') => Object.assign(new EventTarget(), {
-    type, text, props: {}, children: [], parent: null, focus() {},
+    type, text, props: {}, style: {}, children: [], parent: null, focus() {}, select() {},
     getRootNode: () => globalThis.document,
   })
   const detach = (child) => {

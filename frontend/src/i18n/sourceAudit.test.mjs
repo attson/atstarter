@@ -170,6 +170,16 @@ test('audited UI files have no hardcoded presentation copy without an exact exce
     'components/ScanDialog.vue',
     'components/ComposeDetail.vue', 'components/ContainerPanel.vue',
     'components/LogPanel.vue', 'components/UpdateBanner.vue',
+    'components/FileBrowser.vue', 'components/fileExplorer/BinaryBanner.vue',
+    'components/fileExplorer/CodeEditor.vue', 'components/fileExplorer/EditorPrefsPanel.vue',
+    'components/fileExplorer/EditorStatusBar.vue', 'components/fileExplorer/EditorTabs.vue',
+    'components/fileExplorer/EditorToolbar.vue', 'components/fileExplorer/FileConfirmDialog.vue',
+    'components/fileExplorer/FileEditor.vue', 'components/fileExplorer/FileTree.vue',
+    'components/fileExplorer/FileTreeNode.vue', 'components/fileExplorer/ImagePreview.vue',
+    'components/fileExplorer/InlineEditRow.vue', 'components/fileExplorer/MarkdownPreview.vue',
+    'components/fileExplorer/MediaPreview.vue', 'components/fileExplorer/PdfPreview.vue',
+    'components/fileExplorer/fileClipboard.js', 'components/fileExplorer/previewKind.ts',
+    'components/fileExplorer/codeMirrorI18n.js',
   ]) assert.ok(AUDITED_UI_FILES.includes(file), `Missing audit coverage: ${file}`)
   assert.equal(new Set(AUDITED_UI_FILES).size, AUDITED_UI_FILES.length)
   const unmatched = []

@@ -1,6 +1,9 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { computed } from "vue";
 import { Code2, Eye, FolderOpen, RotateCcw, Save, Settings2 } from "lucide-vue-next";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   path: string;
@@ -37,7 +40,7 @@ const segments = computed(() => props.path.split("/").filter(Boolean));
         v-if="canRender"
         class="tb-btn"
         data-test="toolbar-toggle-view"
-        :title="viewMode === 'code' ? '预览渲染结果' : '查看源码'"
+        :title="t(viewMode === 'code' ? 'files.previewRendered' : 'files.viewSource')"
         @click="emit('toggle-view')"
       >
         <component :is="viewMode === 'code' ? Eye : Code2" :size="14" :stroke-width="1.8" />
@@ -46,7 +49,7 @@ const segments = computed(() => props.path.split("/").filter(Boolean));
         v-if="editable"
         class="tb-btn"
         data-test="toolbar-revert"
-        title="放弃改动"
+        :title="t('files.discardChanges')"
         :disabled="!dirty"
         @click="emit('revert')"
       >
@@ -56,16 +59,16 @@ const segments = computed(() => props.path.split("/").filter(Boolean));
         v-if="editable"
         class="tb-btn"
         data-test="toolbar-save"
-        title="保存 (Ctrl/Cmd+S)"
+        :title="t('files.saveShortcut')"
         :disabled="!dirty"
         @click="emit('save')"
       >
         <Save :size="14" :stroke-width="1.8" />
       </button>
-      <button class="tb-btn" data-test="toolbar-reveal" title="在文件管理器中显示" @click="emit('reveal')">
+      <button class="tb-btn" data-test="toolbar-reveal" :title="t('files.reveal')" @click="emit('reveal')">
         <FolderOpen :size="14" :stroke-width="1.8" />
       </button>
-      <button class="tb-btn" data-test="toolbar-prefs" title="编辑器偏好" @click="emit('open-prefs')">
+      <button class="tb-btn" data-test="toolbar-prefs" :title="t('files.preferences')" @click="emit('open-prefs')">
         <Settings2 :size="14" :stroke-width="1.8" />
       </button>
     </div>

@@ -1,6 +1,9 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { X } from "lucide-vue-next";
 import { baseName } from "./pathOps.js";
+
+const { t } = useI18n();
 
 interface Tab {
   path: string;
@@ -42,11 +45,11 @@ function onMouseUp(ev: MouseEvent, path: string) {
       @mouseup="onMouseUp($event, tab.path)"
     >
       <span class="name">{{ baseName(tab.path) }}</span>
-      <span v-if="tab.dirty" class="dot" title="有未保存改动">●</span>
+      <span v-if="tab.dirty" class="dot" :title="t('files.unsavedChanges')">●</span>
       <button
         v-else
         class="close"
-        title="关闭"
+        :title="t('files.close')"
         data-test="editor-tab-close"
         @click.stop="emit('close', tab.path)"
       >
@@ -56,7 +59,7 @@ function onMouseUp(ev: MouseEvent, path: string) {
       <button
         v-if="tab.dirty"
         class="close close-dirty"
-        title="关闭"
+        :title="t('files.close')"
         data-test="editor-tab-close"
         @click.stop="emit('close', tab.path)"
       >

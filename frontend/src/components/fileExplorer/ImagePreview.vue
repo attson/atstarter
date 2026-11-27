@@ -1,7 +1,10 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { onBeforeUnmount, ref, watch } from "vue";
 import BinaryBanner from "./BinaryBanner.vue";
 import type { FileSystemBridge } from "./fsBridge";
+
+const { t } = useI18n();
 
 const props = defineProps<{ fs: FileSystemBridge; path: string; theme: "dimmed" | "light" }>();
 const src = ref("");
@@ -9,6 +12,7 @@ const assetKey = ref(0);
 
 const mode = ref<"fit" | "native">("fit");
 const failed = ref(false);
+const error = ref("");
 let active = true;
 let request = 0;
 let requested: { fs: FileSystemBridge; path: string } | null = null;
@@ -28,6 +32,7 @@ async function loadAsset() {
   requested = { fs, path };
   src.value = "";
   failed.value = false;
+  error.value = "";
   try {
     const url = await fs.assetUrlFor(path);
     if (!active || currentRequest !== request || props.fs !== fs || props.path !== path) {
@@ -35,8 +40,11 @@ async function loadAsset() {
       return;
     }
     src.value = url;
-  } catch {
-    if (active && currentRequest === request && props.fs === fs && props.path === path) failed.value = true;
+  } catch (err) {
+    if (active && currentRequest === request && props.fs === fs && props.path === path) {
+      error.value = (typeof err === "string" ? err : (err as Error)?.message) || "";
+      failed.value = true;
+    }
   }
 }
 
@@ -57,9 +65,9 @@ function onError(event: Event) {
 </script>
 
 <template>
-  <BinaryBanner v-if="failed" :fs="fs" :path="path" />
+  <BinaryBanner v-if="failed" :fs="fs" :path="path" :message="error || undefined" />
   <div v-else class="img-host" :class="mode">
-    <img :key="assetKey" :data-asset-request="assetKey" :src="src" alt="" @click="toggle" @error="onError" />
+    <img :key="assetKey" :data-asset-request="assetKey" :src="src" :alt="path" :title="t(mode === 'fit' ? 'files.imageNative' : 'files.imageFit')" @click="toggle" @error="onError" />
   </div>
 </template>
 

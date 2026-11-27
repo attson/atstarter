@@ -1,8 +1,10 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import type { FileSystemBridge } from "./fsBridge";
 
+const { t } = useI18n();
+
 const props = defineProps<{ fs: FileSystemBridge; path: string; message?: string }>();
-const T = { unsupportedPreview: "不支持预览此文件类型。", openInSystem: "用系统程序打开" };
 
 async function openExternal() {
   try {
@@ -15,9 +17,9 @@ async function openExternal() {
 
 <template>
   <div class="binary-banner">
-    <span class="msg">{{ message ?? T.unsupportedPreview }}</span>
+    <span class="msg">{{ message ?? t('files.unsupportedPreview') }}</span>
     <button class="open-btn" @click="openExternal">
-      {{ T.openInSystem }}
+      {{ t('files.openInSystem') }}
     </button>
   </div>
 </template>

@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { computed, nextTick, ref, watch, onMounted, onBeforeUnmount } from "vue";
 import FileTreeNode from "./FileTreeNode.vue";
 import ConfirmDialog from "./FileConfirmDialog.vue";
@@ -16,26 +17,7 @@ import {
   treeKeyAction,
 } from "./treeKeyboard.js";
 
-// 中文文案(替代 atterm 的 i18n)。
-const T = {
-  newFile: "新建文件",
-  newFolder: "新建文件夹",
-  copy: "复制",
-  cut: "剪切",
-  paste: "粘贴",
-  duplicate: "创建副本",
-  copyRelPath: "复制相对路径",
-  copyAbsPath: "复制绝对路径",
-  reveal: "在文件管理器中显示",
-  rename: "重命名",
-  delete: "删除",
-  moveToTrash: "移到废纸篓",
-  cancel: "取消",
-  confirmHardDelete: (name: string) => `确定永久删除「${name}」?此操作不可恢复。`,
-  confirmTrash: (name: string) => `确定把「${name}」移到废纸篓?`,
-  confirmHardDeleteMany: (n: number) => `确定永久删除这 ${n} 项?此操作不可恢复。`,
-  confirmTrashMany: (n: number) => `确定把这 ${n} 项移到废纸篓?`,
-};
+const { t } = useI18n();
 
 interface DirEntry {
   name: string;
@@ -66,7 +48,7 @@ const emit = defineEmits<{
   (e: "path-renamed", from: string, to: string): void;
   /** 路径被删除;编辑器要关掉它和它下面的标签。 */
   (e: "path-removed", path: string): void;
-  (e: "error", message: string): void;
+  (e: "error", message: TreeError): void;
 }>();
 
 type ContextMenuAnchor = {
@@ -118,7 +100,10 @@ const selectionAnchor = ref<string>("");
 const cutPaths = ref<Set<string>>(new Set());
 const dropTarget = ref<string>("");
 const rootDropActive = ref(false);
-const treeError = ref<string>("");
+type TreeError = string | { code: string; name?: string };
+const treeError = ref<TreeError>("");
+const treeErrorText = computed(() => typeof treeError.value === "string"
+  ? treeError.value : t(`files.errors.${treeError.value.code}`, { name: treeError.value.name }));
 const clipboardEntry = ref(fileClipboard.read());
 const wrapRef = ref<HTMLDivElement | null>(null);
 
@@ -126,7 +111,7 @@ let dragItems: Array<{ path: string; isDir: boolean }> = [];
 let errorTimer: ReturnType<typeof setTimeout> | null = null;
 let offClipboard: () => void = () => {};
 
-function showError(message: string) {
+function showError(message: TreeError) {
   treeError.value = message;
   emit("error", message);
   if (errorTimer) clearTimeout(errorTimer);
@@ -138,7 +123,7 @@ async function runFsOp<T>(action: () => Promise<T>): Promise<T | null> {
   try {
     return await action();
   } catch (err) {
-    showError((err as Error)?.message || "操作失败");
+    showError((typeof err === "string" ? err : (err as Error)?.message) || { code: "operationFailed" });
     return null;
   }
 }
@@ -590,30 +575,30 @@ type MenuItem = { id: string; label: string; test: string; danger?: boolean; dis
 const menuItems = computed<Array<MenuItem | "sep">>(() => {
   const node = menu.value?.node ?? null;
   const items: Array<MenuItem | "sep"> = [
-    { id: "newFile", label: T.newFile, test: "menu-new-file" },
-    { id: "newFolder", label: T.newFolder, test: "menu-new-folder" },
+    { id: "newFile", label: t("files.actions.newFile"), test: "menu-new-file" },
+    { id: "newFolder", label: t("files.actions.newFolder"), test: "menu-new-folder" },
     "sep",
   ];
   if (node) {
     items.push(
-      { id: "copy", label: T.copy, test: "menu-copy" },
-      { id: "cut", label: T.cut, test: "menu-cut" },
+      { id: "copy", label: t("files.actions.copy"), test: "menu-copy" },
+      { id: "cut", label: t("files.actions.cut"), test: "menu-cut" },
     );
   }
-  items.push({ id: "paste", label: T.paste, test: "menu-paste", disabled: !clipboardEntry.value });
+  items.push({ id: "paste", label: t("files.actions.paste"), test: "menu-paste", disabled: !clipboardEntry.value });
   if (node) {
     items.push(
-      { id: "duplicate", label: T.duplicate, test: "menu-duplicate" },
+      { id: "duplicate", label: t("files.actions.duplicate"), test: "menu-duplicate" },
       "sep",
-      { id: "rename", label: T.rename, test: "menu-rename" },
-      { id: "copyRelPath", label: T.copyRelPath, test: "menu-copy-rel-path" },
-      { id: "copyAbsPath", label: T.copyAbsPath, test: "menu-copy-abs-path" },
-      { id: "reveal", label: T.reveal, test: "menu-reveal" },
+      { id: "rename", label: t("files.actions.rename"), test: "menu-rename" },
+      { id: "copyRelPath", label: t("files.actions.copyRelPath"), test: "menu-copy-rel-path" },
+      { id: "copyAbsPath", label: t("files.actions.copyAbsPath"), test: "menu-copy-abs-path" },
+      { id: "reveal", label: t("files.actions.reveal"), test: "menu-reveal" },
       "sep",
-      { id: "delete", label: T.delete, test: "menu-delete", danger: true },
+      { id: "delete", label: t("files.actions.delete"), test: "menu-delete", danger: true },
     );
   } else {
-    items.push("sep", { id: "reveal", label: T.reveal, test: "menu-reveal" });
+    items.push("sep", { id: "reveal", label: t("files.actions.reveal"), test: "menu-reveal" });
   }
   return items;
 });
@@ -670,8 +655,8 @@ async function onMenuAction(id: string) {
 async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text);
-  } catch {
-    showError("无法写入系统剪贴板");
+  } catch (err) {
+    showError((typeof err === "string" ? err : (err as Error)?.message) || { code: "clipboardFailed" });
   }
 }
 
@@ -785,11 +770,11 @@ async function resolveDeleteConfirm(id: string) {
       await props.fs.trash(node.path);
       emit("path-removed", node.path);
     } catch (err) {
-      const msg = (err as Error).message ?? "";
+      const msg = (typeof err === "string" ? err : (err as Error)?.message) ?? "";
       if (msg.includes("no platform trash command available") || msg.includes("trash unavailable")) {
         failedToTrash.push(node);
       } else {
-        showError(msg || "删除失败");
+        showError(msg || { code: "deleteFailed" });
       }
     }
   }
@@ -802,18 +787,18 @@ const deleteTitle = computed(() => {
   if (!conf) return "";
   if (conf.nodes.length === 1) {
     const name = baseName(conf.nodes[0].path);
-    return conf.mode === "hard" ? T.confirmHardDelete(name) : T.confirmTrash(name);
+    return conf.mode === "hard" ? t("files.confirmHardDelete", { name }) : t("files.confirmTrash", { name });
   }
   return conf.mode === "hard"
-    ? T.confirmHardDeleteMany(conf.nodes.length)
-    : T.confirmTrashMany(conf.nodes.length);
+    ? t("files.confirmHardDeleteMany", { count: conf.nodes.length })
+    : t("files.confirmTrashMany", { count: conf.nodes.length });
 });
 
 function deleteButtons(mode: "trash" | "hard") {
   const primary = mode === "hard"
-    ? { id: "hard", label: T.delete, kind: "danger" as const }
-    : { id: "trash", label: T.moveToTrash, kind: "primary" as const };
-  return [primary, { id: "cancel", label: T.cancel, kind: "secondary" as const }];
+    ? { id: "hard", label: t("files.actions.delete"), kind: "danger" as const }
+    : { id: "trash", label: t("files.actions.moveToTrash"), kind: "primary" as const };
+  return [primary, { id: "cancel", label: t("files.actions.cancel"), kind: "secondary" as const }];
 }
 
 /* ---------------------------------------------------------------- 拖拽 */
@@ -951,7 +936,7 @@ defineExpose({
     <!-- 空白填充区:让「树下方的空处」也能右键/放置到根。 -->
     <div class="tree-blank" @contextmenu="openMenuFromBlank" />
 
-    <div v-if="treeError" class="tree-error" data-test="file-tree-error">{{ treeError }}</div>
+    <div v-if="treeError" class="tree-error" data-test="file-tree-error">{{ treeErrorText }}</div>
 
     <div
       v-if="menu"

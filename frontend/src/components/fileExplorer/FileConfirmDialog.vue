@@ -1,10 +1,13 @@
 <script lang="ts" setup>
+import { useI18n } from "vue-i18n";
 import { onMounted, onBeforeUnmount, ref } from "vue";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   title: string;
   message?: string;
-  buttons: Array<{ id: string; label: string; kind?: "primary" | "danger" | "secondary" }>;
+  buttons: Array<{ id: string; label?: string; kind?: "primary" | "danger" | "secondary" }>;
 }>();
 
 const emit = defineEmits<{
@@ -43,7 +46,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", handleKey));
           :data-test="`btn-${b.id}`"
           @click="emit('resolve', b.id)"
         >
-          {{ b.label }}
+          {{ b.label ?? t(`files.closeActions.${b.id}`) }}
         </button>
       </div>
     </div>
