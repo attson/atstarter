@@ -4,7 +4,7 @@ import { normalizeAppSettings, terminalFontFamily } from './appSettings.js'
 
 test('normalizeAppSettings supplies stable defaults', () => {
   assert.deepEqual(normalizeAppSettings(), {
-    shell: '', autoShell: '', availableShells: [], logFontFamily: 'monospace', logFontSize: 11, logLetterSpacing: 0,
+    language: 'system', shell: '', autoShell: '', availableShells: [], logFontFamily: 'monospace', logFontSize: 11, logLetterSpacing: 0,
   })
 })
 
@@ -14,9 +14,21 @@ test('normalizeAppSettings trims values, deduplicates shells, and clamps numbers
     availableShells: ['/usr/bin/zsh', ' /usr/bin/zsh ', '', null],
     logFontFamily: ' JetBrains Mono ', logFontSize: 99, logLetterSpacing: -2,
   }), {
-    shell: '/usr/bin/zsh', autoShell: '/usr/bin/zsh', availableShells: ['/usr/bin/zsh'],
+    language: 'system', shell: '/usr/bin/zsh', autoShell: '/usr/bin/zsh', availableShells: ['/usr/bin/zsh'],
     logFontFamily: 'JetBrains Mono', logFontSize: 20, logLetterSpacing: 0,
   })
+})
+
+test('normalizeAppSettings preserves supported language preferences', () => {
+  for (const language of ['system', 'zh-CN', 'en']) {
+    assert.equal(normalizeAppSettings({ language }).language, language)
+  }
+})
+
+test('normalizeAppSettings defaults unsupported language preferences to system', () => {
+  for (const language of [undefined, null, '', 'fr', 'zh', 'EN', ' en ', 0, {}, []]) {
+    assert.equal(normalizeAppSettings({ language }).language, 'system')
+  }
 })
 
 test('terminalFontFamily keeps a guaranteed monospace fallback', () => {

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppButton from './ui/AppButton.vue'
 import { normalizeAppSettings, terminalFontFamily } from '../appSettings.js'
 
@@ -10,8 +11,10 @@ const props = defineProps({
   error: String,
 })
 const emit = defineEmits(['save', 'close'])
+const { t } = useI18n()
 
 const fontOptions = ['monospace']
+const languageChoice = ref('system')
 const shellChoice = ref('')
 const customShell = ref('')
 const fontChoice = ref('monospace')
@@ -21,6 +24,7 @@ const letterSpacing = ref(0)
 
 function reset(value) {
   const settings = normalizeAppSettings(value)
+  languageChoice.value = settings.language
   const knownShell = !settings.shell || settings.availableShells.includes(settings.shell)
   shellChoice.value = knownShell ? settings.shell : '__custom__'
   customShell.value = knownShell ? '' : settings.shell
@@ -50,6 +54,7 @@ function save() {
   if (!canSave.value) return
   emit('save', {
     ...normalizeAppSettings(props.settings),
+    language: languageChoice.value,
     shell: shellChoice.value === '__custom__' ? customShell.value.trim() : shellChoice.value,
     logFontFamily: chosenFont.value,
     logFontSize: Number(fontSize.value),
@@ -64,49 +69,61 @@ function save() {
       <Transition name="dlg-pop" appear>
         <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
           <div class="dialog-head">
-            <h3 id="settings-title">设置</h3>
+            <h3 id="settings-title">{{ t('settings.title') }}</h3>
           </div>
 
-          <section v-if="settings?.autoShell || (settings?.availableShells || []).length">
-            <h4>运行环境</h4>
+          <section>
+            <h4>{{ t('settings.general') }}</h4>
             <label>
-              <span>默认 Shell</span>
-              <select v-model="shellChoice">
-                <option value="">自动{{ settings?.autoShell ? ` (${settings.autoShell})` : '' }}</option>
-                <option v-for="shell in settings?.availableShells || []" :key="shell" :value="shell">{{ shell }}</option>
-                <option value="__custom__">自定义路径...</option>
+              <span>{{ t('settings.language') }}</span>
+              <select v-model="languageChoice">
+                <option value="system">{{ t('settings.languageSystem') }}</option>
+                <option value="zh-CN">{{ t('settings.languageChinese') }}</option>
+                <option value="en">{{ t('settings.languageEnglish') }}</option>
               </select>
             </label>
-            <input v-if="shellChoice === '__custom__'" v-model="customShell" class="mono" placeholder="/path/to/shell" />
+          </section>
+
+          <section v-if="settings?.autoShell || (settings?.availableShells || []).length">
+            <h4>{{ t('settings.runtime') }}</h4>
+            <label>
+              <span>{{ t('settings.defaultShell') }}</span>
+              <select v-model="shellChoice">
+                <option value="">{{ t('settings.shellAutomatic') }}{{ settings?.autoShell ? ` (${settings.autoShell})` : '' }}</option>
+                <option v-for="shell in settings?.availableShells || []" :key="shell" :value="shell">{{ shell }}</option>
+                <option value="__custom__">{{ t('settings.customShell') }}</option>
+              </select>
+            </label>
+            <input v-if="shellChoice === '__custom__'" v-model="customShell" class="mono" :placeholder="t('settings.shellPathHint')" />
           </section>
 
           <section>
-            <h4>日志显示</h4>
+            <h4>{{ t('settings.logDisplay') }}</h4>
             <div class="field-grid">
               <label class="font-field">
-                <span>字体</span>
+                <span>{{ t('settings.font') }}</span>
                 <select v-model="fontChoice">
-                  <option v-for="font in fontOptions" :key="font" :value="font">{{ font === 'monospace' ? '系统等宽' : font }}</option>
-                  <option value="__custom__">自定义字体...</option>
+                  <option v-for="font in fontOptions" :key="font" :value="font">{{ font === 'monospace' ? t('settings.systemMonospace') : font }}</option>
+                  <option value="__custom__">{{ t('settings.customFont') }}</option>
                 </select>
               </label>
               <label>
-                <span>字号</span>
+                <span>{{ t('settings.fontSize') }}</span>
                 <input v-model.number="fontSize" type="number" min="9" max="20" step="1" />
               </label>
               <label>
-                <span>字符间距</span>
+                <span>{{ t('settings.letterSpacing') }}</span>
                 <input v-model.number="letterSpacing" type="number" min="0" max="4" step="1" />
               </label>
             </div>
-            <input v-if="fontChoice === '__custom__'" v-model="customFont" placeholder="Font family" />
-            <div class="preview" :style="previewStyle">go run main.go · 编译完成 0123456789</div>
+            <input v-if="fontChoice === '__custom__'" v-model="customFont" :placeholder="t('settings.fontFamilyHint')" />
+            <div class="preview" :style="previewStyle">{{ t('settings.preview') }}</div>
           </section>
 
           <p v-if="error" class="error">{{ error }}</p>
           <div class="actions">
-            <AppButton variant="secondary" :disabled="saving" @click="emit('close')">取消</AppButton>
-            <AppButton variant="primary" :disabled="saving || !canSave" @click="save">{{ saving ? '保存中...' : '保存' }}</AppButton>
+            <AppButton variant="secondary" :disabled="saving" @click="emit('close')">{{ t('common.cancel') }}</AppButton>
+            <AppButton variant="primary" :disabled="saving || !canSave" @click="save">{{ saving ? t('common.saving') : t('common.save') }}</AppButton>
           </div>
         </div>
       </Transition>

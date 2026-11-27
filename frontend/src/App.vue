@@ -33,6 +33,8 @@ import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 import { inferWorkspaceRoots } from './workspaceRoots'
 import { applyDetectionOption } from './projectDetection.js'
 import { normalizeAppSettings } from './appSettings.js'
+import { setLanguagePreference } from './i18n/index.js'
+import { applyLoadedSettings, saveSettingsAndApply } from './i18n/settingsFlow.js'
 import { startVisibleStatusPolling } from './statusPolling.js'
 
 const projects = ref([])
@@ -119,7 +121,7 @@ async function onCheckUpdates() {
 
 async function loadAppSettings() {
   try {
-    appSettings.value = normalizeAppSettings(await GetAppSettings())
+    appSettings.value = applyLoadedSettings(await GetAppSettings(), setLanguagePreference)
   } catch (e) {
     console.error('读取设置失败:', e)
   }
@@ -135,7 +137,7 @@ async function onSaveSettings(value) {
   settingsSaving.value = true
   settingsError.value = ''
   try {
-    appSettings.value = normalizeAppSettings(await SaveAppSettings(value))
+    appSettings.value = await saveSettingsAndApply(value, SaveAppSettings, setLanguagePreference)
     showSettings.value = false
   } catch (e) {
     settingsError.value = String(e)
