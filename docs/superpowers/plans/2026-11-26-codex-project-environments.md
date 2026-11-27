@@ -718,7 +718,7 @@ git commit -m "docs: document Codex project environments"
 - Verifies: every design requirement and Phase 1 regression constraint.
 - Produces: a clean worktree with passing automated and live UI checks.
 
-- [ ] **Step 1: Run formatting and generated-file checks**
+- [x] **Step 1: Run formatting and generated-file checks**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/gofmt -w internal/projectenv/*.go internal/projectenv/gitadapter/*.go internal/projectenv/codexadapter/*.go app.go app_environments.go env_cli.go env_cli_test.go
@@ -728,7 +728,7 @@ git status --short
 
 Expected: no formatting errors or unexpected generated artifacts.
 
-- [ ] **Step 2: Run all Go tests**
+- [x] **Step 2: Run all Go tests**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./... -count=1
@@ -736,7 +736,7 @@ Expected: no formatting errors or unexpected generated artifacts.
 
 Expected: PASS.
 
-- [ ] **Step 3: Run project-environment race tests**
+- [x] **Step 3: Run project-environment race tests**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test -race ./internal/projectenv/... -count=1
@@ -744,7 +744,7 @@ Expected: PASS.
 
 Expected: PASS with no race reports.
 
-- [ ] **Step 4: Run all frontend tests and build**
+- [x] **Step 4: Run all frontend tests and build**
 
 ```bash
 cd frontend
@@ -754,11 +754,11 @@ npm run build
 
 Expected: all tests PASS and Vite build succeeds.
 
-- [ ] **Step 5: Run focused manual CLI smoke tests in a temporary repository**
+- [x] **Step 5: Run focused manual CLI smoke tests in a temporary repository**
 
 Create a temporary Git repository and use an isolated `--config` path. Verify `diff` does not create `.codex`, normal `apply --yes` creates only project `.codex/config.toml`, `clear` removes only the managed assignment, malformed TOML blocks without byte changes, stale apply refuses, and dangerous apply requires `--accept-dangerous`. Remove the temporary directory after evidence is recorded.
 
-- [ ] **Step 6: Start the development server and inspect the live UI**
+- [x] **Step 6: Start the development server and inspect the live UI**
 
 Run the existing development command on an unused port. Use AIPageGo against the live localhost page at desktop and narrow viewport sizes. Verify:
 
@@ -769,7 +769,7 @@ Run the existing development command on an unused port. Use AIPageGo against the
 - adapter plans and both confirmation gates render correctly;
 - no horizontal page scroll, console errors, or failed assets occur.
 
-- [ ] **Step 7: Record final evidence**
+- [x] **Step 7: Record final evidence**
 
 Run:
 
