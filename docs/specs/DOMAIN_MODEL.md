@@ -27,7 +27,7 @@ Codex intent. Docker, files, logs, groups, environments, and updates remain in o
 | Editor Tab | `editorTabs` state | One open file in the project file editor, with its dirty flag and view mode | `frontend/src/components/fileExplorer/editorTabs.js` |
 | Branch | `git.Branches` | Local/remote branch list plus worktree status for one project | `internal/git/git.go` |
 | Control State | `control.State` | Runtime-only localhost control discovery for CLI/MCP | `internal/control/protocol.go` |
-| App Settings | `store.AppSettings` | Cross-project shell and log typography preferences | `internal/store/model.go` |
+| App Settings | `store.AppSettings` | Cross-project language, shell, and log typography preferences | `internal/store/model.go` |
 | Environment Preset | `projectenv.Preset` | Named, reusable Git and Codex field intents independent of filesystem paths | `internal/projectenv/model.go` |
 | Directory Rule | `projectenv.Rule` | Canonical directory path, match/discovery scope, optional preset, and inline overrides | `internal/projectenv/model.go` |
 | Resolved Environment | `projectenv.ResolvedEnvironment` | Effective field intents and source provenance for one repository path | `internal/projectenv/model.go` |
@@ -238,6 +238,7 @@ The Git adapter supports exactly `user.name`, `user.email`, `user.signingKey`, `
 
 The Codex adapter supports exactly `model`, `model_reasoning_effort`, `sandbox_mode`,
 `approval_policy`, and `web_search`. Model and reasoning values are non-empty free-form strings.
+
 Sandbox values are `read-only`, `workspace-write`, or `danger-full-access`; approval values are
 `untrusted`, `on-failure`, `on-request`, `granular`, or `never`; web search values are `disabled`,
 `cached`, `indexed`, or `live`.
@@ -252,6 +253,15 @@ values, `shared_target_conflict` blocks the target rather than choosing one alia
 Each canonical worktree root identifies one Codex target whose config path is
 `<worktree>/.codex/config.toml`. Linked worktrees therefore share one Git plan but retain independent
 Codex plans. A plan for a missing Codex file fingerprints the absence distinctly from an empty file.
+
+### 4.6 App Settings
+
+`AppSettings.Language` is persisted in `config.json.settings.language` and accepts exactly
+`system`, `zh-CN`, or `en`. Missing, zero-value, and unknown values normalize to `system`; this
+backward-compatible migration keeps config schema version 1. The backend-normalized settings
+returned by Wails are authoritative. `rootyard.settings.language` in browser storage is only a
+non-authoritative startup cache used before backend settings load; it must not override the loaded
+backend preference.
 
 ## 5. Value Objects
 

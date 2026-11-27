@@ -40,7 +40,7 @@ summarizeApplyResults(results)
 | Containers | `ContainerPanel.vue` | Host container list and lifecycle |
 | File browser | `FileBrowser.vue`, `fileExplorer/*` | Project-scoped file operations |
 | Dialogs | `*Dialog.vue` | Modal editing/confirmation flows |
-| App settings | `SettingsDialog.vue` | Default shell and live log typography preferences |
+| App settings | `SettingsDialog.vue` | Language, default shell, and live log typography preferences |
 | Environments | `EnvironmentWorkspace.vue` | Overview, Presets, Directory Rules, and Repositories views |
 | UI primitives | `components/ui/*` | Buttons, icons, pills, theme toggle |
 
@@ -172,6 +172,24 @@ Applicable to `EnvironmentWorkspace.vue`, `components/environments/*`, and
 Reference implementation: `frontend/src/components/environments`,
 `frontend/src/projectEnvironmentUi.js`.
 
+### 3.8 Localization Pattern
+
+1. Use `vue-i18n` with semantic message keys in `frontend/src/i18n/messages/en.js` and
+   `zh-CN.js`. The catalogs must have exact key parity.
+2. Translate at render time with `t(...)`; do not store translated UI text in state or return it from
+   presentation helpers. Helpers return stable semantic keys/codes and raw parameters.
+3. Keep third-party diagnostics and user-owned data raw, including process output, paths, commands,
+   repository names, Git/Codex values, and file contents. Translate known application-owned status
+   and error codes at the UI boundary; do not translate arbitrary diagnostic strings.
+4. Localize accessible names and other user-facing attributes (`aria-label`, `title`, `alt`, and
+   placeholders) alongside visible labels. Keep `<html lang>` synchronized with the effective
+   locale (`zh-CN` or `en`).
+5. The language preference is `system | zh-CN | en`; the Settings dialog is the only language
+   switch surface. The backend-normalized `AppSettings.Language` is authoritative. The
+   `rootyard.settings.language` browser-storage value is a startup cache only.
+
+Reference implementation: `frontend/src/i18n`, `frontend/src/components/SettingsDialog.vue`.
+
 ## 4. Allowed And Forbidden
 
 ### Allowed Changes
@@ -222,3 +240,5 @@ Reference implementation: `frontend/src/components/environments`,
       applies a global `border-box` reset that the app does not, so box-model bugs can look fine in
       the demo and break in the app.
 - [ ] Check environment list and preview layouts at 1024x768 and 1440x900 in light and dark themes.
+- [ ] Verify both `zh-CN` and `en` at 1024x768 and 1440x900 in light and dark themes; check layout,
+      translated accessible names, and `<html lang>` in both locales.
