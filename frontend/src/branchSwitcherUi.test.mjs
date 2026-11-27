@@ -3,12 +3,12 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import * as vue from 'vue'
-import { babelParse, compileScript, compileTemplate, parse } from 'vue/compiler-sfc'
 import { createI18n, useI18n } from 'vue-i18n'
 import * as icons from 'lucide-vue-next'
 import * as gitBranches from './gitBranches.js'
 import en from './i18n/messages/en.js'
 import zhCN from './i18n/messages/zh-CN.js'
+import { compileComponent, mountVueComponent } from './testUtils/vueComponentHarness.mjs'
 
 const read = (name) => fs.readFileSync(new URL(name, import.meta.url), 'utf8')
 
@@ -34,33 +34,8 @@ test('分支列表每次打开都重新拉,避免展示过期数据', () => {
   assert.match(switcher, /await load\(\)/)
 })
 
-// Compile the real components with Vue's existing compiler. The only dependency
-// double is the native Wails boundary; Vue, i18n, and child components stay real.
-function compileComponent(source, dependencies) {
-  const { descriptor } = parse(source)
-  const script = compileScript(descriptor, { id: 'branch-ui-test' })
-  const template = compileTemplate({
-    source: descriptor.template.content,
-    filename: 'BranchUiTest.vue',
-    id: 'branch-ui-test',
-    compilerOptions: { bindingMetadata: script.bindings },
-  })
-  let code = script.content.replace('export default ', 'const component = ') + '\n' +
-    template.code.replace('export function render', 'function render')
-  const bindings = {}
-  const imports = babelParse(code, { sourceType: 'module' }).program.body
-    .filter((node) => node.type === 'ImportDeclaration')
-  for (const node of imports.reverse()) {
-    for (const specifier of node.specifiers) {
-      const dependency = dependencies[node.source.value]
-      bindings[specifier.local.name] = specifier.type === 'ImportDefaultSpecifier'
-        ? dependency : dependency[specifier.imported.name]
-    }
-    code = code.slice(0, node.start) + code.slice(node.end)
-  }
-  return new Function(...Object.keys(bindings), code + '\ncomponent.render = render; return component')(...Object.values(bindings))
-}
-
+// The dependency double is the native Wails boundary; Vue, i18n, and child
+// components are rendered by the shared in-memory host.
 function mountSwitcher(native, running = false) {
   const dependencies = {
     vue,
@@ -72,60 +47,18 @@ function mountSwitcher(native, running = false) {
     './ui/AppIcon.vue': compileComponent(read('./components/ui/AppIcon.vue'), { vue }),
   }
   const component = compileComponent(switcher, dependencies)
-  const node = (type, text = '') => Object.assign(new EventTarget(), {
-    type, text, props: {}, children: [], parent: null, focus() {},
-    getRootNode: () => globalThis.document,
-  })
-  const detach = (child) => {
-    if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1)
-    child.parent = null
-  }
-  const renderer = vue.createRenderer({
-    createElement: (type) => node(type), createComment: (text) => node('#comment', text), createText: (text) => node('#text', text),
-    setText: (element, text) => { element.text = text },
-    setElementText: (element, text) => { element.text = text; element.children = [] },
-    patchProp: (element, key, previous, next) => { element.props[key] = next },
-    insert: (child, parent, anchor) => {
-      detach(child)
-      const index = anchor ? parent.children.indexOf(anchor) : -1
-      parent.children.splice(index < 0 ? parent.children.length : index, 0, child)
-      child.parent = parent
-    },
-    remove: detach,
-    parentNode: (element) => element.parent,
-    nextSibling: (element) => element.parent?.children[element.parent.children.indexOf(element) + 1] || null,
-  })
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, 'zh-CN': zhCN } })
-  const app = renderer.createApp(component, { project: { id: 'project-raw' }, running })
-  app.use(i18n)
-  const container = node('root')
-  const originalDocument = globalThis.document
-  const originalDocumentClass = globalThis.Document
-  globalThis.Document = class extends EventTarget {}
-  globalThis.document = new Document()
-  const instance = app.mount(container)
-  const all = (element = container) => [element, ...element.children.flatMap((child) => all(child))]
-  const text = (element) => element.type === '#comment' ? '' : element.text + element.children.map(text).join('')
-  const find = (key, value) => all().find((element) => element.props[key] === value)
+  const host = mountVueComponent(component, { props: { project: { id: 'project-raw' }, running }, i18n })
   return {
-    state: instance.$.setupState,
+    ...host,
     i18n,
-    visibleText: () => text(container),
     visibleError: async () => {
       // Drain the native Promise rejection and both resulting Vue render jobs.
       await new Promise((resolve) => setImmediate(resolve))
       await vue.nextTick()
-      const element = find('data-test', 'branch-error')
+      const element = host.find((element) => element.props['data-test'] === 'branch-error')
       assert.ok(element, 'the error must be rendered in the branch menu')
-      return text(element)
-    },
-    unmount: () => {
-      try { app.unmount() } finally {
-        if (originalDocument === undefined) delete globalThis.document
-        else globalThis.document = originalDocument
-        if (originalDocumentClass === undefined) delete globalThis.Document
-        else globalThis.Document = originalDocumentClass
-      }
+      return element.text
     },
   }
 }

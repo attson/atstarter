@@ -15,7 +15,13 @@ const emit = defineEmits(['close', 'save'])
 
 const mode = ref('existing')
 const selectedGroupId = ref('')
-const newGroupName = ref('')
+const editedGroupName = ref(null)
+const newGroupName = computed({
+  get: () => editedGroupName.value ?? (props.project
+    ? t('groups.suggestedName', { name: props.project.name })
+    : ''),
+  set: (value) => { editedGroupName.value = value },
+})
 
 const commandLine = computed(() => props.command
   ? [props.command.command, ...(props.command.args || [])].filter(Boolean).join(' ')
@@ -46,7 +52,7 @@ watch(() => props.show, (show) => {
   const list = props.groups || []
   const firstOpen = list.find((g) => !groupContainsCurrent(g))
   selectedGroupId.value = (firstOpen || list[0])?.id || ''
-  newGroupName.value = props.project ? t('groups.suggestedName', { name: props.project.name }) : ''
+  editedGroupName.value = null
 })
 
 function save() {
@@ -54,7 +60,7 @@ function save() {
   emit('save', {
     mode: mode.value,
     groupId: selectedGroupId.value,
-    groupName: newGroupName.value.trim(),
+    groupName: newGroupName.value,
   })
 }
 </script>
