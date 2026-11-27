@@ -308,10 +308,12 @@ func TestServiceScopedScanPreservesUnselectedState(t *testing.T) {
 	root := t.TempDir()
 	shared := filepath.Join(root, "shared")
 	manualOnly := filepath.Join(t.TempDir(), "manual-only")
+	explicit := t.TempDir()
 	makeRepositoryMarker(t, shared, false)
 	makeRepositoryMarker(t, manualOnly, false)
 	shared = canonicalTestPath(t, shared)
 	manualOnly = canonicalTestPath(t, manualOnly)
+	explicit = canonicalTestPath(t, explicit)
 	service, configPath := newTestEnvironmentService(t)
 	ctx := context.Background()
 	doc, _ := service.GetDocument(ctx)
@@ -342,6 +344,7 @@ func TestServiceScopedScanPreservesUnselectedState(t *testing.T) {
 	}, Repositories: []RepositoryRecord{
 		{ID: shared, Aliases: []RepositoryAlias{{Path: shared, RuleIDs: []string{outerID, autoID}}}, MatchingRuleIDs: []string{outerID, autoID}, Status: "consistent", Adapters: map[string]AdapterState{"git": {TargetID: "shared-common", Fingerprint: "keep"}}},
 		{ID: manualOnly, Aliases: []RepositoryAlias{{Path: manualOnly, RuleIDs: []string{manualID}}}, MatchingRuleIDs: []string{manualID}, Status: "consistent", Adapters: map[string]AdapterState{"git": {TargetID: "manual-common", Fingerprint: "keep"}}},
+		{ID: explicit, Aliases: []RepositoryAlias{{Path: explicit}}, Status: "consistent", Adapters: map[string]AdapterState{"codex": {TargetID: explicit, Fingerprint: "keep"}}},
 	}}
 	if err := NewStateStore(configPath).Save(ctx, seed); err != nil {
 		t.Fatal(err)
@@ -354,7 +357,7 @@ func TestServiceScopedScanPreservesUnselectedState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(state.Repositories) != 2 || len(state.RuleScans) != 3 {
+	if len(state.Repositories) != 3 || len(state.RuleScans) != 3 {
 		t.Fatalf("state = %+v", state)
 	}
 	records := map[string]RepositoryRecord{}
@@ -368,10 +371,58 @@ func TestServiceScopedScanPreservesUnselectedState(t *testing.T) {
 	if records[manualOnly].Adapters["git"].Fingerprint != "keep" {
 		t.Fatalf("manual record = %+v", records[manualOnly])
 	}
+	if records[explicit].Adapters["codex"].Fingerprint != "keep" || len(records[explicit].Aliases) != 1 {
+		t.Fatalf("explicit record = %+v", records[explicit])
+	}
 	for _, scan := range state.RuleScans {
 		if scan.RuleID != autoID && scan.ScanID != map[string]string{outerID: "outer-before", manualID: "manual-before"}[scan.RuleID] {
 			t.Fatalf("unselected scan was replaced: %+v", scan)
 		}
+	}
+}
+
+func TestServiceFullScanPrunesDeletedRuleState(t *testing.T) {
+	root := t.TempDir()
+	currentRepo := filepath.Join(root, "current")
+	deletedRepo := filepath.Join(t.TempDir(), "deleted")
+	makeRepositoryMarker(t, currentRepo, false)
+	makeRepositoryMarker(t, deletedRepo, false)
+	currentRepo = canonicalTestPath(t, currentRepo)
+	deletedRepo = canonicalTestPath(t, deletedRepo)
+	service, configPath := newTestEnvironmentService(t)
+	ctx := context.Background()
+	doc, _ := service.GetDocument(ctx)
+	name := "Current"
+	doc, err := service.SaveRule(ctx, SaveRuleRequest{
+		Revision: doc.Revision, Name: &name, Path: stringPointer(root), Recursive: boolPointer(true),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentRuleID := doc.Config.Rules[0].ID
+	const deletedRuleID = "rule_deleted"
+	seed := StateDocument{Version: 2, RuleScans: []RuleScanState{
+		{RuleID: currentRuleID, ScanID: "current-before"}, {RuleID: deletedRuleID, ScanID: "deleted-before"},
+	}, Repositories: []RepositoryRecord{
+		{ID: currentRepo, Aliases: []RepositoryAlias{{Path: currentRepo, RuleIDs: []string{currentRuleID}}}, Adapters: map[string]AdapterState{}},
+		{ID: deletedRepo, Aliases: []RepositoryAlias{{Path: deletedRepo, RuleIDs: []string{deletedRuleID}}}, Adapters: map[string]AdapterState{"git": {Fingerprint: "stale"}}},
+	}}
+	if err := NewStateStore(configPath).Save(ctx, seed); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := service.Scan(ctx, ScanRequest{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	state, err := service.State(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Repositories) != 1 || state.Repositories[0].ID != currentRepo {
+		t.Fatalf("repositories = %+v", state.Repositories)
+	}
+	if len(state.RuleScans) != 1 || state.RuleScans[0].RuleID != currentRuleID || state.RuleScans[0].ScanID == "current-before" {
+		t.Fatalf("rule scans = %+v", state.RuleScans)
 	}
 }
 

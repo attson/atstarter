@@ -43,6 +43,18 @@ func (a *Adapter) Apply(ctx context.Context, plan projectenv.ChangePlan) project
 	}
 	defer unlock()
 
+	nativeLock, nativeLockPath, err := acquireNativeConfigLock(lockCtx, currentTarget.ConfigPath)
+	if err != nil {
+		return failedApplyResult(result, errorCode(err, projectenv.ErrApplyFailed), "acquire native Git configuration lock", err.Error())
+	}
+	nativeCommitted := false
+	defer func() {
+		_ = nativeLock.Close()
+		if !nativeCommitted {
+			_ = os.Remove(nativeLockPath)
+		}
+	}()
+
 	original, err := os.ReadFile(currentTarget.ConfigPath)
 	if err != nil {
 		return failedApplyResult(result, projectenv.ErrApplyFailed, "read Git configuration", err.Error())
@@ -65,28 +77,17 @@ func (a *Adapter) Apply(ctx context.Context, plan projectenv.ChangePlan) project
 	if err != nil {
 		return failedApplyResult(result, projectenv.ErrApplyFailed, "inspect Git configuration", err.Error())
 	}
-	temp, err := os.CreateTemp(filepath.Dir(currentTarget.ConfigPath), ".rootyard-config-*")
-	if err != nil {
-		return failedApplyResult(result, projectenv.ErrApplyFailed, "create temporary Git configuration", err.Error())
-	}
-	tempPath := temp.Name()
-	cleanup := true
-	defer func() {
-		_ = temp.Close()
-		if cleanup {
-			_ = os.Remove(tempPath)
-		}
-	}()
-	if err := temp.Chmod(info.Mode().Perm()); err != nil {
+	tempPath := nativeLockPath
+	if err := nativeLock.Chmod(info.Mode().Perm()); err != nil {
 		return failedApplyResult(result, projectenv.ErrApplyFailed, "set temporary Git configuration permissions", err.Error())
 	}
-	if _, err := temp.Write(original); err != nil {
+	if _, err := nativeLock.Write(original); err != nil {
 		return failedApplyResult(result, projectenv.ErrApplyFailed, "copy Git configuration", err.Error())
 	}
-	if err := temp.Sync(); err != nil {
+	if err := nativeLock.Sync(); err != nil {
 		return failedApplyResult(result, projectenv.ErrApplyFailed, "flush temporary Git configuration", err.Error())
 	}
-	if err := temp.Close(); err != nil {
+	if err := nativeLock.Close(); err != nil {
 		return failedApplyResult(result, projectenv.ErrApplyFailed, "close temporary Git configuration", err.Error())
 	}
 
@@ -130,13 +131,38 @@ func (a *Adapter) Apply(ctx context.Context, plan projectenv.ChangePlan) project
 	if err := replaceConfigFile(tempPath, currentTarget.ConfigPath); err != nil {
 		return failedApplyResult(result, projectenv.ErrApplyFailed, "replace Git configuration", err.Error())
 	}
-	cleanup = false
+	nativeCommitted = true
 	if err := syncConfigDirectory(filepath.Dir(currentTarget.ConfigPath)); err != nil {
 		return failedApplyResult(result, projectenv.ErrApplyFailed, "flush Git configuration directory", err.Error())
 	}
 	result.Status = projectenv.ApplySuccess
 	result.Fingerprint = fingerprintBytes(finalBytes)
 	return result
+}
+
+func acquireNativeConfigLock(ctx context.Context, configPath string) (*os.File, string, error) {
+	lockPath := configPath + ".lock"
+	for {
+		file, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
+		if err == nil {
+			return file, lockPath, nil
+		}
+		if !errors.Is(err, os.ErrExist) {
+			return nil, lockPath, err
+		}
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return nil, lockPath, &projectenv.Error{
+				Code: projectenv.ErrLockTimeout, Message: "timed out waiting for native Git configuration lock",
+				Detail: lockPath, Cause: ctx.Err(),
+			}
+		case <-timer.C:
+		}
+	}
 }
 
 func adapterLockTimeout(timeout time.Duration) time.Duration {

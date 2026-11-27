@@ -94,19 +94,18 @@ func TestApplyRejectsStaleFingerprintWithoutWriting(t *testing.T) {
 	}
 }
 
-func TestApplyRecoversFromStaleLockFile(t *testing.T) {
+func TestApplyHonorsNativeConfigLock(t *testing.T) {
 	repo := newGitRepository(t)
 	adapter := New()
+	adapter.lockTimeout = 30 * time.Millisecond
 	plan := planForRepository(t, adapter, repo, projectenv.FieldMap{
 		"user.name": {Mode: projectenv.ModeSet, Value: "Ada"},
 	})
 	if err := os.WriteFile(plan.Target.ConfigPath+".lock", []byte("held"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer cancel()
-	result := adapter.Apply(ctx, plan)
-	if result.Status != projectenv.ApplySuccess {
+	result := adapter.Apply(context.Background(), plan)
+	if result.Status != projectenv.ApplyFailed || len(result.Issues) != 1 || result.Issues[0].Code != projectenv.ErrLockTimeout {
 		t.Fatalf("result = %+v", result)
 	}
 	if data, err := os.ReadFile(plan.Target.ConfigPath + ".lock"); err != nil || string(data) != "held" {

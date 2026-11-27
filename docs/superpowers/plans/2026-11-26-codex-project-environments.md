@@ -905,3 +905,40 @@ Run Go adapter tests, `go test -race ./internal/projectenv/...`, `go test ./...`
 - [x] **Step 5: Commit the hardening and request final review**
 
 Commit: `fix: harden environment adapter persistence`
+
+---
+
+### Task 15: Close Final Lock, Special-File, and Scan-Reconciliation Edges
+
+**Files:**
+- Modify: `internal/projectenv/codexadapter/securefs_unix.go`
+- Test: `internal/projectenv/codexadapter/inspect_test.go`
+- Modify: `internal/projectenv/gitadapter/apply.go`
+- Test: `internal/projectenv/gitadapter/apply_test.go`
+- Modify: `internal/projectenv/service.go`
+- Test: `internal/projectenv/service_test.go`
+
+**Interfaces:**
+- Preserves: context-bounded Codex inspection for nonregular files by opening Unix descriptors nonblocking before type validation.
+- Restores: native Git `<config>.lock` interoperability while retaining the separate bounded Rootyard advisory lock.
+- Preserves: ruleless explicit aliases during scoped scans and prunes deleted-rule memberships during full scans.
+
+- [x] **Step 1: Add failing FIFO, native-lock, ruleless-alias, and deleted-rule tests**
+
+Create a FIFO at `.codex/config.toml` and assert Inspect returns rather than hanging. Hold a native Git `config.lock` and assert Apply returns typed `lock_timeout` without changing it. Seed a ruleless explicit record and assert an unrelated AutoOnly scan preserves it. Seed deleted-rule state and assert a full scan removes its aliases and scan metadata.
+
+- [x] **Step 2: Run focused tests and verify all four failures**
+
+Run the named tests with a bounded Go test timeout; confirm each fails for the reviewed behavior rather than fixture setup.
+
+- [x] **Step 3: Implement minimal safety and reconciliation fixes**
+
+Add `O_NONBLOCK` to Unix config opens before `Stat`. Reserve Git's native lock file with bounded `O_EXCL`, use it as the verified temporary config, and rename it only on commit. Track whether a scoped scan removed any selected membership before dropping an empty alias; on full scans replace all rule memberships and scan rows so deleted IDs are pruned.
+
+- [x] **Step 4: Run focused, race, cross-platform compile, frontend, and diff verification**
+
+Run all project-environment tests, race tests, Windows cross-compilation, frontend tests/build, and `git diff --check`.
+
+- [x] **Step 5: Commit and complete final independent review**
+
+Commit: `fix: close environment persistence edge cases`

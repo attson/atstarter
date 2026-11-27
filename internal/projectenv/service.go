@@ -231,8 +231,9 @@ func (s *Service) Scan(ctx context.Context, request ScanRequest, emit func(ScanP
 	for _, rule := range selectedRules {
 		selectedScanStates = append(selectedScanStates, RuleScanState{RuleID: rule.ID, ScanID: scanID, LastScanAt: when, Warnings: warningsForRule(result.Warnings, rule)})
 	}
+	fullScan := len(request.RuleIDs) == 0 && !request.AutoOnly
 	if err := s.state.Update(ctx, func(state *StateDocument) error {
-		reconcileScanState(state, result.Repositories, selectedRules, selectedScanStates)
+		reconcileScanState(state, result.Repositories, selectedRules, selectedScanStates, fullScan)
 		return nil
 	}); err != nil {
 		return result, err
@@ -499,7 +500,7 @@ func repositoryRecordsFromCandidates(candidates []RepositoryCandidate) []Reposit
 	return records
 }
 
-func reconcileScanState(state *StateDocument, candidates []RepositoryCandidate, selected []Rule, scans []RuleScanState) {
+func reconcileScanState(state *StateDocument, candidates []RepositoryCandidate, selected []Rule, scans []RuleScanState, fullScan bool) {
 	selectedIDs := make(map[string]struct{}, len(selected))
 	for _, rule := range selected {
 		selectedIDs[rule.ID] = struct{}{}
@@ -511,12 +512,16 @@ func reconcileScanState(state *StateDocument, candidates []RepositoryCandidate, 
 		filtered := make([]RepositoryAlias, 0, len(record.Aliases))
 		for _, alias := range record.Aliases {
 			remaining := make([]string, 0, len(alias.RuleIDs))
+			removedMembership := false
 			for _, ruleID := range alias.RuleIDs {
-				if _, replacing := selectedIDs[ruleID]; !replacing {
-					remaining = append(remaining, ruleID)
+				_, replacing := selectedIDs[ruleID]
+				if fullScan || replacing {
+					removedMembership = true
+					continue
 				}
+				remaining = append(remaining, ruleID)
 			}
-			if len(remaining) > 0 {
+			if len(remaining) > 0 || !removedMembership {
 				alias.RuleIDs = remaining
 				filtered = append(filtered, alias)
 			}
@@ -565,7 +570,8 @@ func reconcileScanState(state *StateDocument, candidates []RepositoryCandidate, 
 
 	keptScans := make([]RuleScanState, 0, len(state.RuleScans)+len(scans))
 	for _, scan := range state.RuleScans {
-		if _, replacing := selectedIDs[scan.RuleID]; !replacing {
+		_, replacing := selectedIDs[scan.RuleID]
+		if !fullScan && !replacing {
 			keptScans = append(keptScans, scan)
 		}
 	}

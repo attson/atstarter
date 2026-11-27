@@ -59,7 +59,7 @@ func (s *secureConfigDir) readConfig() ([]byte, os.FileMode, bool, error) {
 	if s.dir == nil {
 		return nil, 0o600, false, nil
 	}
-	fd, err := unix.Openat(int(s.dir.Fd()), "config.toml", unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	fd, err := unix.Openat(int(s.dir.Fd()), "config.toml", unix.O_RDONLY|unix.O_NONBLOCK|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 	if errors.Is(err, unix.ENOENT) {
 		return nil, 0o600, false, nil
 	}
