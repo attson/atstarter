@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Download, X, Loader2, Sparkles, AlertTriangle } from 'lucide-vue-next'
 import { isUpdateBannerVisible, startUpdateCheckTimer } from '../updateSchedule'
 import {
@@ -12,6 +13,8 @@ import {
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 import AppButton from './ui/AppButton.vue'
 import AppIcon from './ui/AppIcon.vue'
+
+const { t } = useI18n()
 
 const state = ref({
   current: '',
@@ -30,9 +33,17 @@ const state = ref({
 })
 const dismissed = ref(false)
 const manualNotice = ref(false)
+const failure = ref(null)
+const installing = ref(false)
+const errorMessage = computed(() => failure.value
+  ? failure.value.detail || t('updates.failure')
+  : state.value.error
+)
+const currentVersion = computed(() => state.value.current || state.value.latest || 'dev')
+const checkingVersion = computed(() => state.value.current || 'dev')
 
 const visible = computed(() => {
-  return isUpdateBannerVisible(state.value, {
+  return isUpdateBannerVisible(failure.value ? { ...state.value, error: true } : state.value, {
     dismissed: dismissed.value,
     manualNotice: manualNotice.value,
   })
@@ -41,8 +52,12 @@ const visible = computed(() => {
 const kind = computed(() => {
   const s = state.value
   if (s.checking) return 'checking'
-  if (s.error) return 'error'
+  if (failure.value || s.error) return 'error'
+  if (installing.value) return 'installing'
   if (s.ready) return 'ready'
+  // The existing backend keeps downloading true through signature/checksum
+  // verification after reporting 100%; unknown-size downloads may stay below it.
+  if (s.downloading && s.downloadPct >= 100) return 'verifying'
   if (s.downloading) return 'downloading'
   if (s.available) return 'available'
   return 'idle'
@@ -52,27 +67,38 @@ async function refresh() {
   try { state.value = await UpdateGetState() } catch {}
 }
 
+async function runUpdate(action) {
+  failure.value = null
+  try {
+    state.value = await action()
+  } catch (error) {
+    // Wails may reject with a raw string or a message-shaped native error.
+    // Keep detail byte-for-byte; only an absent detail receives a translated fallback.
+    const detail = typeof error === 'string' ? error : typeof error?.message === 'string' ? error.message : ''
+    failure.value = { detail }
+    state.value = { ...state.value, checking: false, downloading: false }
+  }
+}
+
 async function check({ notify = false } = {}) {
   if (notify) manualNotice.value = true
   dismissed.value = false
-  try {
-    state.value = await UpdateCheck()
-  } catch (e) {
-    state.value = { ...state.value, checking: false, error: String(e) }
-  }
+  await runUpdate(UpdateCheck)
 }
 
 async function download() {
   dismissed.value = false
-  state.value = await UpdateStartDownload()
+  await runUpdate(UpdateStartDownload)
 }
 
 async function cancel() {
-  state.value = await UpdateCancel()
+  await runUpdate(UpdateCancel)
 }
 
 async function install() {
-  state.value = await UpdateInstall()
+  installing.value = true
+  try { await runUpdate(UpdateInstall) }
+  finally { installing.value = false }
 }
 
 let autoHideTimer = null
@@ -107,7 +133,7 @@ let unsub = null
 let stopTimer = null
 onMounted(() => {
   refresh()
-  unsub = EventsOn('update:state', (s) => { state.value = s })
+  unsub = EventsOn('update:state', (s) => { failure.value = null; state.value = s })
   // Silent checks only surface when an update is available.
   check()
   stopTimer = startUpdateCheckTimer(() => check())
@@ -125,71 +151,77 @@ defineExpose({ check })
   <transition name="dlg-fade">
     <div v-if="visible" :class="['update-banner', `kind-${kind}`]">
       <div class="icon-wrap">
-        <AppIcon v-if="kind === 'downloading'" :icon="Loader2" :size="16" class="spin" />
+        <AppIcon v-if="kind === 'downloading' || kind === 'verifying' || kind === 'installing'" :icon="Loader2" :size="16" class="spin" />
         <AppIcon v-else-if="kind === 'error'" :icon="AlertTriangle" :size="16" />
         <AppIcon v-else :icon="Sparkles" :size="16" />
       </div>
 
       <div class="body">
         <template v-if="kind === 'error'">
-          <div class="title">更新出错</div>
-          <div class="sub">{{ state.error }}</div>
+          <div class="title">{{ t('updates.error') }}</div>
+          <div class="sub">{{ errorMessage }}</div>
         </template>
         <template v-else-if="kind === 'checking'">
-          <div class="title">正在检查更新…</div>
-          <div class="sub">当前 {{ state.current || 'dev' }}</div>
+          <div class="title">{{ t('updates.checking') }}</div>
+          <div class="sub">{{ t('updates.current', { version: checkingVersion }) }}</div>
+        </template>
+        <template v-else-if="kind === 'installing'">
+          <div class="title">{{ t('updates.installing', { version: state.latest }) }}</div>
         </template>
         <template v-else-if="kind === 'ready'">
-          <div class="title">{{ state.latest }} 已下载完成</div>
-          <div class="sub">点击「立即安装」重启应用并升级。</div>
+          <div class="title">{{ t('updates.ready', { version: state.latest }) }}</div>
+          <div class="sub">{{ t('updates.installHint') }}</div>
         </template>
-        <template v-else-if="kind === 'downloading'">
-          <div class="title">下载 {{ state.latest }}… {{ state.downloadPct }}%</div>
+        <template v-else-if="kind === 'downloading' || kind === 'verifying'">
+          <div class="title">{{ kind === 'verifying' ? t('updates.verifying', { version: state.latest }) : t('updates.downloading', { version: state.latest, percent: state.downloadPct }) }}</div>
           <div class="progress"><div class="bar" :style="{ width: state.downloadPct + '%' }" /></div>
         </template>
         <template v-else-if="kind === 'available'">
-          <div class="title">新版本 {{ state.latest }} 可用</div>
-          <div class="sub">当前 {{ state.current }} · {{ (state.assetSize / 1024 / 1024).toFixed(1) }} MB</div>
+          <div class="title">{{ t('updates.available', { version: state.latest }) }}</div>
+          <div class="sub">{{ t('updates.currentSize', { version: state.current, size: (state.assetSize / 1024 / 1024).toFixed(1) }) }}</div>
         </template>
         <template v-else>
-          <div class="title">已是最新版本</div>
-          <div class="sub">当前 {{ state.current || state.latest || 'dev' }}</div>
+          <div class="title">{{ t('updates.upToDate') }}</div>
+          <div class="sub">{{ t('updates.current', { version: currentVersion }) }}</div>
         </template>
       </div>
 
       <div class="actions">
         <template v-if="kind === 'checking'">
-          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" aria-label="dismiss">
+          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" :aria-label="t('updates.dismiss')">
             <template #icon><AppIcon :icon="X" :size="12" /></template>
           </AppButton>
         </template>
         <template v-else-if="kind === 'available'">
           <AppButton v-if="state.canInstall" variant="primary" size="sm" @click="download">
             <template #icon><AppIcon :icon="Download" :size="12" /></template>
-            下载
+            {{ t('updates.download') }}
           </AppButton>
-          <AppButton v-else variant="secondary" size="sm" @click="openReleasePage">前往下载</AppButton>
-          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" aria-label="dismiss">
+          <AppButton v-else variant="secondary" size="sm" @click="openReleasePage">{{ t('updates.openDownload') }}</AppButton>
+          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" :aria-label="t('updates.dismiss')">
             <template #icon><AppIcon :icon="X" :size="12" /></template>
           </AppButton>
         </template>
-        <template v-else-if="kind === 'downloading'">
-          <AppButton variant="secondary" size="sm" @click="cancel">取消</AppButton>
+        <template v-else-if="kind === 'downloading' || kind === 'verifying'">
+          <AppButton variant="secondary" size="sm" @click="cancel">{{ t('common.cancel') }}</AppButton>
+        </template>
+        <template v-else-if="kind === 'installing'">
+          <AppButton variant="primary" size="sm" disabled>{{ t('updates.installing', { version: state.latest }) }}</AppButton>
         </template>
         <template v-else-if="kind === 'ready'">
-          <AppButton variant="primary" size="sm" @click="install">立即安装</AppButton>
-          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" aria-label="dismiss">
+          <AppButton variant="primary" size="sm" @click="install">{{ t('updates.install') }}</AppButton>
+          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" :aria-label="t('updates.dismiss')">
             <template #icon><AppIcon :icon="X" :size="12" /></template>
           </AppButton>
         </template>
         <template v-else-if="kind === 'error'">
-          <AppButton variant="secondary" size="sm" @click="check">重试</AppButton>
-          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" aria-label="dismiss">
+          <AppButton variant="secondary" size="sm" @click="check">{{ t('common.retry') }}</AppButton>
+          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" :aria-label="t('updates.dismiss')">
             <template #icon><AppIcon :icon="X" :size="12" /></template>
           </AppButton>
         </template>
         <template v-else>
-          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" aria-label="dismiss">
+          <AppButton variant="secondary" size="sm" icon-only @click="dismiss" :aria-label="t('updates.dismiss')">
             <template #icon><AppIcon :icon="X" :size="12" /></template>
           </AppButton>
         </template>

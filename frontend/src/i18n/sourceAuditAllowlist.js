@@ -9,4 +9,5 @@ export const SOURCE_AUDIT_ALLOWLIST = [
   { file: 'components/BranchSwitcher.vue', text: '●', reason: 'This dot is the existing dirty-worktree indicator, independent of locale.' },
   { file: 'components/ScanDialog.vue', text: '✓', reason: 'This check mark is the existing selected-candidate indicator, independent of locale.' },
   { file: 'components/ScanDialog.vue', text: '—', reason: 'This em dash indicates an absent detected command without introducing presentation words.' },
+  { file: 'components/ComposeDetail.vue', text: ',', reason: 'This comma separates raw Docker port mappings in their existing order; it contains no presentation words.' },
 ]

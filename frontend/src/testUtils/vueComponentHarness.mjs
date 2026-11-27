@@ -27,7 +27,7 @@ export function compileComponent(source, dependencies) {
 }
 
 
-export function mountVueComponent(component, { props, i18n }) {
+export function mountVueComponent(component, { props, i18n, beforeMount = () => {} }) {
   const node = (type, text = '') => Object.assign(new EventTarget(), {
     type, text, props: {}, children: [], parent: null, focus() {},
     getRootNode: () => globalThis.document,
@@ -59,6 +59,7 @@ export function mountVueComponent(component, { props, i18n }) {
   const originalDocumentClass = globalThis.Document
   globalThis.Document = class extends EventTarget {}
   globalThis.document = new Document()
+  beforeMount({ document: globalThis.document, app })
   const instance = app.mount(container)
   const all = (element = container) => [element, ...element.children.flatMap((child) => all(child))]
   const text = (element) => element.type === '#comment' ? '' : element.text + element.children.map(text).join('')
