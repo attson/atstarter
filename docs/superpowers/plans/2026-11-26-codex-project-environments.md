@@ -215,17 +215,17 @@ git commit -m "feat: track environment state per adapter"
 - Extends: `Snapshot.NativeContent []byte` with `json:"-"` for same-process planning only.
 - Uses: `github.com/pelletier/go-toml/v2` for complete-document syntax and type validation.
 
-- [ ] **Step 1: Add the TOML dependency**
+- [x] **Step 1: Add the TOML dependency**
 
 Run:
 
 ```bash
-/Users/attson/sdk/go1.23.12/bin/go get github.com/pelletier/go-toml/v2@v2.2.4
+/Users/attson/sdk/go1.23.12/bin/go get github.com/pelletier/go-toml/v2@v2.2.2
 ```
 
 Expected: `go.mod` and `go.sum` record the pinned parser.
 
-- [ ] **Step 2: Write failing identify and inspection tests**
+- [x] **Step 2: Write failing identify and inspection tests**
 
 Tests must initialize a normal repository and linked worktree, then prove Codex IDs are distinct worktree roots while Git common directories are irrelevant. Inspection cases must cover missing file, root values, a table after root values, wrong managed type, malformed TOML, duplicate managed key, `.codex` symlink, and config symlink.
 
@@ -243,7 +243,7 @@ multi_agent = true # keep table comment
 
 Assert that the snapshot reports only managed values, retains the exact fixture in `NativeContent`, and emits `ErrInvalidCodexConfig` or `ErrUnsafeCodexConfigPath` as blocking issues without exposing `secret` in the issue detail.
 
-- [ ] **Step 3: Run adapter tests and confirm failure**
+- [x] **Step 3: Run adapter tests and confirm failure**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/codexadapter -run 'Test(Identify|Inspect)' -count=1
@@ -251,7 +251,7 @@ Assert that the snapshot reports only managed values, retains the exact fixture 
 
 Expected: FAIL because the package does not exist.
 
-- [ ] **Step 4: Implement identity, safe path checks, and parser-backed inspection**
+- [x] **Step 4: Implement identity, safe path checks, and parser-backed inspection**
 
 The default adapter runs bounded `git rev-parse --show-toplevel`, canonicalizes the returned root, and returns:
 
@@ -285,7 +285,7 @@ type document struct {
 
 Use `go-toml/v2` to reject invalid full documents and decode root managed values as strings. Use its parser tokens/positions, rather than regex alone, to find top-level assignment/value spans. Treat missing files as a distinct fingerprint state. Check each path component with `Lstat` before reading and block symlinks or non-regular configuration files.
 
-- [ ] **Step 5: Run inspect tests**
+- [x] **Step 5: Run inspect tests**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/codexadapter -run 'Test(Identify|Inspect)' -count=1
@@ -293,7 +293,7 @@ Use `go-toml/v2` to reject invalid full documents and decode root managed values
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit safe Codex inspection**
+- [x] **Step 6: Commit safe Codex inspection**
 
 ```bash
 git add go.mod go.sum internal/projectenv/adapter.go internal/projectenv/errors.go internal/projectenv/codexadapter

@@ -20,6 +20,8 @@ const (
 	ErrGitUnavailable            ErrorCode = "git_unavailable"
 	ErrInvalidRepository         ErrorCode = "invalid_repository"
 	ErrInvalidGitConfig          ErrorCode = "invalid_git_config"
+	ErrInvalidCodexConfig        ErrorCode = "invalid_codex_config"
+	ErrUnsafeCodexConfigPath     ErrorCode = "unsafe_codex_config_path"
 	ErrStalePlan                 ErrorCode = "stale_plan"
 	ErrApplyFailed               ErrorCode = "apply_failed"
 	ErrSigningKeyUnavailable     ErrorCode = "signing_key_unavailable"

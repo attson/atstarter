@@ -26,10 +26,12 @@ type OriginValue struct {
 }
 
 type Snapshot struct {
-	Target      Target                   `json:"target"`
-	Values      map[string][]OriginValue `json:"values"`
-	Fingerprint string                   `json:"fingerprint"`
-	Issues      []Issue                  `json:"issues"`
+	Target        Target                   `json:"target"`
+	Values        map[string][]OriginValue `json:"values"`
+	Fingerprint   string                   `json:"fingerprint"`
+	Issues        []Issue                  `json:"issues"`
+	Exists        bool                     `json:"exists"`
+	NativeContent []byte                   `json:"-"`
 }
 
 type Operation string
