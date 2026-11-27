@@ -317,7 +317,7 @@ git commit -m "feat: inspect project Codex configuration"
 - Produces: non-blocking `ErrDangerousCodexPermissions` warning.
 - Consumes: `ResolvedEnvironment.Codex` and `Snapshot.NativeContent` from Tasks 1 and 3.
 
-- [ ] **Step 1: Write failing edit-planning tests**
+- [x] **Step 1: Write failing edit-planning tests**
 
 Cover these exact transformations:
 
@@ -331,7 +331,7 @@ escape:  quote backslash, quote, tab, and newline in free-form strings
 
 Assert that bytes outside the returned edit ranges are identical. Add plan tests for `set`, `replace`, `clear`, `unchanged`, all-inherit with a missing file, and final effective `danger-full-access + never` warning.
 
-- [ ] **Step 2: Run plan tests and verify failure**
+- [x] **Step 2: Run plan tests and verify failure**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/codexadapter -run 'Test(Edit|Plan)' -count=1
@@ -339,7 +339,7 @@ Assert that bytes outside the returned edit ranges are identical. Add plan tests
 
 Expected: FAIL because edit planning is absent.
 
-- [ ] **Step 3: Implement deterministic minimal edits**
+- [x] **Step 3: Implement deterministic minimal edits**
 
 Add serializable edits:
 
@@ -355,7 +355,7 @@ Encode every managed value as a TOML basic string. Replace value tokens only. Fo
 
 `Plan` must fill all five managed changes, desired intents, edits, diff, warnings, blockers, and the original fingerprint. When every effective field is inherited, it must return no edits and must not plan file creation.
 
-- [ ] **Step 4: Run edit and plan tests**
+- [x] **Step 4: Run edit and plan tests**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/codexadapter -run 'Test(Edit|Plan)' -count=1
@@ -363,7 +363,7 @@ Encode every managed value as a TOML basic string. Replace value tokens only. Fo
 
 Expected: PASS, including exact byte assertions.
 
-- [ ] **Step 5: Commit Codex planning**
+- [x] **Step 5: Commit Codex planning**
 
 ```bash
 git add internal/projectenv/adapter.go internal/projectenv/codexadapter/edit.go internal/projectenv/codexadapter/edit_test.go internal/projectenv/codexadapter/plan.go internal/projectenv/codexadapter/plan_test.go

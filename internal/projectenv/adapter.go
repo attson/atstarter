@@ -34,6 +34,12 @@ type Snapshot struct {
 	NativeContent []byte                   `json:"-"`
 }
 
+type TextEdit struct {
+	Start       int    `json:"start"`
+	End         int    `json:"end"`
+	Replacement string `json:"replacement"`
+}
+
 type Operation string
 
 const (
@@ -66,6 +72,8 @@ type ChangePlan struct {
 	Changes         []Change               `json:"changes"`
 	Warnings        []Issue                `json:"warnings,omitempty"`
 	Blockers        []Issue                `json:"blockers,omitempty"`
+	NativeEdits     []TextEdit             `json:"nativeEdits,omitempty"`
+	NativeDiff      []string               `json:"nativeDiff,omitempty"`
 }
 
 type ApplyStatus string

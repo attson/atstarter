@@ -22,6 +22,7 @@ type assignment struct {
 	ValueEnd        int
 	StatementEnd    int
 	TrailingComment string
+	Indent          string
 }
 
 type document struct {
@@ -95,13 +96,14 @@ func parseDocument(data []byte) (document, error) {
 			statementEnd := lineEnd(data, valueEnd)
 			trailing := ""
 			if comment := expression.Next(); comment != nil && comment.Kind == unstable.Comment {
-				trailing = string(parser.Raw(comment.Raw))
+				trailing = strings.TrimSuffix(string(parser.Raw(comment.Raw)), "\r")
 			}
 			value, _ := root[key].(string)
 			parsed.Assignments[key] = assignment{
 				Key: key, Value: value, StatementStart: statementStart,
 				ValueStart: valueStart, ValueEnd: valueEnd, StatementEnd: statementEnd,
 				TrailingComment: trailing,
+				Indent:          string(data[statementStart:int(keyNode.Raw.Offset)]),
 			}
 		}
 	}
