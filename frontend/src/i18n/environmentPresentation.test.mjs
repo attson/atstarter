@@ -366,13 +366,14 @@ test('workspace navigation and native failure surface react to locale without tr
   } finally { host.unmount() }
 })
 
-function scanWorkspace(start) {
+function scanWorkspace(start, native = {}) {
   const events = new Map()
   const host = mountEnvironment('EnvironmentWorkspace.vue', {}, {
     GetEnvironmentDocument: async () => ({}),
     GetEnvironmentState: async () => ({}),
     StartEnvironmentScan: start,
     CancelEnvironmentScan() {},
+    ...native,
   }, {
     EventsOn: (name, callback) => events.set(name, callback),
     EventsOff: (name) => events.delete(name),
@@ -443,3 +444,78 @@ for (const shape of ['native', 'Go']) {
     } finally { host.unmount() }
   })
 }
+
+for (const olderRefresh of ['resolved data', 'rejected read']) {
+  test(`a newer successful scan stays authoritative after an older completion's ${olderRefresh}`, async () => {
+    let finishOlderRefresh
+    const olderRead = new Promise((resolve, reject) => {
+      finishOlderRefresh = olderRefresh === 'resolved data' ? resolve : () => reject('older raw refresh error')
+    })
+    const olderDocument = { revision: 'older revision', config: { rules: [], presets: [], defaults: {} } }
+    const newerDocument = { revision: 'newer revision', config: { rules: [
+      { id: 'rule-a', name: raw, path: '/srv/a' }, { id: 'rule-b', name: 'raw second rule', path: '/srv/b' },
+    ], presets: [], defaults: {} } }
+    const olderState = { version: 1, ruleScans: [], repositories: [] }
+    const newerState = { version: 1, ruleScans: [], repositories: [
+      { targetId: 'new-target', aliases: [{ path: '/srv/a' }], adapters: { git: { status: 'consistent' } } },
+    ] }
+    let phase = 'initial'
+    const scanIDs = ['older-scan', 'newer-scan', 'another-scan']
+    const host = scanWorkspace(async () => scanIDs.shift(), {
+      GetEnvironmentDocument: async () => phase === 'older' ? olderRead : phase === 'newer' ? newerDocument : {},
+      GetEnvironmentState: async () => phase === 'newer' ? newerState : olderState,
+    })
+    const scanButton = () => host.find((element) => element.type === 'button' && element.props.class?.includes('variant-primary'))
+    const metric = (label) => host.find((element) => element.props.class === 'environment-metric' &&
+      element.children.some((child) => child.type === 'span' && child.text === label))
+      ?.children.find((child) => child.type === 'strong')?.text
+    try {
+      await flush()
+      scanButton().props.onClick({})
+      await flush()
+      phase = 'older'
+      const olderCompletion = host.complete({ scanId: 'older-scan', result: {},
+        ...(olderRefresh === 'resolved data' ? { error: 'older raw scan error' } : {}),
+      })
+      await flush()
+      assert.equal(scanButton().props.disabled, false, 'a pending refresh must not serialize the next scan')
+      phase = 'newer'
+      scanButton().props.onClick({})
+      await flush()
+      assert.equal(scanButton().props.disabled, true)
+      await host.complete({ scanId: 'newer-scan', result: {} })
+      await flush()
+      assert.equal(metric('Directory rules'), '2')
+      assert.equal(metric('Repositories'), '1')
+      assert.equal(scanButton().props.disabled, false)
+
+      finishOlderRefresh(olderDocument)
+      await olderCompletion
+      await flush()
+      assert.equal(host.find((element) => element.props.role === 'alert')?.text, undefined,
+        'an older completion must not replace newer success with a stale raw error')
+      assert.equal(metric('Directory rules'), '2', 'older document data must not overwrite the newer rules')
+      assert.equal(metric('Repositories'), '1', 'older state must not overwrite the newer repositories')
+      assert.equal(host.state.document.revision, 'newer revision')
+      assert.equal(scanButton()?.props.disabled, false, 'scan controls remain available after the older refresh finishes')
+      scanButton().props.onClick({})
+      await flush()
+      assert.equal(scanButton().props.disabled, true)
+      await host.complete({ scanId: 'another-scan', result: {} })
+      await flush()
+      assert.equal(scanButton().props.disabled, false, 'another scan still completes normally')
+    } finally { host.unmount() }
+  })
+}
+
+test('a canceled current scan suppresses its cancellation error and keeps scan controls usable', async () => {
+  const host = scanWorkspace(async () => 'canceled-scan')
+  try {
+    await flush()
+    await host.state.startScan()
+    await host.complete({ scanId: 'canceled-scan', error: raw, result: { canceled: true } })
+    await flush()
+    assert.equal(host.find((element) => element.props.role === 'alert')?.text, undefined)
+    assert.equal(host.find((element) => element.type === 'button' && element.props.class?.includes('variant-primary'))?.props.disabled, false)
+  } finally { host.unmount() }
+})

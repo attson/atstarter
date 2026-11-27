@@ -37,6 +37,7 @@ const error = ref('')
 const scanID = ref('')
 const scanStarting = ref(false)
 const pendingScanCompletions = new Map()
+let scanGeneration = 0
 const scanProgress = ref({})
 const plans = ref([])
 const selectedRepositories = ref(new Set())
@@ -53,21 +54,23 @@ const views = [
   { id: 'repositories', labelKey: 'environments.views.repositories', icon: GitBranch },
 ]
 
-async function refreshEnvironmentData() {
+async function refreshEnvironmentData(generation = scanGeneration) {
   error.value = ''
   try {
     const [nextDocument, nextState] = await Promise.all([GetEnvironmentDocument(), GetEnvironmentState()])
+    if (generation !== scanGeneration) return
     document.value = normalizeEnvironmentDocument(nextDocument)
     state.value = nextState || { version: 1, ruleScans: [], repositories: [] }
   } catch (cause) {
-    error.value = String(cause)
+    if (generation === scanGeneration) error.value = String(cause)
   } finally {
-    loading.value = false
+    if (generation === scanGeneration) loading.value = false
   }
 }
 
 async function startScan(ruleIDs = []) {
   if (scanStarting.value || scanID.value) return
+  scanGeneration++
   scanStarting.value = true
   error.value = ''
   scanProgress.value = {}
@@ -199,8 +202,10 @@ async function onScanComplete(payload) {
     return
   }
   if (payload.scanId !== scanID.value) return
+  const generation = scanGeneration
   scanID.value = ''
-  await refreshEnvironmentData()
+  await refreshEnvironmentData(generation)
+  if (generation !== scanGeneration) return
   if (payload.error && !payload.result?.canceled) error.value = payload.error
 }
 
