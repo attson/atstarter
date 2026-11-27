@@ -611,7 +611,7 @@ git commit -m "feat: edit Codex environment presets and rules"
 - Produces: aggregate repository status and two-stage confirmation UI.
 - Preserves: repository path-oriented selection and stale re-preview.
 
-- [ ] **Step 1: Write failing UI behavior tests**
+- [x] **Step 1: Write failing UI behavior tests**
 
 Update the source-level UI test and helper tests to require:
 
@@ -623,7 +623,7 @@ Update the source-level UI test and helper tests to require:
 - apply disabled until every required confirmation is checked;
 - unchanged top-level navigation order and stable narrow layout.
 
-- [ ] **Step 2: Run UI tests and verify failure**
+- [x] **Step 2: Run UI tests and verify failure**
 
 ```bash
 cd frontend && node --test src/projectEnvironmentUi.test.mjs src/environmentWorkspaceUi.test.mjs
@@ -631,17 +631,17 @@ cd frontend && node --test src/projectEnvironmentUi.test.mjs src/environmentWork
 
 Expected: FAIL on Git-only labels and missing high-risk acknowledgement.
 
-- [ ] **Step 3: Implement adapter-aware state and preview helpers**
+- [x] **Step 3: Implement adapter-aware state and preview helpers**
 
 Normalize version 2 adapter states while retaining read compatibility for an in-memory version 1 state returned during migration. Compute repository status from the worst adapter outcome. Count changes by plan and adapter. Add helpers that identify high-risk plans by issue code without inferring risk from display strings.
 
-- [ ] **Step 4: Implement preview and confirmation UI**
+- [x] **Step 4: Implement preview and confirmation UI**
 
 Group displayed plans by worktree, with separate Git and Codex subsections. Show adapter, configuration path, key-level before/operation/after/source, and `nativeDiff` lines for Codex. Change generic confirmation copy to `I reviewed these exact native environment changes`. Show a warning band and `I understand this disables both sandboxing and approvals` checkbox only for high-risk plans.
 
 Do not add a card inside the diff panel. Keep responsive panel dimensions stable and prevent long paths, model IDs, or warning text from widening the workspace.
 
-- [ ] **Step 5: Run frontend tests and production build**
+- [x] **Step 5: Run frontend tests and production build**
 
 ```bash
 cd frontend
@@ -651,7 +651,7 @@ npm run build
 
 Expected: all frontend tests PASS and build succeeds.
 
-- [ ] **Step 6: Commit adapter-aware preview**
+- [x] **Step 6: Commit adapter-aware preview**
 
 ```bash
 git add frontend/src/projectEnvironmentUi.js frontend/src/projectEnvironmentUi.test.mjs frontend/src/environmentWorkspaceUi.test.mjs frontend/src/components/environments

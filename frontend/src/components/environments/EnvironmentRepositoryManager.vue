@@ -6,6 +6,7 @@ import AppIcon from '../ui/AppIcon.vue'
 import {
   filterEnvironmentRepositories,
   repositoryStatus,
+  repositoryBlockers,
   selectAllRepositories,
   toggleRepositorySelection,
 } from '../../projectEnvironmentUi.js'
@@ -39,7 +40,7 @@ function aliases(repository) {
 }
 
 function blockers(repository) {
-  return valueFor(repository, 'blockers', 'Blockers', []) || []
+  return repositoryBlockers(repository)
 }
 
 function toggle(repository) {

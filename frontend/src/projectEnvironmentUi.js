@@ -115,8 +115,16 @@ export function normalizeEnvironmentDocument(document = {}) {
 }
 
 export function repositoryStatus(repository = {}) {
-  const blockers = valueFor(repository, 'blockers', 'Blockers', []) || []
-  if (blockers.length) return 'blocked'
+  const adapters = valueFor(repository, 'adapters', 'Adapters', null)
+  if (adapters && Object.keys(adapters).length) {
+    const statuses = Object.values(adapters).flatMap((adapter) => [
+      valueFor(adapter, 'status', 'Status', 'pending'),
+      ...((valueFor(adapter, 'blockers', 'Blockers', []) || []).length ? ['blocked'] : []),
+    ])
+    const severity = ['failed', 'blocked', 'drifted', 'pending', 'consistent']
+    return severity.find((status) => statuses.includes(status)) || 'pending'
+  }
+  if (repositoryBlockers(repository).length) return 'blocked'
   const status = valueFor(repository, 'status', 'Status', '')
   if (['pending', 'consistent', 'drifted', 'blocked', 'failed'].includes(status)) return status
   const apply = valueFor(repository, 'lastApplyResult', 'LastApplyResult', '')
@@ -124,6 +132,14 @@ export function repositoryStatus(repository = {}) {
   if (apply === 'blocked' || apply === 'stale') return 'blocked'
   if (apply === 'success' || apply === 'unchanged') return 'consistent'
   return 'pending'
+}
+
+export function repositoryBlockers(repository = {}) {
+  const adapters = valueFor(repository, 'adapters', 'Adapters', null)
+  if (adapters && Object.keys(adapters).length) {
+    return Object.values(adapters).flatMap((adapter) => valueFor(adapter, 'blockers', 'Blockers', []) || [])
+  }
+  return valueFor(repository, 'blockers', 'Blockers', []) || []
 }
 
 export function environmentSummary(document, state = {}, plans = []) {
@@ -135,7 +151,7 @@ export function environmentSummary(document, state = {}, plans = []) {
     pending: repositories.filter((repository) => repositoryStatus(repository) === 'pending').length,
     changes: (plans || []).flatMap((plan) => valueFor(plan, 'changes', 'Changes', []) || [])
       .filter((change) => !['unchanged', 'unmanaged'].includes(valueFor(change, 'operation', 'Operation', ''))).length,
-    blockers: repositories.reduce((total, repository) => total + (valueFor(repository, 'blockers', 'Blockers', []) || []).length, 0),
+    blockers: repositories.reduce((total, repository) => total + repositoryBlockers(repository).length, 0),
   }
 }
 
@@ -323,6 +339,22 @@ export function dedupedTargetCount(repositories) {
 export function planChangeCount(plans) {
   return (plans || []).flatMap((plan) => valueFor(plan, 'changes', 'Changes', []) || [])
     .filter((change) => !['unchanged', 'unmanaged'].includes(valueFor(change, 'operation', 'Operation', ''))).length
+}
+
+export function adapterChangeCounts(plans) {
+  const counts = {}
+  for (const plan of plans || []) {
+    const adapter = valueFor(plan, 'adapter', 'Adapter', 'unknown')
+    counts[adapter] = (counts[adapter] || 0) + planChangeCount([plan])
+  }
+  return counts
+}
+
+export function plansHaveIssueCode(plans, code) {
+  return (plans || []).some((plan) => [
+    ...(valueFor(plan, 'warnings', 'Warnings', []) || []),
+    ...(valueFor(plan, 'blockers', 'Blockers', []) || []),
+  ].some((issue) => valueFor(issue, 'code', 'Code', '') === code))
 }
 
 export function summarizeApplyResults(results) {

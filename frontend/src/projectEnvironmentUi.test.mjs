@@ -25,6 +25,9 @@ import {
   codexModelSuggestions,
   dangerousCodexCombination,
   mergeCodexFields,
+  adapterChangeCounts,
+  plansHaveIssueCode,
+  repositoryBlockers,
 } from './projectEnvironmentUi.js'
 
 test('normalizes Go-shaped and missing environment document values', () => {
@@ -127,6 +130,19 @@ test('derives repository status with blockers taking precedence', () => {
   assert.equal(repositoryStatus({ lastApplyResult: 'failed' }), 'failed')
   assert.equal(repositoryStatus({ status: 'pending', blockers: [{ code: 'missing_key' }] }), 'blocked')
   assert.equal(repositoryStatus({}), 'pending')
+})
+
+test('version 2 repository status and blockers aggregate adapter states', () => {
+  const repository = {
+    status: 'consistent',
+    adapters: {
+      git: { status: 'consistent', blockers: [] },
+      codex: { status: 'drifted', blockers: [{ code: 'invalid_codex_config' }] },
+    },
+  }
+  assert.equal(repositoryStatus(repository), 'blocked')
+  assert.deepEqual(repositoryBlockers(repository), [{ code: 'invalid_codex_config' }])
+  assert.equal(repositoryStatus({ adapters: { git: { status: 'failed', blockers: [{ code: 'apply_failed' }] }, codex: { status: 'blocked' } } }), 'failed')
 })
 
 test('summarizes rules repositories pending changes and blockers', () => {
@@ -237,6 +253,16 @@ test('plan change counts exclude unchanged and unmanaged operations', () => {
     { operation: 'set' }, { operation: 'replace' }, { operation: 'unchanged' }, { operation: 'unmanaged' },
   ] }]
   assert.equal(planChangeCount(plans), 2)
+})
+
+test('adapter change counts and dangerous plans use structured plan fields', () => {
+  const plans = [
+    { adapter: 'git', changes: [{ operation: 'set' }] },
+    { adapter: 'codex', changes: [{ operation: 'replace' }, { operation: 'unchanged' }], warnings: [{ code: 'dangerous_codex_permissions' }] },
+  ]
+  assert.deepEqual(adapterChangeCounts(plans), { git: 1, codex: 1 })
+  assert.equal(plansHaveIssueCode(plans, 'dangerous_codex_permissions'), true)
+  assert.equal(plansHaveIssueCode(plans, 'danger-full-access'), false)
 })
 
 test('apply result summary and stale targets preserve target identity', () => {
