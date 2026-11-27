@@ -340,14 +340,34 @@ test('update native rejections preserve their detail and use a reactive fallback
     const installing = host.state.install()
     await vue.nextTick()
     assert.match(host.visibleText(), /Installing/)
+    // A concurrent native check emits checking=true while the install Promise
+    // is still pending. Installation must retain its non-dismissible surface.
+    host.subscriptions.get('update:state')(updateState({ ready: true, checking: true }))
+    await vue.nextTick()
+    assert.equal(host.state.installing, true)
+    assert.match(host.visibleText(), /Installing/)
+    assert.doesNotMatch(host.visibleText(), /Checking for updates/)
+    assert.equal(host.find((element) => element.props['aria-label'] === 'Dismiss update notice'), undefined)
+    assert.ok(host.find((element) => element.type === 'button' && element.props.disabled === true))
     host.i18n.global.locale.value = 'zh-CN'
     await vue.nextTick()
     assert.match(host.visibleText(), /正在安装/)
+    assert.doesNotMatch(host.visibleText(), /正在检查更新/)
+    assert.equal(host.find((element) => element.props['aria-label'] === '关闭更新提示'), undefined)
+    returnedState = updateState({ ready: true, checking: false })
+    await host.state.check()
+    await vue.nextTick()
+    assert.match(host.visibleText(), /正在安装/)
+    assert.equal(host.find((element) => element.props['aria-label'] === '关闭更新提示'), undefined)
+    returnedState = undefined
     rejectInstall(new Error(raw))
     await installing
     await vue.nextTick()
-    assert.ok(host.visibleText().includes(raw))
+    assert.equal(host.find((element) => element.props.class === 'sub')?.text, raw)
     assert.doesNotMatch(host.visibleText(), /正在安装/)
     assert.equal(host.state.installing, false)
+    host.i18n.global.locale.value = 'en'
+    await vue.nextTick()
+    assert.equal(host.find((element) => element.props.class === 'sub')?.text, raw)
   } finally { host.unmount() }
 })

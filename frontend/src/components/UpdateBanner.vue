@@ -51,9 +51,9 @@ const visible = computed(() => {
 
 const kind = computed(() => {
   const s = state.value
-  if (s.checking) return 'checking'
   if (failure.value || s.error) return 'error'
   if (installing.value) return 'installing'
+  if (s.checking) return 'checking'
   if (s.ready) return 'ready'
   // The existing backend keeps downloading true through signature/checksum
   // verification after reporting 100%; unknown-size downloads may stay below it.
