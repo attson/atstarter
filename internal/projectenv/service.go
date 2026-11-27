@@ -225,17 +225,17 @@ func (s *Service) Scan(ctx context.Context, request ScanRequest, emit func(ScanP
 	if err != nil {
 		return result, err
 	}
-	state.Repositories = repositoryRecordsFromCandidates(result.Repositories)
 	selectedRules := selectedRules(doc.Config.Rules, request.RuleIDs, request.AutoOnly)
 	scanID, err := s.idGenerator("scan_")
 	if err != nil {
 		return result, err
 	}
 	when := s.now().UTC().Format(time.RFC3339Nano)
-	state.RuleScans = make([]RuleScanState, 0, len(selectedRules))
+	selectedScanStates := make([]RuleScanState, 0, len(selectedRules))
 	for _, rule := range selectedRules {
-		state.RuleScans = append(state.RuleScans, RuleScanState{RuleID: rule.ID, ScanID: scanID, LastScanAt: when, Warnings: warningsForRule(result.Warnings, rule)})
+		selectedScanStates = append(selectedScanStates, RuleScanState{RuleID: rule.ID, ScanID: scanID, LastScanAt: when, Warnings: warningsForRule(result.Warnings, rule)})
 	}
+	reconcileScanState(&state, result.Repositories, selectedRules, selectedScanStates)
 	if err := s.state.Save(ctx, state); err != nil {
 		return result, err
 	}
@@ -280,11 +280,24 @@ func (s *Service) Plan(ctx context.Context, request PlanRequest) ([]ChangePlan, 
 		for _, adapter := range s.adapters {
 			target, err := adapter.Identify(ctx, path)
 			if err != nil {
-				return nil, err
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return nil, err
+				}
+				target = Target{Adapter: adapter.Name(), ID: path, WorktreePath: path}
+				plans = append(plans, blockedAdapterPlan(adapter.Name(), path, resolved.MatchingRuleIDs, target, ErrInvalidRepository, "identify repository", err))
+				continue
 			}
 			snapshot, err := adapter.Inspect(ctx, target)
 			if err != nil {
-				return nil, err
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return nil, err
+				}
+				code := ErrInvalidGitConfig
+				if adapter.Name() == "codex" {
+					code = ErrInvalidCodexConfig
+				}
+				plans = append(plans, blockedAdapterPlan(adapter.Name(), path, resolved.MatchingRuleIDs, target, code, "inspect repository environment configuration", err))
+				continue
 			}
 			plan := adapter.Plan(resolved, snapshot)
 			plan.Adapter = adapter.Name()
@@ -486,6 +499,106 @@ func repositoryRecordsFromCandidates(candidates []RepositoryCandidate) []Reposit
 		})
 	}
 	return records
+}
+
+func reconcileScanState(state *StateDocument, candidates []RepositoryCandidate, selected []Rule, scans []RuleScanState) {
+	selectedIDs := make(map[string]struct{}, len(selected))
+	for _, rule := range selected {
+		selectedIDs[rule.ID] = struct{}{}
+	}
+
+	records := make(map[string]RepositoryRecord, len(state.Repositories))
+	order := make([]string, 0, len(state.Repositories)+len(candidates))
+	for _, record := range state.Repositories {
+		filtered := make([]RepositoryAlias, 0, len(record.Aliases))
+		for _, alias := range record.Aliases {
+			remaining := make([]string, 0, len(alias.RuleIDs))
+			for _, ruleID := range alias.RuleIDs {
+				if _, replacing := selectedIDs[ruleID]; !replacing {
+					remaining = append(remaining, ruleID)
+				}
+			}
+			if len(remaining) > 0 {
+				alias.RuleIDs = remaining
+				filtered = append(filtered, alias)
+			}
+		}
+		record.Aliases = filtered
+		records[record.ID] = record
+		order = append(order, record.ID)
+	}
+
+	for _, candidate := range candidates {
+		record, exists := records[candidate.Path]
+		if !exists {
+			record = RepositoryRecord{ID: candidate.Path, Status: "pending", Adapters: map[string]AdapterState{}}
+			order = append(order, candidate.Path)
+		}
+		aliasIndex := -1
+		for index := range record.Aliases {
+			if record.Aliases[index].Path == candidate.Path {
+				aliasIndex = index
+				break
+			}
+		}
+		if aliasIndex < 0 {
+			record.Aliases = append(record.Aliases, RepositoryAlias{Path: candidate.Path})
+			aliasIndex = len(record.Aliases) - 1
+		}
+		record.Aliases[aliasIndex].RuleIDs = dedupeStrings(append(record.Aliases[aliasIndex].RuleIDs, candidate.RuleIDs...))
+		record.MatchingRuleIDs = matchingRuleIDs(record.Aliases)
+		records[candidate.Path] = record
+	}
+
+	state.Repositories = make([]RepositoryRecord, 0, len(records))
+	seen := map[string]struct{}{}
+	for _, id := range order {
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		record := records[id]
+		if len(record.Aliases) == 0 {
+			continue
+		}
+		record.MatchingRuleIDs = matchingRuleIDs(record.Aliases)
+		state.Repositories = append(state.Repositories, record)
+	}
+
+	keptScans := make([]RuleScanState, 0, len(state.RuleScans)+len(scans))
+	for _, scan := range state.RuleScans {
+		if _, replacing := selectedIDs[scan.RuleID]; !replacing {
+			keptScans = append(keptScans, scan)
+		}
+	}
+	state.RuleScans = append(keptScans, scans...)
+}
+
+func matchingRuleIDs(aliases []RepositoryAlias) []string {
+	var ids []string
+	for _, alias := range aliases {
+		ids = append(ids, alias.RuleIDs...)
+	}
+	return dedupeStrings(ids)
+}
+
+func blockedAdapterPlan(adapter, path string, ruleIDs []string, target Target, defaultCode ErrorCode, defaultMessage string, err error) ChangePlan {
+	issue := Issue{Code: defaultCode, Message: defaultMessage, Detail: err.Error(), Path: target.ConfigPath, Blocking: true}
+	var typed *Error
+	if errors.As(err, &typed) {
+		issue.Code = typed.Code
+		issue.Message = typed.Message
+		issue.Detail = typed.Detail
+	}
+	if issue.Path == "" {
+		issue.Path = path
+	}
+	return ChangePlan{
+		Adapter: adapter, Target: target, RepoPath: path,
+		Aliases:         []RepositoryAlias{{Path: path, RuleIDs: append([]string(nil), ruleIDs...)}},
+		MatchingRuleIDs: append([]string(nil), ruleIDs...), Desired: map[string]FieldIntent{}, Changes: []Change{},
+		Warnings: []Issue{}, Blockers: []Issue{issue}, NativeEdits: []TextEdit{}, NativeDiff: []string{},
+	}
 }
 
 func (s *Service) planPaths(ctx context.Context, explicit, ruleIDs []string) ([]string, error) {

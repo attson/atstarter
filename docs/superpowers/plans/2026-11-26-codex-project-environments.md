@@ -822,19 +822,19 @@ Commit: `fix: close Codex environment safety gaps`
 - Produces: blocked `ChangePlan` entries for adapter Identify/Inspect failures while independent paths and adapters continue.
 - Produces: scoped scan reconciliation that updates selected rule aliases and scan metadata while preserving unrelated records and adapter state.
 
-- [ ] **Step 1: Add failing multi-target preview and scoped-scan tests**
+- [x] **Step 1: Add failing multi-target preview and scoped-scan tests**
 
 Use fake adapters to prove one Inspect error becomes one blocked plan while another adapter and repository still plan. Seed state with manual and automatic rule aliases plus adapter results; assert an `AutoOnly` scan or explicit `RuleIDs` scan replaces only selected rule membership and preserves unrelated rules, aliases, and adapter maps.
 
-- [ ] **Step 2: Run focused service tests and verify failure**
+- [x] **Step 2: Run focused service tests and verify failure**
 
 Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv -run 'TestService(PlanContinuesAfterAdapterFailure|ScopedScanPreservesUnselectedState)' -count=1`
 
-- [ ] **Step 3: Convert adapter errors to blocked plans and merge scan state**
+- [x] **Step 3: Convert adapter errors to blocked plans and merge scan state**
 
 Build a typed blocker from each adapter error and the best-known path/target data. Reconcile selected rule IDs by removing only their old alias memberships, merging newly discovered aliases by canonical repository ID, retaining adapter state on matching records, dropping records only when they have no remaining aliases, and replacing only selected `RuleScanState` entries.
 
-- [ ] **Step 4: Run service tests and commit**
+- [x] **Step 4: Run service tests and commit**
 
 Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv -run 'TestService|TestState' -count=1`
 

@@ -14,11 +14,12 @@ func stringPointer(value string) *string { return &value }
 func boolPointer(value bool) *bool       { return &value }
 
 type serviceAdapter struct {
-	name         string
-	targets      map[string]Target
-	applyStatus  map[string]ApplyStatus
-	doctorIssues []Issue
-	inspectErr   error
+	name               string
+	targets            map[string]Target
+	applyStatus        map[string]ApplyStatus
+	doctorIssues       []Issue
+	inspectErr         error
+	inspectErrByTarget map[string]error
 }
 
 func (a *serviceAdapter) Name() string {
@@ -42,6 +43,9 @@ func (a *serviceAdapter) Inspect(ctx context.Context, target Target) (Snapshot, 
 	}
 	if a.inspectErr != nil {
 		return Snapshot{}, a.inspectErr
+	}
+	if err := a.inspectErrByTarget[target.ID]; err != nil {
+		return Snapshot{}, err
 	}
 	return Snapshot{Target: target, Fingerprint: "fp-" + target.ID, Values: map[string][]OriginValue{}}, nil
 }
@@ -266,6 +270,108 @@ func TestServiceDoctorPreservesTypedAdapterInspectionError(t *testing.T) {
 	}
 	if len(issues) != 1 || issues[0].Code != ErrUnsafeCodexConfigPath {
 		t.Fatalf("issues = %+v", issues)
+	}
+}
+
+func TestServicePlanContinuesAfterAdapterFailure(t *testing.T) {
+	repo := t.TempDir()
+	bad := &serviceAdapter{
+		name: "codex",
+		targets: map[string]Target{repo: {
+			Adapter: "codex", ID: repo, WorktreePath: repo, ConfigPath: filepath.Join(repo, ".codex", "config.toml"),
+		}},
+		inspectErrByTarget: map[string]error{repo: &Error{
+			Code: ErrInvalidCodexConfig, Message: "invalid Codex project configuration", Detail: "line 1, column 9",
+		}},
+	}
+	good := &serviceAdapter{name: "git", targets: map[string]Target{repo: {
+		Adapter: "git", ID: "common", WorktreePath: repo, ConfigPath: filepath.Join(repo, ".git", "config"),
+	}}}
+	service, _ := newTestEnvironmentService(t, bad, good)
+
+	plans, err := service.Plan(context.Background(), PlanRequest{RepositoryPaths: []string{repo}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plans) != 2 {
+		t.Fatalf("plans = %+v", plans)
+	}
+	if plans[0].Adapter != "codex" || len(plans[0].Blockers) != 1 || plans[0].Blockers[0].Code != ErrInvalidCodexConfig {
+		t.Fatalf("blocked plan = %+v", plans[0])
+	}
+	if plans[1].Adapter != "git" || len(plans[1].Blockers) != 0 {
+		t.Fatalf("independent plan = %+v", plans[1])
+	}
+}
+
+func TestServiceScopedScanPreservesUnselectedState(t *testing.T) {
+	root := t.TempDir()
+	shared := filepath.Join(root, "shared")
+	manualOnly := filepath.Join(t.TempDir(), "manual-only")
+	makeRepositoryMarker(t, shared, false)
+	makeRepositoryMarker(t, manualOnly, false)
+	shared = canonicalTestPath(t, shared)
+	manualOnly = canonicalTestPath(t, manualOnly)
+	service, configPath := newTestEnvironmentService(t)
+	ctx := context.Background()
+	doc, _ := service.GetDocument(ctx)
+	outerName := "Outer"
+	doc, err := service.SaveRule(ctx, SaveRuleRequest{
+		Revision: doc.Revision, Name: &outerName, Path: stringPointer(root), Recursive: boolPointer(true), AutoDiscover: boolPointer(false),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	autoName := "Auto"
+	doc, err = service.SaveRule(ctx, SaveRuleRequest{
+		Revision: doc.Revision, Name: &autoName, Path: stringPointer(shared), AutoDiscover: boolPointer(true),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manualName := "Manual"
+	doc, err = service.SaveRule(ctx, SaveRuleRequest{
+		Revision: doc.Revision, Name: &manualName, Path: stringPointer(manualOnly), AutoDiscover: boolPointer(false),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outerID, autoID, manualID := doc.Config.Rules[0].ID, doc.Config.Rules[1].ID, doc.Config.Rules[2].ID
+	seed := StateDocument{Version: 2, RuleScans: []RuleScanState{
+		{RuleID: outerID, ScanID: "outer-before"}, {RuleID: autoID, ScanID: "auto-before"}, {RuleID: manualID, ScanID: "manual-before"},
+	}, Repositories: []RepositoryRecord{
+		{ID: shared, Aliases: []RepositoryAlias{{Path: shared, RuleIDs: []string{outerID, autoID}}}, MatchingRuleIDs: []string{outerID, autoID}, Status: "consistent", Adapters: map[string]AdapterState{"git": {TargetID: "shared-common", Fingerprint: "keep"}}},
+		{ID: manualOnly, Aliases: []RepositoryAlias{{Path: manualOnly, RuleIDs: []string{manualID}}}, MatchingRuleIDs: []string{manualID}, Status: "consistent", Adapters: map[string]AdapterState{"git": {TargetID: "manual-common", Fingerprint: "keep"}}},
+	}}
+	if err := NewStateStore(configPath).Save(ctx, seed); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := service.Scan(ctx, ScanRequest{AutoOnly: true}, nil); err != nil {
+		t.Fatal(err)
+	}
+	state, err := service.State(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Repositories) != 2 || len(state.RuleScans) != 3 {
+		t.Fatalf("state = %+v", state)
+	}
+	records := map[string]RepositoryRecord{}
+	for _, record := range state.Repositories {
+		records[record.ID] = record
+	}
+	sharedRecord := records[shared]
+	if got := sharedRecord.Aliases[0].RuleIDs; !reflect.DeepEqual(got, []string{outerID, autoID}) || sharedRecord.Adapters["git"].Fingerprint != "keep" {
+		t.Fatalf("shared record = %+v", sharedRecord)
+	}
+	if records[manualOnly].Adapters["git"].Fingerprint != "keep" {
+		t.Fatalf("manual record = %+v", records[manualOnly])
+	}
+	for _, scan := range state.RuleScans {
+		if scan.RuleID != autoID && scan.ScanID != map[string]string{outerID: "outer-before", manualID: "manual-before"}[scan.RuleID] {
+			t.Fatalf("unselected scan was replaced: %+v", scan)
+		}
 	}
 }
 
