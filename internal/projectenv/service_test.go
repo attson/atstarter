@@ -18,6 +18,7 @@ type serviceAdapter struct {
 	targets      map[string]Target
 	applyStatus  map[string]ApplyStatus
 	doctorIssues []Issue
+	inspectErr   error
 }
 
 func (a *serviceAdapter) Name() string {
@@ -38,6 +39,9 @@ func (a *serviceAdapter) Identify(ctx context.Context, path string) (Target, err
 func (a *serviceAdapter) Inspect(ctx context.Context, target Target) (Snapshot, error) {
 	if err := ctx.Err(); err != nil {
 		return Snapshot{}, err
+	}
+	if a.inspectErr != nil {
+		return Snapshot{}, a.inspectErr
 	}
 	return Snapshot{Target: target, Fingerprint: "fp-" + target.ID, Values: map[string][]OriginValue{}}, nil
 }
@@ -210,6 +214,58 @@ func TestServicePlanDeduplicatesSharedTargetAndBlocksConflict(t *testing.T) {
 	}
 	if len(plans) != 1 || len(plans[0].Blockers) == 0 || plans[0].Blockers[0].Code != ErrSharedTargetConflict {
 		t.Fatalf("conflict plans = %+v", plans)
+	}
+}
+
+func TestServicePlanDeduplicatesGitTargetButKeepsCodexWorktreesIndependent(t *testing.T) {
+	root := t.TempDir()
+	one := filepath.Join(root, "one")
+	two := filepath.Join(root, "two")
+	if err := os.MkdirAll(one, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(two, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitAdapter := &serviceAdapter{name: "git", targets: map[string]Target{
+		one: {Adapter: "git", ID: "shared-common", WorktreePath: one},
+		two: {Adapter: "git", ID: "shared-common", WorktreePath: two},
+	}}
+	codexAdapter := &serviceAdapter{name: "codex", targets: map[string]Target{
+		one: {Adapter: "codex", ID: one, WorktreePath: one},
+		two: {Adapter: "codex", ID: two, WorktreePath: two},
+	}}
+	service, _ := newTestEnvironmentService(t, gitAdapter, codexAdapter)
+	plans, err := service.Plan(context.Background(), PlanRequest{RepositoryPaths: []string{one, two}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plans) != 3 {
+		t.Fatalf("plans = %+v", plans)
+	}
+	counts := map[string]int{}
+	for _, plan := range plans {
+		counts[plan.Adapter]++
+	}
+	if counts["git"] != 1 || counts["codex"] != 2 {
+		t.Fatalf("adapter plan counts = %+v", counts)
+	}
+}
+
+func TestServiceDoctorPreservesTypedAdapterInspectionError(t *testing.T) {
+	repo := t.TempDir()
+	adapter := &serviceAdapter{
+		name:       "codex",
+		targets:    map[string]Target{repo: {Adapter: "codex", ID: repo, WorktreePath: repo, ConfigPath: filepath.Join(repo, ".codex", "config.toml")}},
+		inspectErr: &Error{Code: ErrUnsafeCodexConfigPath, Message: "unsafe Codex project configuration path", Detail: "symlink"},
+	}
+	service, _ := newTestEnvironmentService(t, adapter)
+	issues, err := service.Doctor(context.Background(), DoctorRequest{RepositoryPaths: []string{repo}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(issues) != 1 || issues[0].Code != ErrUnsafeCodexConfigPath {
+		t.Fatalf("issues = %+v", issues)
 	}
 }
 

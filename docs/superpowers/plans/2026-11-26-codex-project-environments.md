@@ -458,7 +458,7 @@ git commit -m "feat: apply Codex environments atomically"
 - Produces: `--codex-set`, `--codex-clear`, `--codex-inherit`, and `--accept-dangerous`.
 - Preserves: existing Git flags and offline `rootyard env` dispatch.
 
-- [ ] **Step 1: Write failing service and CLI tests**
+- [x] **Step 1: Write failing service and CLI tests**
 
 Extend the service test adapter matrix to assert one Git/common target and two Codex/worktree targets for linked worktrees. Add CLI tests that persist Codex preset/rule fields, resolve session overrides, render adapter labels in diff, apply a normal Codex plan with `--yes`, and reject dangerous non-interactive apply unless both flags are present:
 
@@ -473,7 +473,7 @@ if code == 0 || !strings.Contains(output, "dangerous_confirmation_required") {
 }
 ```
 
-- [ ] **Step 2: Run service and CLI tests and verify failure**
+- [x] **Step 2: Run service and CLI tests and verify failure**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv ./... -run 'Test(Service|RunEnvCLI)' -count=1
@@ -481,7 +481,7 @@ if code == 0 || !strings.Contains(output, "dangerous_confirmation_required") {
 
 Expected: FAIL because the service is not wired and the CLI does not parse Codex flags.
 
-- [ ] **Step 3: Register both adapters**
+- [x] **Step 3: Register both adapters**
 
 Construct services in `app.go` and `env_cli.go` with:
 
@@ -491,13 +491,13 @@ projectenv.NewService(configPath, gitadapter.New(), codexadapter.New())
 
 Keep service grouping by `adapter.Name() + target.ID`. Ensure planning and Doctor append adapter-specific errors rather than labeling every inspection error as invalid Git config.
 
-- [ ] **Step 4: Implement structured field flags and confirmation**
+- [x] **Step 4: Implement structured field flags and confirmation**
 
 Replace `parseEnvironmentFields` with a parser returning `projectenv.EnvironmentFields`. Route `--git-*` and `--codex-*` into their corresponding maps and validate both. Pass the structured session through resolve, plan, apply, and Doctor. Parse `--accept-dangerous` only for apply. In interactive mode require a distinct dangerous acknowledgement after the ordinary plan confirmation; in non-interactive/JSON mode require both `--yes` and `--accept-dangerous`.
 
 Render plan adapter, worktree, and config path before changes. Never print full TOML or serialized native edits in human output.
 
-- [ ] **Step 5: Regenerate Wails bindings**
+- [x] **Step 5: Regenerate Wails bindings**
 
 Run:
 
@@ -508,7 +508,7 @@ $($GO env GOPATH)/bin/wails generate module
 
 Expected: generated models include Codex maps, structured sessions, text edits, adapter states, and state version 2.
 
-- [ ] **Step 6: Run backend and CLI tests**
+- [x] **Step 6: Run backend and CLI tests**
 
 ```bash
 /Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/... ./... -count=1
@@ -516,7 +516,7 @@ Expected: generated models include Codex maps, structured sessions, text edits, 
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit integration**
+- [x] **Step 7: Commit integration**
 
 ```bash
 git add app.go env_cli.go env_cli_test.go internal/projectenv frontend/wailsjs

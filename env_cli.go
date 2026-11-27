@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"rootyard/internal/projectenv"
+	"rootyard/internal/projectenv/codexadapter"
 	"rootyard/internal/projectenv/gitadapter"
 )
 
@@ -54,7 +55,7 @@ func runEnvCLI(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	service := projectenv.NewService(configPath, gitadapter.New())
+	service := projectenv.NewService(configPath, gitadapter.New(), codexadapter.New())
 	data, err := dispatchEnvironmentCLI(context.Background(), service, commandArgs, stdin, stdout, jsonMode)
 	if err != nil {
 		writeEnvironmentErrorWithData(stdout, err, data)
@@ -183,7 +184,9 @@ func runEnvironmentDefaults(ctx context.Context, service *projectenv.Service, ar
 		if err != nil {
 			return nil, err
 		}
-		return service.SaveDefaults(ctx, projectenv.SaveDefaultsRequest{Revision: doc.Revision, PresetID: presetID, Git: fields})
+		return service.SaveDefaults(ctx, projectenv.SaveDefaultsRequest{
+			Revision: doc.Revision, PresetID: presetID, Git: fields.Git, Codex: fields.Codex,
+		})
 	}
 	return nil, envUsage("unknown defaults subcommand")
 }
@@ -255,7 +258,7 @@ func runEnvironmentPresetSet(ctx context.Context, service *projectenv.Service, a
 	if err != nil {
 		return nil, err
 	}
-	request := projectenv.SavePresetRequest{Git: fields}
+	request := projectenv.SavePresetRequest{Git: fields.Git, Codex: fields.Codex}
 	for index := 0; index < len(rest); index++ {
 		value, next, err := requiredEnvironmentValue(rest, index)
 		if err != nil {
@@ -326,7 +329,7 @@ func runEnvironmentRuleSet(ctx context.Context, service *projectenv.Service, arg
 	if err != nil {
 		return nil, err
 	}
-	request := projectenv.SaveRuleRequest{Git: fields}
+	request := projectenv.SaveRuleRequest{Git: fields.Git, Codex: fields.Codex}
 	for index := 0; index < len(rest); index++ {
 		switch rest[index] {
 		case "--recursive":
@@ -399,7 +402,7 @@ func runEnvironmentResolve(ctx context.Context, service *projectenv.Service, arg
 	if len(rest) != 1 || strings.HasPrefix(rest[0], "-") {
 		return nil, envUsage("resolve requires one repository path")
 	}
-	return service.Resolve(ctx, projectenv.ResolveRequest{RepoPath: rest[0], Session: projectenv.EnvironmentFields{Git: fields}})
+	return service.Resolve(ctx, projectenv.ResolveRequest{RepoPath: rest[0], Session: fields})
 }
 
 func runEnvironmentPlan(ctx context.Context, service *projectenv.Service, args []string, allowYes bool) ([]projectenv.ChangePlan, error) {
@@ -436,15 +439,20 @@ func runEnvironmentPlan(ctx context.Context, service *projectenv.Service, args [
 	if len(paths) == 0 && len(rules) == 0 {
 		return nil, envUsage("repository path or --rule is required")
 	}
-	return service.Plan(ctx, projectenv.PlanRequest{RepositoryPaths: paths, RuleIDs: rules, Session: projectenv.EnvironmentFields{Git: fields}})
+	return service.Plan(ctx, projectenv.PlanRequest{RepositoryPaths: paths, RuleIDs: rules, Session: fields})
 }
 
 func runEnvironmentApply(ctx context.Context, service *projectenv.Service, args []string, stdin io.Reader, stdout io.Writer, jsonMode bool) (any, error) {
 	yes := false
+	acceptDangerous := false
 	filtered := make([]string, 0, len(args))
 	for _, arg := range args {
 		if arg == "--yes" {
 			yes = true
+			continue
+		}
+		if arg == "--accept-dangerous" {
+			acceptDangerous = true
 			continue
 		}
 		filtered = append(filtered, arg)
@@ -453,20 +461,9 @@ func runEnvironmentApply(ctx context.Context, service *projectenv.Service, args 
 	if err != nil {
 		return nil, err
 	}
-	if !yes {
-		if jsonMode || !environmentReaderIsTerminal(stdin) {
-			return plans, envCLIError{code: "confirmation_required", message: "apply requires --yes in non-interactive mode"}
-		}
-		renderEnvironmentPlans(stdout, plans)
-		_, _ = fmt.Fprint(stdout, "Apply these changes? [y/N] ")
-		line, readErr := bufio.NewReader(stdin).ReadString('\n')
-		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			return plans, readErr
-		}
-		answer := strings.ToLower(strings.TrimSpace(line))
-		if answer != "y" && answer != "yes" {
-			return plans, envCLIError{code: "confirmation_required", message: "apply was not confirmed"}
-		}
+	interactive := !jsonMode && environmentReaderIsTerminal(stdin)
+	if err := confirmEnvironmentApply(stdin, stdout, plans, yes, acceptDangerous, interactive); err != nil {
+		return plans, err
 	}
 	results := service.Apply(ctx, plans)
 	for _, result := range results {
@@ -477,12 +474,52 @@ func runEnvironmentApply(ctx context.Context, service *projectenv.Service, args 
 	return results, nil
 }
 
+func confirmEnvironmentApply(stdin io.Reader, stdout io.Writer, plans []projectenv.ChangePlan, yes, acceptDangerous, interactive bool) error {
+	reader := bufio.NewReader(stdin)
+	if !yes {
+		if !interactive {
+			return envCLIError{code: "confirmation_required", message: "apply requires --yes in non-interactive mode"}
+		}
+		renderEnvironmentPlans(stdout, plans)
+		_, _ = fmt.Fprint(stdout, "Apply these changes? [y/N] ")
+		line, readErr := reader.ReadString('\n')
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			return readErr
+		}
+		answer := strings.ToLower(strings.TrimSpace(line))
+		if answer != "y" && answer != "yes" {
+			return envCLIError{code: "confirmation_required", message: "apply was not confirmed"}
+		}
+	}
+	if plansHaveIssue(plans, projectenv.ErrDangerousCodexPermissions) {
+		if !interactive && !acceptDangerous {
+			return envCLIError{code: "dangerous_confirmation_required", message: "dangerous Codex permissions require --accept-dangerous"}
+		}
+		if !interactive {
+			return nil
+		}
+		_, _ = fmt.Fprint(stdout, "Type APPLY DANGEROUS to allow Codex without sandboxing or approvals: ")
+		line, readErr := reader.ReadString('\n')
+		if readErr != nil && !errors.Is(readErr, io.EOF) {
+			return readErr
+		}
+		if strings.TrimSpace(line) != "APPLY DANGEROUS" {
+			return envCLIError{code: "dangerous_confirmation_required", message: "dangerous Codex permissions were not confirmed"}
+		}
+	}
+	return nil
+}
+
 func runEnvironmentDoctor(ctx context.Context, service *projectenv.Service, args []string) (any, error) {
+	fields, rest, err := parseEnvironmentFields(args)
+	if err != nil {
+		return nil, err
+	}
 	paths := []string{}
 	rules := []string{}
-	for index := 0; index < len(args); index++ {
-		if args[index] == "--rule" {
-			value, next, err := requiredEnvironmentValue(args, index)
+	for index := 0; index < len(rest); index++ {
+		if rest[index] == "--rule" {
+			value, next, err := requiredEnvironmentValue(rest, index)
 			if err != nil {
 				return nil, err
 			}
@@ -490,43 +527,48 @@ func runEnvironmentDoctor(ctx context.Context, service *projectenv.Service, args
 			index = next
 			continue
 		}
-		if strings.HasPrefix(args[index], "-") {
-			return nil, envUsage("unknown doctor argument: " + args[index])
+		if strings.HasPrefix(rest[index], "-") {
+			return nil, envUsage("unknown doctor argument: " + rest[index])
 		}
-		paths = append(paths, args[index])
+		paths = append(paths, rest[index])
 	}
-	return service.Doctor(ctx, projectenv.DoctorRequest{RepositoryPaths: paths, RuleIDs: rules})
+	return service.Doctor(ctx, projectenv.DoctorRequest{RepositoryPaths: paths, RuleIDs: rules, Session: fields})
 }
 
-func parseEnvironmentFields(args []string) (projectenv.FieldMap, []string, error) {
-	fields := projectenv.FieldMap{}
+func parseEnvironmentFields(args []string) (projectenv.EnvironmentFields, []string, error) {
+	fields := projectenv.EnvironmentFields{Git: projectenv.FieldMap{}, Codex: projectenv.FieldMap{}}
 	rest := make([]string, 0, len(args))
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
-		if arg != "--git-set" && arg != "--git-clear" && arg != "--git-inherit" {
+		if arg != "--git-set" && arg != "--git-clear" && arg != "--git-inherit" &&
+			arg != "--codex-set" && arg != "--codex-clear" && arg != "--codex-inherit" {
 			rest = append(rest, arg)
 			continue
 		}
 		value, next, err := requiredEnvironmentValue(args, index)
 		if err != nil {
-			return nil, nil, err
+			return projectenv.EnvironmentFields{}, nil, err
 		}
 		index = next
+		target := fields.Git
+		if strings.HasPrefix(arg, "--codex-") {
+			target = fields.Codex
+		}
 		switch arg {
-		case "--git-set":
+		case "--git-set", "--codex-set":
 			key, fieldValue, ok := strings.Cut(value, "=")
 			if !ok {
-				return nil, nil, envUsage("--git-set requires key=value")
+				return projectenv.EnvironmentFields{}, nil, envUsage(arg + " requires key=value")
 			}
-			fields[key] = projectenv.FieldIntent{Mode: projectenv.ModeSet, Value: fieldValue}
-		case "--git-clear":
-			fields[value] = projectenv.FieldIntent{Mode: projectenv.ModeClear}
-		case "--git-inherit":
-			fields[value] = projectenv.FieldIntent{Mode: projectenv.ModeInherit}
+			target[key] = projectenv.FieldIntent{Mode: projectenv.ModeSet, Value: fieldValue}
+		case "--git-clear", "--codex-clear":
+			target[value] = projectenv.FieldIntent{Mode: projectenv.ModeClear}
+		case "--git-inherit", "--codex-inherit":
+			target[value] = projectenv.FieldIntent{Mode: projectenv.ModeInherit}
 		}
 	}
-	if err := projectenv.ValidateConfig(projectenv.Config{Version: 1, Defaults: projectenv.LayerConfig{Git: fields}}); err != nil {
-		return nil, nil, err
+	if err := projectenv.ValidateEnvironmentFields(fields); err != nil {
+		return projectenv.EnvironmentFields{}, nil, err
 	}
 	return fields, rest, nil
 }
@@ -547,7 +589,7 @@ func isRenderedEnvironmentOutput(value any) bool {
 
 func renderEnvironmentPlans(writer io.Writer, plans []projectenv.ChangePlan) {
 	for _, plan := range plans {
-		_, _ = fmt.Fprintf(writer, "%s\n", plan.Target.WorktreePath)
+		_, _ = fmt.Fprintf(writer, "[%s] %s -> %s\n", plan.Adapter, plan.Target.WorktreePath, plan.Target.ConfigPath)
 		for _, change := range plan.Changes {
 			if change.Operation == projectenv.OperationUnmanaged {
 				continue
@@ -563,6 +605,17 @@ func renderEnvironmentPlans(writer io.Writer, plans []projectenv.ChangePlan) {
 			_, _ = fmt.Fprintf(writer, "  %s: %s -> %s (%s, source %s/%s)\n", change.Key, current, change.Desired.Value, change.Operation, change.Source.Kind, change.Source.ID)
 		}
 	}
+}
+
+func plansHaveIssue(plans []projectenv.ChangePlan, code projectenv.ErrorCode) bool {
+	for _, plan := range plans {
+		for _, issue := range append(append([]projectenv.Issue(nil), plan.Warnings...), plan.Blockers...) {
+			if issue.Code == code {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func environmentReaderIsTerminal(reader io.Reader) bool {

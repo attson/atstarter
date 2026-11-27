@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"time"
 )
@@ -351,7 +352,23 @@ func (s *Service) Doctor(ctx context.Context, request DoctorRequest) ([]Issue, e
 			}
 			snapshot, err := adapter.Inspect(ctx, target)
 			if err != nil {
-				issues = append(issues, Issue{Code: ErrInvalidGitConfig, Message: "inspect repository configuration", Detail: err.Error(), Path: path, Blocking: true})
+				code := ErrInvalidGitConfig
+				message := "inspect repository environment configuration"
+				detail := err.Error()
+				if adapter.Name() == "codex" {
+					code = ErrInvalidCodexConfig
+				}
+				var environmentErr *Error
+				if errors.As(err, &environmentErr) {
+					code = environmentErr.Code
+					message = environmentErr.Message
+					detail = environmentErr.Detail
+				}
+				issuePath := target.ConfigPath
+				if issuePath == "" {
+					issuePath = path
+				}
+				issues = append(issues, Issue{Code: code, Message: message, Detail: detail, Path: issuePath, Blocking: true})
 				continue
 			}
 			issues = append(issues, snapshot.Issues...)

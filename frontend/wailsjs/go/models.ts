@@ -358,6 +358,46 @@ export namespace projectenv {
 	        this.blocking = source["blocking"];
 	    }
 	}
+	export class AdapterState {
+	    targetId?: string;
+	    fingerprint?: string;
+	    status?: string;
+	    lastApplyAt?: string;
+	    lastApplyResult?: string;
+	    blockers?: Issue[];
+
+	    static createFrom(source: any = {}) {
+	        return new AdapterState(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.targetId = source["targetId"];
+	        this.fingerprint = source["fingerprint"];
+	        this.status = source["status"];
+	        this.lastApplyAt = source["lastApplyAt"];
+	        this.lastApplyResult = source["lastApplyResult"];
+	        this.blockers = this.convertValues(source["blockers"], Issue);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Source {
 	    kind: string;
 	    id?: string;
@@ -503,11 +543,28 @@ export namespace projectenv {
 		}
 	}
 
+	export class TextEdit {
+	    start: number;
+	    end: number;
+	    replacement: string;
+
+	    static createFrom(source: any = {}) {
+	        return new TextEdit(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.start = source["start"];
+	        this.end = source["end"];
+	        this.replacement = source["replacement"];
+	    }
+	}
 	export class Snapshot {
 	    target: Target;
 	    values: Record<string, Array<OriginValue>>;
 	    fingerprint: string;
 	    issues: Issue[];
+	    exists: boolean;
 
 	    static createFrom(source: any = {}) {
 	        return new Snapshot(source);
@@ -519,6 +576,7 @@ export namespace projectenv {
 	        this.values = this.convertValues(source["values"], Array<OriginValue>, true);
 	        this.fingerprint = source["fingerprint"];
 	        this.issues = this.convertValues(source["issues"], Issue);
+	        this.exists = source["exists"];
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -565,6 +623,8 @@ export namespace projectenv {
 	    changes: Change[];
 	    warnings?: Issue[];
 	    blockers?: Issue[];
+	    nativeEdits?: TextEdit[];
+	    nativeDiff?: string[];
 
 	    static createFrom(source: any = {}) {
 	        return new ChangePlan(source);
@@ -583,6 +643,8 @@ export namespace projectenv {
 	        this.changes = this.convertValues(source["changes"], Change);
 	        this.warnings = this.convertValues(source["warnings"], Issue);
 	        this.blockers = this.convertValues(source["blockers"], Issue);
+	        this.nativeEdits = this.convertValues(source["nativeEdits"], TextEdit);
+	        this.nativeDiff = source["nativeDiff"];
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -627,6 +689,7 @@ export namespace projectenv {
 	    autoDiscover: boolean;
 	    presetId?: string;
 	    git?: Record<string, FieldIntent>;
+	    codex?: Record<string, FieldIntent>;
 
 	    static createFrom(source: any = {}) {
 	        return new Rule(source);
@@ -641,6 +704,7 @@ export namespace projectenv {
 	        this.autoDiscover = source["autoDiscover"];
 	        this.presetId = source["presetId"];
 	        this.git = this.convertValues(source["git"], FieldIntent, true);
+	        this.codex = this.convertValues(source["codex"], FieldIntent, true);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -666,6 +730,7 @@ export namespace projectenv {
 	    name: string;
 	    description?: string;
 	    git?: Record<string, FieldIntent>;
+	    codex?: Record<string, FieldIntent>;
 
 	    static createFrom(source: any = {}) {
 	        return new Preset(source);
@@ -677,6 +742,7 @@ export namespace projectenv {
 	        this.name = source["name"];
 	        this.description = source["description"];
 	        this.git = this.convertValues(source["git"], FieldIntent, true);
+	        this.codex = this.convertValues(source["codex"], FieldIntent, true);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -700,6 +766,7 @@ export namespace projectenv {
 	export class LayerConfig {
 	    presetId?: string;
 	    git?: Record<string, FieldIntent>;
+	    codex?: Record<string, FieldIntent>;
 
 	    static createFrom(source: any = {}) {
 	        return new LayerConfig(source);
@@ -709,6 +776,7 @@ export namespace projectenv {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.presetId = source["presetId"];
 	        this.git = this.convertValues(source["git"], FieldIntent, true);
+	        this.codex = this.convertValues(source["codex"], FieldIntent, true);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -793,10 +861,42 @@ export namespace projectenv {
 	        this.id = source["id"];
 	    }
 	}
+	export class EnvironmentFields {
+	    git?: Record<string, FieldIntent>;
+	    codex?: Record<string, FieldIntent>;
+
+	    static createFrom(source: any = {}) {
+	        return new EnvironmentFields(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.git = this.convertValues(source["git"], FieldIntent, true);
+	        this.codex = this.convertValues(source["codex"], FieldIntent, true);
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class DoctorRequest {
 	    repositoryPaths?: string[];
 	    ruleIds?: string[];
-	    session?: Record<string, FieldIntent>;
+	    session?: EnvironmentFields;
 
 	    static createFrom(source: any = {}) {
 	        return new DoctorRequest(source);
@@ -806,7 +906,7 @@ export namespace projectenv {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.repositoryPaths = source["repositoryPaths"];
 	        this.ruleIds = source["ruleIds"];
-	        this.session = this.convertValues(source["session"], FieldIntent, true);
+	        this.session = this.convertValues(source["session"], EnvironmentFields);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -863,10 +963,11 @@ export namespace projectenv {
 
 
 
+
 	export class PlanRequest {
 	    repositoryPaths?: string[];
 	    ruleIds?: string[];
-	    session?: Record<string, FieldIntent>;
+	    session?: EnvironmentFields;
 
 	    static createFrom(source: any = {}) {
 	        return new PlanRequest(source);
@@ -876,7 +977,7 @@ export namespace projectenv {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.repositoryPaths = source["repositoryPaths"];
 	        this.ruleIds = source["ruleIds"];
-	        this.session = this.convertValues(source["session"], FieldIntent, true);
+	        this.session = this.convertValues(source["session"], EnvironmentFields);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -901,16 +1002,12 @@ export namespace projectenv {
 
 	export class RepositoryRecord {
 	    id: string;
-	    targetId?: string;
 	    aliases: RepositoryAlias[];
 	    matchingRuleIds?: string[];
 	    winningSourceIds?: string[];
-	    fingerprint?: string;
 	    resolvedTargetHash?: string;
 	    status?: string;
-	    lastApplyAt?: string;
-	    lastApplyResult?: string;
-	    blockers?: Issue[];
+	    adapters: Record<string, AdapterState>;
 
 	    static createFrom(source: any = {}) {
 	        return new RepositoryRecord(source);
@@ -919,16 +1016,12 @@ export namespace projectenv {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
-	        this.targetId = source["targetId"];
 	        this.aliases = this.convertValues(source["aliases"], RepositoryAlias);
 	        this.matchingRuleIds = source["matchingRuleIds"];
 	        this.winningSourceIds = source["winningSourceIds"];
-	        this.fingerprint = source["fingerprint"];
 	        this.resolvedTargetHash = source["resolvedTargetHash"];
 	        this.status = source["status"];
-	        this.lastApplyAt = source["lastApplyAt"];
-	        this.lastApplyResult = source["lastApplyResult"];
-	        this.blockers = this.convertValues(source["blockers"], Issue);
+	        this.adapters = this.convertValues(source["adapters"], AdapterState, true);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -951,7 +1044,7 @@ export namespace projectenv {
 	}
 	export class ResolveRequest {
 	    repoPath: string;
-	    session?: Record<string, FieldIntent>;
+	    session?: EnvironmentFields;
 
 	    static createFrom(source: any = {}) {
 	        return new ResolveRequest(source);
@@ -960,7 +1053,7 @@ export namespace projectenv {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.repoPath = source["repoPath"];
-	        this.session = this.convertValues(source["session"], FieldIntent, true);
+	        this.session = this.convertValues(source["session"], EnvironmentFields);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1017,6 +1110,7 @@ export namespace projectenv {
 	    repoPath: string;
 	    matchingRuleIds: string[];
 	    git: Record<string, ResolvedField>;
+	    codex: Record<string, ResolvedField>;
 
 	    static createFrom(source: any = {}) {
 	        return new ResolvedEnvironment(source);
@@ -1027,6 +1121,7 @@ export namespace projectenv {
 	        this.repoPath = source["repoPath"];
 	        this.matchingRuleIds = source["matchingRuleIds"];
 	        this.git = this.convertValues(source["git"], ResolvedField, true);
+	        this.codex = this.convertValues(source["codex"], ResolvedField, true);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1089,6 +1184,7 @@ export namespace projectenv {
 	    revision: string;
 	    presetId?: string;
 	    git?: Record<string, FieldIntent>;
+	    codex?: Record<string, FieldIntent>;
 
 	    static createFrom(source: any = {}) {
 	        return new SaveDefaultsRequest(source);
@@ -1099,6 +1195,7 @@ export namespace projectenv {
 	        this.revision = source["revision"];
 	        this.presetId = source["presetId"];
 	        this.git = this.convertValues(source["git"], FieldIntent, true);
+	        this.codex = this.convertValues(source["codex"], FieldIntent, true);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1125,6 +1222,7 @@ export namespace projectenv {
 	    name?: string;
 	    description?: string;
 	    git?: Record<string, FieldIntent>;
+	    codex?: Record<string, FieldIntent>;
 
 	    static createFrom(source: any = {}) {
 	        return new SavePresetRequest(source);
@@ -1137,6 +1235,7 @@ export namespace projectenv {
 	        this.name = source["name"];
 	        this.description = source["description"];
 	        this.git = this.convertValues(source["git"], FieldIntent, true);
+	        this.codex = this.convertValues(source["codex"], FieldIntent, true);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1166,6 +1265,7 @@ export namespace projectenv {
 	    autoDiscover?: boolean;
 	    presetId?: string;
 	    git?: Record<string, FieldIntent>;
+	    codex?: Record<string, FieldIntent>;
 
 	    static createFrom(source: any = {}) {
 	        return new SaveRuleRequest(source);
@@ -1181,6 +1281,7 @@ export namespace projectenv {
 	        this.autoDiscover = source["autoDiscover"];
 	        this.presetId = source["presetId"];
 	        this.git = this.convertValues(source["git"], FieldIntent, true);
+	        this.codex = this.convertValues(source["codex"], FieldIntent, true);
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1237,6 +1338,7 @@ export namespace projectenv {
 		    return a;
 		}
 	}
+
 
 }
 

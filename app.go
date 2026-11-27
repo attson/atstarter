@@ -18,6 +18,7 @@ import (
 	"rootyard/internal/filetree"
 	"rootyard/internal/git"
 	"rootyard/internal/projectenv"
+	"rootyard/internal/projectenv/codexadapter"
 	"rootyard/internal/projectenv/gitadapter"
 	"rootyard/internal/runner"
 	"rootyard/internal/scanner"
@@ -112,7 +113,7 @@ func NewAppWithConfig(cfgPath string) *App {
 		configPath:       cfgPath,
 		environmentScans: make(map[string]context.CancelFunc),
 	}
-	app.envService = projectenv.NewService(cfgPath, gitadapter.New())
+	app.envService = projectenv.NewService(cfgPath, gitadapter.New(), codexadapter.New())
 	app.environmentScan = app.envService.Scan
 	app.environmentScanID = newEnvironmentScanID
 	app.environmentEmit = func(name string, payload any) {
