@@ -150,16 +150,21 @@ Applicable to `EnvironmentWorkspace.vue`, `components/environments/*`, and
    Directory Rules, and Repositories. It is not a settings modal or a launcher-project subview.
 2. Vue calls generated Wails bindings for document/state access, CRUD, scans, planning, doctor, and
    apply. It may subscribe to `projectenv:scan-progress` and `projectenv:scan-complete`; it must not
-   read JSON, walk directories, or invoke Git.
-3. Normalization, field editing, validation, status filtering, canonical-target selection, plan/result
-   summaries, and stale/conflict detection stay pure in `projectEnvironmentUi.js` with `node:test`
-   coverage.
+   read environment files, walk directories, or invoke native environment tools.
+3. Normalization, Git/Codex field editing, validation, status filtering, canonical-target selection,
+   plan/result summaries, and stale/conflict detection stay pure in `projectEnvironmentUi.js` with
+   `node:test` coverage.
 4. Saving defaults, presets, or directory rules never implies apply. Repository selection excludes
    blocked rows, select-all skips them, and aliases sharing a target count once.
-5. Preview displays the exact per-target, per-key source, current local values, operation, and desired
-   value. Apply receives those displayed plans unchanged and remains disabled until the user checks the
-   explicit confirmation control. Stale results require re-preview; blocked targets remain disabled.
-6. At 1440x900 the repository list and diff may use side-by-side tracks. At 1024x768 the preview stacks
+5. Preset, Global Defaults, and Directory Rule field areas use compact `Git` and `Codex` sub-tabs.
+   Model/reasoning controls accept non-empty free-form values; fixed Codex enums use selects.
+6. Preview groups by worktree and then adapter, showing adapter, config path, exact per-key source,
+   current value, operation, desired value, warnings, blockers, and Codex native diff lines. Apply
+   receives those displayed plans unchanged. Every apply requires the exact-change checkbox; plans
+   containing `dangerous_codex_permissions` require a second high-risk checkbox.
+7. Repository status is the worst per-adapter state. Stale results require re-preview; blocked targets
+   remain disabled.
+8. At 1440x900 the repository list and diff may use side-by-side tracks. At 1024x768 the preview stacks
    into bounded list/diff rows without overlap, clipped controls, or horizontal layout growth. Below the
    compact breakpoint, the environment sidebar collapses to icons while preserving tooltips/labels for
    accessibility.

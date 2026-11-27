@@ -6,7 +6,7 @@ This file provides guidance to AI coding agents working in this repository.
 
 ## Project Overview
 
-Rootyard is a local project workspace built with Wails v2, Go, and Vue 3. It scans local workspaces, detects project types, stores project launch commands, starts/stops projects, shows logs, manages Docker/compose, provides file and Git tools, centrally manages project Git environments, exposes CLI/MCP controls, and self-updates from GitHub Releases.
+Rootyard is a local project workspace built with Wails v2, Go, and Vue 3. It scans local workspaces, detects project types, stores project launch commands, starts/stops projects, shows logs, manages Docker/compose, provides file and Git tools, centrally manages project Git and Codex environments, exposes CLI/MCP controls, and self-updates from GitHub Releases.
 
 ## Required Commands
 
@@ -47,6 +47,7 @@ internal/
   git/                  project branch status, branch list, checkout/create (local git CLI only)
   projectenv/           environment presets/rules, discovery, state, planning, adapter contracts
   projectenv/gitadapter Git identity/signing inspection and atomic local-config apply
+  projectenv/codexadapter Worktree-local Codex TOML inspection and atomic minimal edits
 frontend/src/           Vue3 app, custom UI components, theme tokens, file explorer
 env_cli.go              offline `rootyard env` command surface
 app_environments.go     Wails environment bindings and cancellable scan lifecycle
@@ -87,8 +88,8 @@ app_environments.go     Wails environment bindings and cancellable scan lifecycl
 - Unix process launch uses the system account's login interactive shell (with `$SHELL` only as a fallback) and process group cleanup. Preserve `-l -i -c` and `setsid` unless replacing the full contract.
 - File browser APIs must resolve all relative paths inside project root and reject path traversal. Copy/move take two project IDs and resolve each side against its own root; they never overwrite (auto-rename via `filetree.UniqueName`).
 - `internal/git` shells out to the system `git` for local operations only. No `fetch`/`pull`/`push`, every command has a timeout, branch names are validated before reaching git, and git's own stderr is surfaced verbatim.
-- `internal/projectenv` owns `environments.json` and rebuildable `environment-state.json`; neither belongs in launcher `config.json`. Resolution, discovery, diff, and doctor are read-only toward repository Git config.
-- Git environment writes require an explicit preview plus manual apply. Apply uses the displayed `ChangePlan`, checks its fingerprint, edits a temporary config, verifies it, and atomically replaces only the canonical local config.
+- `internal/projectenv` owns `environments.json` and rebuildable `environment-state.json`; neither belongs in launcher `config.json`. Resolution, discovery, diff, and doctor are read-only toward native Git and Codex configuration.
+- Project-environment writes require an explicit preview plus manual apply. Apply uses the displayed `ChangePlan`, checks its fingerprint, verifies the proposed native result, and atomically replaces only the adapter's canonical project-local configuration.
 - `rootyard env` is the deliberate offline CLI exception: it creates its own project-environment service and works without the desktop process. Existing `rootyard cli` and `rootyard mcp` operations must continue through the desktop control server.
 
 ### Frontend Rules

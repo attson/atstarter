@@ -13,8 +13,8 @@ Process drafts under `docs/superpowers/` are not formal specs. Long-lived projec
 
 Rootyard is a local project workspace. It turns local directories into managed projects: detect
 project type, store launch commands, start or stop child processes, show logs, manage Docker/compose,
-browse project files, inspect local Git state, centrally manage project Git environments, expose AI
-controls, and self-update from GitHub Releases.
+browse project files, inspect local Git state, centrally manage project Git and Codex environments,
+expose AI controls, and self-update from GitHub Releases.
 
 ```text
 Wails desktop process
@@ -61,6 +61,7 @@ directory. There is no server-side state.
 | `internal/git` | Project branch status, branch list, checkout / create branch | `git` CLI facade, local operations only |
 | `internal/projectenv` | Presets, directory rules, resolution, discovery, state, plans, batch apply | Wails-independent environment core |
 | `internal/projectenv/gitadapter` | Inspect, diagnose, plan, and atomically apply six local Git fields | System `git` facade; local operations only |
+| `internal/projectenv/codexadapter` | Inspect, diagnose, minimally edit, and atomically apply five project Codex fields | Worktree-local `.codex/config.toml`; no global config or network |
 | `internal/control` | Control state file and RPC client protocol for CLI/MCP | Runtime discovery, no business logic |
 | `app.go` | Compose modules and expose Wails methods/events | Binding layer only |
 | `control_server.go` | Expose selected App operations on localhost for CLI/MCP | Desktop process remains source of truth |
@@ -93,15 +94,16 @@ Project environments use a separate data flow and do not require a launcher `Pro
 ```text
 environments.json
   -> projectenv.Store -> Resolver -> Discovery / Service
-  -> gitadapter.Identify + Inspect -> immutable ChangePlan
-  -> explicit confirmation -> gitadapter.Apply
+  -> registered adapters Identify + Inspect -> immutable ChangePlan values
+  -> explicit confirmation -> adapter Apply
   -> environment-state.json (rebuildable discovery/apply status)
 
 consumers: rootyard env (offline) | app_environments.go -> generated Wails bindings -> Vue workspace
+adapters: Git common-dir target | Codex worktree target
 ```
 
-Discovery, resolution, doctor, and planning are read-only toward repository configuration. Only an
-explicit apply may write a canonical Git local config.
+Discovery, resolution, doctor, and planning are read-only toward native environment configuration.
+Only an explicit apply may write an adapter's canonical project-local config.
 
 ## 4. Wails Binding Surface
 
@@ -204,7 +206,7 @@ Project-environment files are siblings of the resolved `config.json` path:
 | File | Authority | Contents |
 |------|-----------|----------|
 | `environments.json` | Authoritative | Global defaults, environment presets, and directory rules |
-| `environment-state.json` | Rebuildable | Scan records, repository aliases, fingerprints, blockers, and last apply results |
+| `environment-state.json` | Rebuildable | Version 2 scan records, aliases, and per-adapter fingerprints, blockers, status, and apply results |
 
 `ROOTYARD_CONFIG` and `--config` relocate the sibling files with `config.json`; the launcher schema is
 unchanged. Config updates are strict, revision checked, lock protected, and atomically replaced.

@@ -49,7 +49,8 @@ The former is authoritative; the latter is rebuildable state.
 
 ## Offline project environment CLI
 
-Phase 1 manages exactly these repository-local Git keys:
+Project environments manage the six repository-local Git keys below and five worktree-local Codex
+keys:
 
 ```text
 user.name
@@ -58,11 +59,16 @@ user.signingKey
 commit.gpgSign
 tag.gpgSign
 gpg.format
+model
+model_reasoning_effort
+sandbox_mode
+approval_policy
+web_search
 ```
 
 The workflow is always preset/defaults -> directory rule -> scan -> diff ->
 explicit apply. Saving configuration, scanning, resolving, diffing, and
-running doctor never writes repository Git configuration.
+running doctor never writes native Git or Codex configuration.
 
 ### Global and field flags
 
@@ -79,6 +85,9 @@ Commands that edit or resolve fields accept repeatable session/field flags:
 --git-set key=value   explicitly set one supported key
 --git-clear key       explicitly remove repository-local values
 --git-inherit key     leave the value to an earlier layer or unmanaged scope
+--codex-set key=value
+--codex-clear key
+--codex-inherit key
 ```
 
 `inherit`, `set(value)`, and `clear` are distinct persisted intents. Omitting a
@@ -99,6 +108,7 @@ rootyard env preset set --name "Company" --description "Company identity" \
   --git-set user.email=ada@company.example \
   --git-set commit.gpgSign=true
 rootyard env preset set --id PRESET_ID --name "Company identity"
+rootyard env preset set --name Company --codex-set model=custom-model
 rootyard env preset clone PRESET_ID --name "Company signing"
 rootyard env preset delete PRESET_ID
 ```
@@ -144,10 +154,14 @@ rootyard env resolve /work/company/api --git-set user.email=session@example.com
 rootyard env diff /work/company/api
 rootyard env diff --repo /work/company/api --repo /work/company/web
 rootyard env diff --rule RULE_ID
+rootyard env diff /work/company/api --codex-set sandbox_mode=workspace-write
 
 rootyard env apply /work/company/api
 rootyard env apply --rule RULE_ID --yes
 rootyard env apply --repo /work/company/api --git-clear user.signingKey --yes
+rootyard env apply /work/company/api --codex-clear model --yes
+rootyard env apply /work/company/api --codex-set sandbox_mode=danger-full-access \
+  --codex-set approval_policy=never --yes --accept-dangerous
 
 rootyard env doctor /work/company/api
 rootyard env doctor --rule RULE_ID
@@ -163,13 +177,18 @@ Interactive `apply` first prints the exact change plan and prompts
 any other non-interactive input require `--yes`; otherwise the command returns
 `confirmation_required` and includes the unapplied plans. Apply uses the exact
 fingerprint-bound plans it displayed and reports each target independently.
+High-risk Codex plans also require typing `APPLY DANGEROUS` interactively or
+passing `--accept-dangerous` non-interactively. Rootyard never edits global Codex
+configuration and does not verify account or model availability.
 
-### Worktrees and signing diagnostics
+### Worktrees and offline diagnostics
 
 Linked worktrees that share a canonical Git common directory also share one
 local config, so Rootyard de-duplicates them into one apply target while
 retaining every path as an alias. If aliases match different rules and resolve
 to different desired fields, `shared_target_conflict` blocks the target.
+Each canonical worktree remains a separate Codex target with its own
+`.codex/config.toml`.
 
 When commit or tag signing resolves to true, `doctor` validates the configured
 program or local fallback without network access:
@@ -187,7 +206,11 @@ program or local fallback without network access:
 | `environment_stale` | `environments.json` changed since it was loaded; reload before saving |
 | `external_local_origin` | a managed value comes from an included local config; edit/detach that origin explicitly |
 | `shared_target_conflict` | aliases of one common directory resolved differently; align their rules |
-| `stale_plan` | Git config changed after preview; run diff again before apply |
+| `stale_plan` | native Git or Codex config changed after preview; run diff again before apply |
+| `invalid_codex_config` | project Codex TOML is malformed or a managed value is invalid |
+| `unsafe_codex_config_path` | `.codex` or its config is a symlink/non-regular path |
+| `dangerous_codex_permissions` | sandboxing and approvals are both disabled; explicit high-risk confirmation is required |
+| `codex_unavailable` | local Codex executable was not found; configuration may still be prepared |
 | `lock_timeout` | another desktop/CLI mutation holds an environment file lock; retry after it completes |
 | `signing_key_unavailable` | the resolved key is missing, unreadable, or failed local verification |
 | `signing_program_unavailable` | the required signing program cannot be found |

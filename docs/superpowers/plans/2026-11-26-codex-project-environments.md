@@ -673,11 +673,11 @@ git commit -m "feat: preview Codex environment changes safely"
 - Documents: unified schema, state version 2, Codex target identity, TOML preservation, CLI flags, offline Doctor, and dangerous confirmation.
 - Preserves: Phase 1 Git guarantees and the offline CLI exception.
 
-- [ ] **Step 1: Update authoritative contracts**
+- [x] **Step 1: Update authoritative contracts**
 
 Document the exact five Codex keys and values, structured session overrides, `TextEdit`/native diff plan data, worktree target identity, per-adapter state, state migration, stale absent-file behavior, and issue severity. Replace any statement that implies `projectenv` has only a Git adapter.
 
-- [ ] **Step 2: Update UI and CLI documentation**
+- [x] **Step 2: Update UI and CLI documentation**
 
 Document the Git/Codex sub-tabs, adapter-grouped preview, two confirmations for high-risk plans, and these commands:
 
@@ -690,7 +690,7 @@ rootyard env apply /path/to/repo --codex-set sandbox_mode=danger-full-access --c
 
 State explicitly that Rootyard does not modify global Codex config or verify account/model availability.
 
-- [ ] **Step 3: Check docs for stale Git-only claims**
+- [x] **Step 3: Check docs for stale Git-only claims**
 
 Run:
 
@@ -700,7 +700,7 @@ rg -n "Git adapter|Native Git changes|Session overrides|environment-state|projec
 
 Expected: every remaining Git-only phrase is intentionally scoped to the Git adapter, not the whole subsystem.
 
-- [ ] **Step 4: Commit documentation**
+- [x] **Step 4: Commit documentation**
 
 ```bash
 git add README.md docs/specs

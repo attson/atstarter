@@ -3,7 +3,7 @@
 Your local project workspace.
 
 Rootyard 是面向 AI 开发时代的本地项目工作台。它在一处管理本地项目、启动命令、
-运行状态、日志、Docker、文件、Git 状态和项目级 Git 环境，AI Agent 也可通过 CLI 或 MCP
+运行状态、日志、Docker、文件、Git 状态和项目级 Git/Codex 环境，AI Agent 也可通过 CLI 或 MCP
 操作同一套桌面运行态。
 
 ---
@@ -41,7 +41,7 @@ rootyard mcp                                             # stdio MCP server
 
 ```text
 创建 Environment Preset -> 配置 Directory Rule -> 扫描仓库
--> 预览逐字段 Git 变更 -> 手动确认 -> 应用
+-> 预览按 Git/Codex 分组的逐字段变更 -> 手动确认 -> 应用
 ```
 
 桌面未启动时也可使用独立的离线命令：
@@ -52,11 +52,20 @@ rootyard env scan
 rootyard env diff /path/to/repository
 rootyard env apply /path/to/repository          # 交互确认
 rootyard env apply /path/to/repository --yes    # 自动化中的显式确认
+rootyard env preset set --name Company --codex-set model=custom-model
+rootyard env diff /path/to/repository --codex-set sandbox_mode=workspace-write
+rootyard env apply /path/to/repository --codex-clear model --yes
+rootyard env apply /path/to/repository --codex-set sandbox_mode=danger-full-access \
+  --codex-set approval_policy=never --yes --accept-dangerous
 ```
 
-Phase 1 只管理仓库本地的 `user.name`、`user.email`、`user.signingKey`、
+Git adapter 只管理仓库本地的 `user.name`、`user.email`、`user.signingKey`、
 `commit.gpgSign`、`tag.gpgSign` 和 `gpg.format`。扫描、解析、诊断和预览均不会写 Git 配置；
 linked worktree 会按共享的 Git common directory 合并为一个应用目标。
+
+Codex adapter 只管理各 worktree 的 `.codex/config.toml` 中五个项目级字段，不修改全局
+Codex 配置，也不验证账号是否可用某个模型。`danger-full-access` 与 `never` 同时生效时，
+非交互应用除 `--yes` 外还必须显式传入 `--accept-dangerous`。
 
 MCP 最省事的接法(任意客户端,无需 plugin marketplace):
 
