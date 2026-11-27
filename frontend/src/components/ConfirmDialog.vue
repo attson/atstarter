@@ -1,7 +1,9 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import AppButton from './ui/AppButton.vue'
-defineProps({ show: Boolean, title: String, message: String, confirmText: { type: String, default: '确认' }, danger: Boolean })
+defineProps({ show: Boolean, title: String, message: String, confirmText: String, danger: Boolean })
 const emit = defineEmits(['close', 'confirm'])
+const { t } = useI18n()
 </script>
 
 <template>
@@ -11,8 +13,8 @@ const emit = defineEmits(['close', 'confirm'])
         <h3>{{ title }}</h3>
         <p>{{ message }}</p>
         <div class="actions">
-          <AppButton variant="secondary" size="sm" @click="emit('close')">取消</AppButton>
-          <AppButton :variant="danger ? 'danger' : 'primary'" size="sm" @click="emit('confirm')">{{ confirmText }}</AppButton>
+          <AppButton variant="secondary" size="sm" @click="emit('close')">{{ t('common.cancel') }}</AppButton>
+          <AppButton :variant="danger ? 'danger' : 'primary'" size="sm" @click="emit('confirm')">{{ confirmText || t('common.confirm') }}</AppButton>
         </div>
       </div>
     </div>

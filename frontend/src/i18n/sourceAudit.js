@@ -4,7 +4,16 @@
 import { babelParse, parse as parseSfc } from 'vue/compiler-sfc'
 
 export const AUDITED_UI_FILES = [
+  'App.vue',
+  'components/ConfirmDialog.vue',
+  'components/DetectionSwitch.vue',
   'components/SettingsDialog.vue',
+  'components/ui/AppButton.vue',
+  'components/ui/AppIcon.vue',
+  'components/ui/AppPill.vue',
+  'components/ui/ThemeToggle.vue',
+  'components/ui/ContextMenu.vue',
+  'i18n/shellPresentation.js',
 ]
 
 const accessibleAttributes = new Set(['title', 'aria-label', 'alt', 'placeholder'])

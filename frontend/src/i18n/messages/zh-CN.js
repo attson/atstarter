@@ -1,5 +1,46 @@
 export default {
-  common: { cancel: '取消', save: '保存', saving: '保存中...', confirm: '确认', close: '关闭' },
+  common: { cancel: '取消', save: '保存', saving: '保存中...', confirm: '确认', close: '关闭', remove: '删除', reset: '重置', start: '启动', stop: '停止' },
+  navigation: {
+    projects: '项目',
+    containers: '容器',
+    environments: '环境',
+    projectCount: '{count} 个项目',
+    containerCount: '{count} 个容器',
+    newGroup: '新建分组',
+    scan: '扫描',
+    add: '添加',
+    projectMenu: {
+      pin: '置顶',
+      unpin: '取消置顶',
+      openInFileManager: '在文件管理器打开',
+      removeFromList: '从列表移除',
+    },
+  },
+  dialogs: {
+    removeContainer: {
+      title: '删除容器',
+      runningMessage: '容器「{name}」正在运行，将强制删除（rm -f）。确认继续？',
+      message: '删除容器「{name}」？',
+    },
+    composeDown: {
+      title: 'Compose Down',
+      message: '将停止并删除该 compose 项目的所有容器与网络（数据卷保留）。确认继续？',
+      confirm: 'Down',
+    },
+    resetProjects: {
+      title: '重置项目列表',
+      message: '将清空所有项目和启动分组，保留扫描工作区。正在运行的普通项目会先停止。确认继续？',
+    },
+  },
+  status: {
+    runningCount: '{count} 运行中',
+    exitedCount: '{count} 已退出',
+    unknown: '未知',
+    operationFailed: '操作失败：',
+    loadSettingsFailed: '读取设置失败：',
+    refreshStatusFailed: '刷新运行状态失败：',
+    rescanFailed: '重新扫描失败：',
+  },
   settings: {
     title: '设置',
     general: '通用',
@@ -21,5 +62,13 @@ export default {
     fontFamilyHint: '字体名称',
     preview: 'go run main.go · 编译完成 0123456789',
   },
-  accessibility: { settings: '设置', checkUpdates: '检查更新' },
+  accessibility: {
+    settings: '设置',
+    checkUpdates: '检查更新',
+    theme: '主题：{theme}',
+    themeDark: '深色',
+    themeLight: '浅色',
+    themeSystem: '跟随系统',
+    useDetection: '使用 {type}',
+  },
 }

@@ -1,9 +1,12 @@
 <script setup>
 import { computed } from 'vue'
-import { commandLineForDetection, detectionLabel, detectionOptionsFor } from '../projectDetection.js'
+import { useI18n } from 'vue-i18n'
+import { commandLineForDetection, detectionOptionsFor } from '../projectDetection.js'
+import { detectionChoiceLabel } from '../i18n/shellPresentation.js'
 
 const props = defineProps({ project: Object })
 const emit = defineEmits(['switch'])
+const { t } = useI18n()
 
 const options = computed(() => detectionOptionsFor(props.project))
 
@@ -20,10 +23,11 @@ function choose(option) {
       :key="option.type"
       type="button"
       :class="{ active: project && option.type === project.detectedType }"
-      :title="commandLineForDetection(option) || detectionLabel(option)"
+      :title="commandLineForDetection(option) || detectionChoiceLabel(option, t)"
+      :aria-label="t('accessibility.useDetection', { type: detectionChoiceLabel(option, t) })"
       @click.stop="choose(option)"
     >
-      {{ detectionLabel(option) }}
+      {{ detectionChoiceLabel(option, t) }}
     </button>
   </div>
 </template>

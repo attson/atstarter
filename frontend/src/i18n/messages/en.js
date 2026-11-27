@@ -1,5 +1,46 @@
 export default {
-  common: { cancel: 'Cancel', save: 'Save', saving: 'Saving...', confirm: 'Confirm', close: 'Close' },
+  common: { cancel: 'Cancel', save: 'Save', saving: 'Saving...', confirm: 'Confirm', close: 'Close', remove: 'Remove', reset: 'Reset', start: 'Start', stop: 'Stop' },
+  navigation: {
+    projects: 'Projects',
+    containers: 'Containers',
+    environments: 'Environments',
+    projectCount: 'no projects | {count} project | {count} projects',
+    containerCount: 'no containers | {count} container | {count} containers',
+    newGroup: 'New Group',
+    scan: 'Scan',
+    add: 'Add',
+    projectMenu: {
+      pin: 'Pin',
+      unpin: 'Unpin',
+      openInFileManager: 'Open in file manager',
+      removeFromList: 'Remove from list',
+    },
+  },
+  dialogs: {
+    removeContainer: {
+      title: 'Remove container',
+      runningMessage: 'Container “{name}” is running and will be forcibly removed (rm -f). Continue?',
+      message: 'Remove container “{name}”?',
+    },
+    composeDown: {
+      title: 'Compose Down',
+      message: 'Stop and remove all containers and networks for this compose project. Volumes will be kept. Continue?',
+      confirm: 'Down',
+    },
+    resetProjects: {
+      title: 'Reset project list',
+      message: 'Clear all projects and launch groups while keeping scanned workspaces. Running non-compose projects will be stopped first. Continue?',
+    },
+  },
+  status: {
+    runningCount: '{count} running',
+    exitedCount: '{count} exited',
+    unknown: 'Unknown',
+    operationFailed: 'Operation failed:',
+    loadSettingsFailed: 'Failed to load settings:',
+    refreshStatusFailed: 'Failed to refresh runtime status:',
+    rescanFailed: 'Rescan failed:',
+  },
   settings: {
     title: 'Settings',
     general: 'General',
@@ -21,5 +62,13 @@ export default {
     fontFamilyHint: 'Font family',
     preview: 'go run main.go · Build complete 0123456789',
   },
-  accessibility: { settings: 'Settings', checkUpdates: 'Check for updates' },
+  accessibility: {
+    settings: 'Settings',
+    checkUpdates: 'Check for updates',
+    theme: 'Theme: {theme}',
+    themeDark: 'Dark',
+    themeLight: 'Light',
+    themeSystem: 'Follow system',
+    useDetection: 'Use {type}',
+  },
 }

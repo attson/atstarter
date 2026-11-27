@@ -156,7 +156,12 @@ test('allowlist entries require exact file/text strings and a concrete reason', 
 })
 
 test('audited UI files have no hardcoded presentation copy without an exact exception', async () => {
-  assert.ok(AUDITED_UI_FILES.includes('components/SettingsDialog.vue'))
+  for (const file of [
+    'App.vue', 'components/ConfirmDialog.vue', 'components/DetectionSwitch.vue',
+    'components/SettingsDialog.vue', 'components/ui/AppButton.vue',
+    'components/ui/AppIcon.vue', 'components/ui/AppPill.vue',
+    'components/ui/ThemeToggle.vue', 'components/ui/ContextMenu.vue',
+  ]) assert.ok(AUDITED_UI_FILES.includes(file), `Missing audit coverage: ${file}`)
   assert.equal(new Set(AUDITED_UI_FILES).size, AUDITED_UI_FILES.length)
   const unmatched = []
   for (const file of AUDITED_UI_FILES) {
