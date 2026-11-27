@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  environmentCodexKeys,
   normalizeEnvironmentDocument,
   repositoryStatus,
   environmentSummary,
@@ -20,6 +21,10 @@ import {
   summarizeApplyResults,
   stalePlanTargetIDs,
   sharedTargetConflict,
+  codexFieldRows,
+  codexModelSuggestions,
+  dangerousCodexCombination,
+  mergeCodexFields,
 } from './projectEnvironmentUi.js'
 
 test('normalizes Go-shaped and missing environment document values', () => {
@@ -28,9 +33,93 @@ test('normalizes Go-shaped and missing environment document values', () => {
     Revision: 'rev',
   })
   assert.equal(got.revision, 'rev')
-  assert.deepEqual(got.config.defaults, { presetId: '', git: {} })
+  assert.deepEqual(got.config.defaults, { presetId: '', git: {}, codex: {} })
   assert.deepEqual(got.config.presets, [])
   assert.equal(got.config.rules[0].id, 'rule')
+})
+
+test('normalizes Codex fields independently from Git', () => {
+  const document = normalizeEnvironmentDocument({ Config: { Version: 1, Presets: [{
+    ID: 'p', Name: 'Company',
+    Git: { 'user.name': { Mode: 'set', Value: 'Ada' } },
+    Codex: { model: { Mode: 'set', Value: 'custom-model' } },
+  }] } })
+  assert.equal(document.config.presets[0].git['user.name'].value, 'Ada')
+  assert.equal(document.config.presets[0].codex.model.value, 'custom-model')
+  assert.deepEqual(environmentCodexKeys, [
+    'model', 'model_reasoning_effort', 'sandbox_mode', 'approval_policy', 'web_search',
+  ])
+})
+
+test('Codex field rows retain free-form reasoning and expose fixed enums', () => {
+  const rows = codexFieldRows({ model_reasoning_effort: { mode: 'set', value: 'ultra' } })
+  assert.equal(rows.find((row) => row.key === 'model_reasoning_effort').intent.value, 'ultra')
+  assert.deepEqual(rows.find((row) => row.key === 'sandbox_mode').options.map((option) => option.value), [
+    'read-only', 'workspace-write', 'danger-full-access',
+  ])
+  assert.deepEqual(rows.find((row) => row.key === 'approval_policy').options.map((option) => option.value), [
+    'untrusted', 'on-failure', 'on-request', 'granular', 'never',
+  ])
+})
+
+test('recent Codex model suggestions are deduplicated from managed documents and plans', () => {
+  const document = normalizeEnvironmentDocument({ config: {
+    version: 1,
+    defaults: { codex: { model: { mode: 'set', value: 'default-model' } } },
+    presets: [{ id: 'p', name: 'One', codex: { model: { mode: 'set', value: 'custom-model' } } }],
+    rules: [{ id: 'r', name: 'Rule', codex: { model: { mode: 'set', value: 'custom-model' } } }],
+  } })
+  const plans = [{
+    adapter: 'codex',
+    desired: { model: { mode: 'set', value: 'planned-model' } },
+    snapshot: { values: { model: [{ value: 'inspected-model' }, { value: 'custom-model' }] } },
+  }]
+  assert.deepEqual(codexModelSuggestions(document, plans), [
+    'default-model', 'custom-model', 'planned-model', 'inspected-model',
+  ])
+})
+
+test('Codex validation accepts free-form text and rejects invalid fixed enum values', () => {
+  assert.equal(validatePresetDraft({
+    name: 'Company',
+    codex: { model_reasoning_effort: { mode: 'set', value: 'ultra' } },
+  }).valid, true)
+  const result = validateRuleDraft({
+    name: 'Work', path: '/work',
+    codex: { sandbox_mode: { mode: 'set', value: 'unrestricted' } },
+  })
+  assert.equal(result.valid, false)
+  assert.equal(result.errors.sandbox_mode, 'Select a supported value')
+})
+
+test('dangerous Codex combination requires the effective sandbox and approval pair', () => {
+  assert.equal(dangerousCodexCombination({
+    sandbox_mode: { mode: 'set', value: 'danger-full-access' },
+    approval_policy: { mode: 'set', value: 'never' },
+  }), true)
+  assert.equal(dangerousCodexCombination({
+    sandbox_mode: { mode: 'set', value: 'danger-full-access' },
+    approval_policy: { mode: 'inherit' },
+  }), false)
+  assert.equal(dangerousCodexCombination({
+    sandbox_mode: { intent: { mode: 'set', value: 'workspace-write' } },
+    approval_policy: { intent: { mode: 'set', value: 'never' } },
+  }), false)
+})
+
+test('Codex field layers preserve inherit and replace with set or clear', () => {
+  const preset = {
+    sandbox_mode: { mode: 'set', value: 'danger-full-access' },
+    approval_policy: { mode: 'set', value: 'on-request' },
+  }
+  const effective = mergeCodexFields(preset, {
+    sandbox_mode: { mode: 'inherit' },
+    approval_policy: { mode: 'set', value: 'never' },
+  })
+  assert.equal(dangerousCodexCombination(effective), true)
+  assert.deepEqual(mergeCodexFields(effective, {
+    sandbox_mode: { mode: 'clear' },
+  }).sandbox_mode, { mode: 'clear', value: '' })
 })
 
 test('derives repository status with blockers taking precedence', () => {

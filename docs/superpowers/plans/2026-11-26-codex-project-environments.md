@@ -540,7 +540,7 @@ git commit -m "feat: expose Codex project environments"
 - Produces: `environmentCodexKeys`, `codexFieldRows`, `codexModelSuggestions`, and `dangerousCodexCombination` helpers.
 - Preserves: existing `EnvironmentFieldEditor` as the Git editor.
 
-- [ ] **Step 1: Write failing frontend model tests**
+- [x] **Step 1: Write failing frontend model tests**
 
 Add tests proving normalization retains Codex fields, recent model suggestions are deduplicated from managed documents/plans, free-form reasoning survives edits, fixed enums reject invalid draft values, and dangerous combinations are detected only from the effective pair.
 
@@ -554,7 +554,7 @@ test('normalizes and validates Codex fields independently from Git', () => {
 })
 ```
 
-- [ ] **Step 2: Run frontend tests and verify failure**
+- [x] **Step 2: Run frontend tests and verify failure**
 
 ```bash
 cd frontend && node --test src/projectEnvironmentUi.test.mjs src/environmentWorkspaceUi.test.mjs
@@ -562,11 +562,11 @@ cd frontend && node --test src/projectEnvironmentUi.test.mjs src/environmentWork
 
 Expected: FAIL because Codex helpers and controls do not exist.
 
-- [ ] **Step 3: Implement frontend normalization and validation**
+- [x] **Step 3: Implement frontend normalization and validation**
 
 Add explicit Codex key metadata with labels, descriptions, suggestion values, and fixed option lists. Normalize and save `codex` alongside `git`. Keep model/reasoning validation to trimmed non-empty values; validate exact sandbox, approval, and search enums. Derive recent model suggestions only from Rootyard documents and current inspected plan values.
 
-- [ ] **Step 4: Build the Codex field editor and unified tabs**
+- [x] **Step 4: Build the Codex field editor and unified tabs**
 
 Create a row editor that keeps the existing three intent modes and uses:
 
@@ -576,7 +576,7 @@ Create a row editor that keeps the existing three intent modes and uses:
 
 Add compact `Git` and `Codex` tabs to preset/default/rule field sections. Clone and save both maps. Use stable grid tracks and existing radii/colors; do not alter top-level navigation.
 
-- [ ] **Step 5: Run frontend tests and build**
+- [x] **Step 5: Run frontend tests and build**
 
 ```bash
 cd frontend
@@ -586,7 +586,7 @@ npm run build
 
 Expected: all tests PASS and Vite build succeeds.
 
-- [ ] **Step 6: Commit unified editors**
+- [x] **Step 6: Commit unified editors**
 
 ```bash
 git add frontend/src/projectEnvironmentUi.js frontend/src/projectEnvironmentUi.test.mjs frontend/src/components/environments

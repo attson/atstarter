@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { FolderTree, GitBranch, LayoutDashboard, SlidersHorizontal } from 'lucide-vue-next'
 import AppIcon from '../ui/AppIcon.vue'
 import EnvironmentOverview from './EnvironmentOverview.vue'
@@ -24,7 +24,7 @@ import {
   StartEnvironmentScan,
 } from '../../../wailsjs/go/main/App'
 import { EventsOff, EventsOn } from '../../../wailsjs/runtime/runtime'
-import { normalizeEnvironmentDocument } from '../../projectEnvironmentUi.js'
+import { codexModelSuggestions, normalizeEnvironmentDocument } from '../../projectEnvironmentUi.js'
 
 const document = ref(normalizeEnvironmentDocument())
 const state = ref({ version: 1, ruleScans: [], repositories: [] })
@@ -39,6 +39,7 @@ const applyResults = ref([])
 const planning = ref(false)
 const applying = ref(false)
 const doctorIssues = ref([])
+const modelSuggestions = computed(() => codexModelSuggestions(document.value, plans.value))
 
 const views = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -89,6 +90,7 @@ function savePreset(draft) {
     name: draft.name,
     description: draft.description || '',
     git: draft.git || {},
+    codex: draft.codex || {},
   }))
 }
 
@@ -101,7 +103,12 @@ function deletePreset(id) {
 }
 
 function saveDefaults(draft) {
-  return acceptDocumentMutation(() => SaveEnvironmentDefaults({ revision: document.value.revision, presetId: draft.presetId || '', git: draft.git || {} }))
+  return acceptDocumentMutation(() => SaveEnvironmentDefaults({
+    revision: document.value.revision,
+    presetId: draft.presetId || '',
+    git: draft.git || {},
+    codex: draft.codex || {},
+  }))
 }
 
 async function saveRule(draft) {
@@ -114,6 +121,7 @@ async function saveRule(draft) {
     autoDiscover: Boolean(draft.autoDiscover),
     presetId: draft.presetId || '',
     git: draft.git || {},
+    codex: draft.codex || {},
   }))
   const savedRule = draft.id
     ? saved.config.rules.find((rule) => rule.id === draft.id)
@@ -229,6 +237,7 @@ onUnmounted(() => {
         :save-preset="savePreset"
         :clone-preset="clonePreset"
         :delete-preset="deletePreset"
+        :model-suggestions="modelSuggestions"
       />
       <EnvironmentRuleManager
         v-else-if="activeView === 'rules'"
@@ -239,6 +248,7 @@ onUnmounted(() => {
         :delete-rule="deleteRule"
         :pick-directory="pickDirectory"
         :scan-rule="(id) => startScan([id])"
+        :model-suggestions="modelSuggestions"
       />
       <div v-else-if="activeView === 'repositories'" class="repository-flow" :class="{ previewing: plans.length }">
         <EnvironmentRepositoryManager

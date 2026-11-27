@@ -7,6 +7,57 @@ export const environmentGitKeys = [
   'gpg.format',
 ]
 
+export const environmentCodexKeys = [
+  'model',
+  'model_reasoning_effort',
+  'sandbox_mode',
+  'approval_policy',
+  'web_search',
+]
+
+const codexFieldMetadata = {
+  model: { label: 'Model', description: 'Project model', control: 'input', suggestions: [] },
+  model_reasoning_effort: {
+    label: 'Reasoning effort',
+    description: 'Project reasoning effort',
+    control: 'input',
+    suggestions: ['low', 'medium', 'high', 'xhigh'],
+  },
+  sandbox_mode: {
+    label: 'Sandbox',
+    description: 'Filesystem and process isolation',
+    control: 'select',
+    options: [
+      { value: 'read-only', label: 'Read only' },
+      { value: 'workspace-write', label: 'Workspace write' },
+      { value: 'danger-full-access', label: 'Danger full access' },
+    ],
+  },
+  approval_policy: {
+    label: 'Approval policy',
+    description: 'Command approval behavior',
+    control: 'select',
+    options: [
+      { value: 'untrusted', label: 'Untrusted' },
+      { value: 'on-failure', label: 'On failure' },
+      { value: 'on-request', label: 'On request' },
+      { value: 'granular', label: 'Granular' },
+      { value: 'never', label: 'Never' },
+    ],
+  },
+  web_search: {
+    label: 'Web search',
+    description: 'Search data source',
+    control: 'select',
+    options: [
+      { value: 'disabled', label: 'Disabled' },
+      { value: 'cached', label: 'Cached' },
+      { value: 'indexed', label: 'Indexed' },
+      { value: 'live', label: 'Live' },
+    ],
+  },
+}
+
 const valueFor = (value, lower, upper, fallback) => value?.[lower] ?? value?.[upper] ?? fallback
 
 function normalizeIntent(intent) {
@@ -28,6 +79,7 @@ function normalizePreset(preset) {
     name: valueFor(preset, 'name', 'Name', ''),
     description: valueFor(preset, 'description', 'Description', ''),
     git: normalizeFields(valueFor(preset, 'git', 'Git', {})),
+    codex: normalizeFields(valueFor(preset, 'codex', 'Codex', {})),
   }
 }
 
@@ -40,6 +92,7 @@ function normalizeRule(rule) {
     autoDiscover: Boolean(valueFor(rule, 'autoDiscover', 'AutoDiscover', false)),
     presetId: valueFor(rule, 'presetId', 'PresetID', ''),
     git: normalizeFields(valueFor(rule, 'git', 'Git', {})),
+    codex: normalizeFields(valueFor(rule, 'codex', 'Codex', {})),
   }
 }
 
@@ -53,6 +106,7 @@ export function normalizeEnvironmentDocument(document = {}) {
       defaults: {
         presetId: valueFor(defaults, 'presetId', 'PresetID', ''),
         git: normalizeFields(valueFor(defaults, 'git', 'Git', {})),
+        codex: normalizeFields(valueFor(defaults, 'codex', 'Codex', {})),
       },
       presets: (valueFor(config, 'presets', 'Presets', []) || []).map(normalizePreset),
       rules: (valueFor(config, 'rules', 'Rules', []) || []).map(normalizeRule),
@@ -119,6 +173,69 @@ export function fieldRows(fields = {}) {
   }))
 }
 
+export function codexFieldRows(fields = {}) {
+  return environmentCodexKeys.map((key) => ({
+    key,
+    ...codexFieldMetadata[key],
+    options: codexFieldMetadata[key].options || [],
+    suggestions: codexFieldMetadata[key].suggestions || [],
+    intent: normalizeIntent(fields[key]),
+  }))
+}
+
+function addCodexModelSuggestion(suggestions, seen, intent) {
+  const normalized = normalizeIntent(intent)
+  const value = normalized.mode === 'set' ? normalized.value.trim() : ''
+  if (!value || seen.has(value)) return
+  seen.add(value)
+  suggestions.push(value)
+}
+
+export function codexModelSuggestions(document, plans = []) {
+  const normalized = normalizeEnvironmentDocument(document)
+  const suggestions = []
+  const seen = new Set()
+  addCodexModelSuggestion(suggestions, seen, normalized.config.defaults.codex.model)
+  for (const preset of normalized.config.presets) addCodexModelSuggestion(suggestions, seen, preset.codex.model)
+  for (const rule of normalized.config.rules) addCodexModelSuggestion(suggestions, seen, rule.codex.model)
+  for (const plan of plans || []) {
+    const adapter = valueFor(plan, 'adapter', 'Adapter', '')
+    if (adapter && adapter !== 'codex') continue
+    const desired = valueFor(plan, 'desired', 'Desired', {}) || {}
+    addCodexModelSuggestion(suggestions, seen, desired.model)
+    const snapshot = valueFor(plan, 'snapshot', 'Snapshot', {}) || {}
+    const values = valueFor(snapshot, 'values', 'Values', {}) || {}
+    for (const origin of values.model || []) {
+      addCodexModelSuggestion(suggestions, seen, { mode: 'set', value: valueFor(origin, 'value', 'Value', '') })
+    }
+  }
+  return suggestions
+}
+
+function effectiveIntent(field) {
+  return valueFor(field, 'intent', 'Intent', field) || {}
+}
+
+export function dangerousCodexCombination(fields = {}) {
+  const sandbox = normalizeIntent(effectiveIntent(fields.sandbox_mode))
+  const approval = normalizeIntent(effectiveIntent(fields.approval_policy))
+  return sandbox.mode === 'set' && sandbox.value === 'danger-full-access' &&
+    approval.mode === 'set' && approval.value === 'never'
+}
+
+export function mergeCodexFields(...layers) {
+  const result = {}
+  for (const layer of layers) {
+    for (const key of environmentCodexKeys) {
+      if (!layer?.[key]) continue
+      const intent = normalizeIntent(layer[key])
+      if (intent.mode === 'inherit') continue
+      result[key] = intent
+    }
+  }
+  return result
+}
+
 export function editFieldMode(fields = {}, key, mode) {
   const next = { ...fields }
   next[key] = mode === 'set'
@@ -148,10 +265,22 @@ function validateFields(fields, errors) {
   }
 }
 
+function validateCodexFields(fields, errors) {
+  validateFields(fields, errors)
+  for (const [key, intent] of Object.entries(fields || {})) {
+    if (intent?.mode !== 'set') continue
+    const options = codexFieldMetadata[key]?.options
+    if (options && !options.some((option) => option.value === intent.value)) {
+      errors[key] = 'Select a supported value'
+    }
+  }
+}
+
 export function validatePresetDraft(draft = {}) {
   const errors = {}
   if (!String(draft.name || '').trim()) errors.name = 'Name is required'
   validateFields(draft.git, errors)
+  validateCodexFields(draft.codex, errors)
   return { valid: Object.keys(errors).length === 0, errors }
 }
 
@@ -160,6 +289,7 @@ export function validateRuleDraft(draft = {}) {
   if (!String(draft.name || '').trim()) errors.name = 'Name is required'
   if (!String(draft.path || '').trim()) errors.path = 'Directory is required'
   validateFields(draft.git, errors)
+  validateCodexFields(draft.codex, errors)
   return { valid: Object.keys(errors).length === 0, errors }
 }
 

@@ -3,8 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { FolderOpen, Plus, Radar, Save, Trash2 } from 'lucide-vue-next'
 import AppButton from '../ui/AppButton.vue'
 import AppIcon from '../ui/AppIcon.vue'
+import CodexEnvironmentFieldEditor from './CodexEnvironmentFieldEditor.vue'
 import EnvironmentFieldEditor from './EnvironmentFieldEditor.vue'
-import { isEnvironmentStaleError, validatePresetDraft, validateRuleDraft } from '../../projectEnvironmentUi.js'
+import { isEnvironmentStaleError, mergeCodexFields, validatePresetDraft, validateRuleDraft } from '../../projectEnvironmentUi.js'
 
 const props = defineProps({
   document: { type: Object, required: true },
@@ -14,6 +15,7 @@ const props = defineProps({
   deleteRule: { type: Function, required: true },
   pickDirectory: { type: Function, required: true },
   scanRule: { type: Function, required: true },
+  modelSuggestions: { type: Array, default: () => [] },
 })
 
 const selectedID = ref('defaults')
@@ -22,11 +24,22 @@ const saving = ref(false)
 const conflict = ref(false)
 const message = ref('')
 const confirmDelete = ref(false)
+const fieldTab = ref('git')
 const rules = computed(() => props.document.config.rules || [])
 const presets = computed(() => props.document.config.presets || [])
 const isDefaults = computed(() => selectedID.value === 'defaults')
+const presetCodex = (id) => presets.value.find((preset) => preset.id === id)?.codex || {}
+const effectiveDefaultsCodex = computed(() => mergeCodexFields(
+  presetCodex(props.document.config.defaults.presetId),
+  props.document.config.defaults.codex,
+))
+const effectiveCodex = computed(() => {
+  if (!draft.value) return {}
+  if (isDefaults.value) return mergeCodexFields(presetCodex(draft.value.presetId), draft.value.codex)
+  return mergeCodexFields(effectiveDefaultsCodex.value, presetCodex(draft.value.presetId), draft.value.codex)
+})
 const validation = computed(() => isDefaults.value
-  ? validatePresetDraft({ name: 'Global Defaults', git: draft.value?.git || {} })
+  ? validatePresetDraft({ name: 'Global Defaults', git: draft.value?.git || {}, codex: draft.value?.codex || {} })
   : validateRuleDraft(draft.value || {}))
 const matchedCount = computed(() => (props.state.repositories || props.state.Repositories || []).filter((repository) => {
   const ids = repository.matchingRuleIds || repository.MatchingRuleIDs || []
@@ -38,6 +51,7 @@ function selectDefaults() {
   draft.value = {
     id: 'defaults', name: 'Global Defaults', presetId: props.document.config.defaults.presetId,
     git: JSON.parse(JSON.stringify(props.document.config.defaults.git || {})),
+    codex: JSON.parse(JSON.stringify(props.document.config.defaults.codex || {})),
   }
   conflict.value = false
   message.value = ''
@@ -53,7 +67,7 @@ function selectRule(rule) {
 
 function createRule() {
   selectedID.value = ''
-  draft.value = { id: '', name: '', path: '', recursive: false, autoDiscover: false, presetId: '', git: {} }
+  draft.value = { id: '', name: '', path: '', recursive: false, autoDiscover: false, presetId: '', git: {}, codex: {} }
 }
 
 async function chooseDirectory() {
@@ -73,6 +87,7 @@ async function save() {
         id: 'defaults', name: 'Global Defaults',
         presetId: saved.config.defaults.presetId,
         git: JSON.parse(JSON.stringify(saved.config.defaults.git || {})),
+        codex: JSON.parse(JSON.stringify(saved.config.defaults.codex || {})),
       }
     }
     else {
@@ -171,7 +186,17 @@ selectDefaults()
           <option v-for="preset in presets" :key="preset.id" :value="preset.id">{{ preset.name }}</option>
         </select>
       </label>
-      <EnvironmentFieldEditor v-model="draft.git" />
+      <div class="field-tabs" role="tablist" aria-label="Environment fields">
+        <button type="button" role="tab" :aria-selected="fieldTab === 'git'" :class="{ active: fieldTab === 'git' }" @click="fieldTab = 'git'">Git</button>
+        <button type="button" role="tab" :aria-selected="fieldTab === 'codex'" :class="{ active: fieldTab === 'codex' }" @click="fieldTab = 'codex'">Codex</button>
+      </div>
+      <EnvironmentFieldEditor v-if="fieldTab === 'git'" v-model="draft.git" />
+      <CodexEnvironmentFieldEditor
+        v-else
+        v-model="draft.codex"
+        :effective-fields="effectiveCodex"
+        :model-suggestions="modelSuggestions"
+      />
     </div>
   </section>
 </template>
@@ -200,6 +225,10 @@ selectDefaults()
 .segmented button:last-child { border-right: 0; }
 .segmented button.active { background: var(--elevated); color: var(--text); }
 .preset-row { display: grid; grid-template-columns: 130px minmax(180px, 320px); align-items: center; gap: var(--space-6); padding: var(--space-6) 0; border-top: 1px solid var(--border); }
+.field-tabs { width: fit-content; display: flex; margin: var(--space-5) 0; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.field-tabs button { min-width: 72px; height: 28px; border: 0; border-right: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; }
+.field-tabs button:last-child { border-right: 0; }
+.field-tabs button.active { background: var(--elevated); color: var(--text); }
 .conflict-banner, .rule-message { margin-top: var(--space-5); padding: var(--space-4) var(--space-5); border-left: 2px solid var(--warning); color: var(--text-secondary); }
 @media (max-width: 820px) { .rule-layout { grid-template-columns: 200px minmax(0, 1fr); } .rule-heading { align-items: flex-start; flex-direction: column; } }
 </style>

@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Copy, Plus, Save, Search, Trash2 } from 'lucide-vue-next'
 import AppButton from '../ui/AppButton.vue'
 import AppIcon from '../ui/AppIcon.vue'
+import CodexEnvironmentFieldEditor from './CodexEnvironmentFieldEditor.vue'
 import EnvironmentFieldEditor from './EnvironmentFieldEditor.vue'
 import { isEnvironmentStaleError, presetUsage, validatePresetDraft } from '../../projectEnvironmentUi.js'
 
@@ -12,12 +13,14 @@ const props = defineProps({
   savePreset: { type: Function, required: true },
   clonePreset: { type: Function, required: true },
   deletePreset: { type: Function, required: true },
+  modelSuggestions: { type: Array, default: () => [] },
 })
 
 const search = ref('')
 const selectedID = ref('')
 const draft = ref(null)
 const tab = ref('fields')
+const fieldTab = ref('git')
 const saving = ref(false)
 const message = ref('')
 const conflict = ref(false)
@@ -38,7 +41,7 @@ function selectPreset(preset) {
 
 function createPreset() {
   selectedID.value = ''
-  draft.value = { id: '', name: '', description: '', git: {} }
+  draft.value = { id: '', name: '', description: '', git: {}, codex: {} }
   tab.value = 'fields'
   message.value = ''
 }
@@ -134,7 +137,14 @@ watch(presets, (next) => {
         <button type="button" :class="{ active: tab === 'fields' }" @click="tab = 'fields'">Fields</button>
         <button type="button" :class="{ active: tab === 'usage' }" @click="tab = 'usage'">Usage <span>{{ usage.total }}</span></button>
       </div>
-      <EnvironmentFieldEditor v-if="tab === 'fields'" v-model="draft.git" />
+      <div v-if="tab === 'fields'" class="field-section">
+        <div class="field-tabs" role="tablist" aria-label="Environment fields">
+          <button type="button" role="tab" :aria-selected="fieldTab === 'git'" :class="{ active: fieldTab === 'git' }" @click="fieldTab = 'git'">Git</button>
+          <button type="button" role="tab" :aria-selected="fieldTab === 'codex'" :class="{ active: fieldTab === 'codex' }" @click="fieldTab = 'codex'">Codex</button>
+        </div>
+        <EnvironmentFieldEditor v-if="fieldTab === 'git'" v-model="draft.git" />
+        <CodexEnvironmentFieldEditor v-else v-model="draft.codex" :model-suggestions="modelSuggestions" />
+      </div>
       <div v-else class="usage-list">
         <div><span>Global Defaults</span><strong>{{ usage.defaults ? 'Referenced' : 'Not referenced' }}</strong></div>
         <div><span>Directory rules</span><strong>{{ usage.rules.length }}</strong></div>
@@ -162,6 +172,10 @@ textarea { width: 100%; box-sizing: border-box; margin-top: var(--space-6); padd
 .manager-tabs button { height: 32px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--text-muted); cursor: pointer; }
 .manager-tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
 .manager-tabs span { margin-left: var(--space-2); color: var(--text-muted); }
+.field-tabs { width: fit-content; display: flex; margin: var(--space-5) 0; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.field-tabs button { min-width: 72px; height: 28px; border: 0; border-right: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; }
+.field-tabs button:last-child { border-right: 0; }
+.field-tabs button.active { background: var(--elevated); color: var(--text); }
 .usage-list > div { display: flex; justify-content: space-between; padding: var(--space-6) 0; border-bottom: 1px solid var(--border); }
 .usage-list strong { font-weight: var(--fw-medium); }
 .conflict-banner, .manager-message { margin-top: var(--space-5); padding: var(--space-4) var(--space-5); border-left: 2px solid var(--warning); color: var(--text-secondary); }

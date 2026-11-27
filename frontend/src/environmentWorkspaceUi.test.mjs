@@ -30,3 +30,9 @@ test('top-level navigation stays ahead of page-specific summary content', async 
   assert.ok(tabsIndex < summaryIndex, 'page-specific summary must not move the navigation')
   assert.match(app, /\.tabs\s*\{[^}]*flex-shrink:\s*0/)
 })
+
+test('Codex field editor names management and value controls independently', async () => {
+  const editor = await readFile(new URL('./components/environments/CodexEnvironmentFieldEditor.vue', import.meta.url), 'utf8')
+  assert.match(editor, /:aria-label="`\$\{row\.label\} management mode`"/)
+  assert.match(editor, /:aria-label="`\$\{row\.label\} value`"/)
+})
