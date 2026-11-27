@@ -1,6 +1,7 @@
 import DefaultTheme from 'vitepress/theme'
 import { useRoute } from 'vitepress'
 import { watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { i18n } from '../../../../frontend/src/i18n/index.js'
 import '../../../../frontend/src/styles/theme.light.css'
 import '../../../../frontend/src/styles/theme.dark.css'
 import './custom.css'
@@ -94,6 +95,7 @@ function useFrontendThemeDataAttr(route) {
 
 export default {
   extends: DefaultTheme,
+  enhanceApp({ app }) { app.use(i18n) },
   setup() {
     // useRoute() 在 setup 同步调用,再传入各 composable。
     const route = useRoute()

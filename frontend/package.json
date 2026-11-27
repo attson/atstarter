@@ -37,7 +37,8 @@
     "@xterm/xterm": "^6.0.0",
     "lucide-vue-next": "^0.462.0",
     "markdown-it": "^14.3.0",
-    "vue": "^3.2.37"
+    "vue": "^3.2.37",
+    "vue-i18n": "^9.14.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^3.0.3",
