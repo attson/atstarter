@@ -94,7 +94,7 @@ func TestApplyRejectsStaleFingerprintWithoutWriting(t *testing.T) {
 	}
 }
 
-func TestApplyHonorsPreexistingConfigLock(t *testing.T) {
+func TestApplyRecoversFromStaleLockFile(t *testing.T) {
 	repo := newGitRepository(t)
 	adapter := New()
 	plan := planForRepository(t, adapter, repo, projectenv.FieldMap{
@@ -103,14 +103,33 @@ func TestApplyHonorsPreexistingConfigLock(t *testing.T) {
 	if err := os.WriteFile(plan.Target.ConfigPath+".lock", []byte("held"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	result := adapter.Apply(ctx, plan)
-	if result.Status != projectenv.ApplyFailed {
+	if result.Status != projectenv.ApplySuccess {
 		t.Fatalf("result = %+v", result)
 	}
 	if data, err := os.ReadFile(plan.Target.ConfigPath + ".lock"); err != nil || string(data) != "held" {
 		t.Fatalf("pre-existing lock was changed: %q %v", data, err)
+	}
+}
+
+func TestApplyTimesOutWaitingForLock(t *testing.T) {
+	repo := newGitRepository(t)
+	adapter := New()
+	adapter.lockTimeout = 30 * time.Millisecond
+	plan := planForRepository(t, adapter, repo, projectenv.FieldMap{
+		"user.name": {Mode: projectenv.ModeSet, Value: "Ada"},
+	})
+	unlock, err := projectenv.AcquireFileLock(context.Background(), projectenv.AdapterFileLockPath("git", plan.Target.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+
+	result := adapter.Apply(context.Background(), plan)
+	if result.Status != projectenv.ApplyFailed || len(result.Issues) != 1 || result.Issues[0].Code != projectenv.ErrLockTimeout {
+		t.Fatalf("result = %+v", result)
 	}
 }
 

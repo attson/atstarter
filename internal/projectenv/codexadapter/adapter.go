@@ -37,7 +37,9 @@ func (r commandRunner) Run(ctx context.Context, dir string, args ...string) (str
 type Adapter struct {
 	runner      runner
 	lookPath    func(string) (string, error)
-	atomicWrite func(string, []byte, os.FileMode) error
+	writeConfig func(*secureConfigDir, []byte, os.FileMode) error
+	lockTimeout time.Duration
+	beforeWrite func()
 }
 
 var _ projectenv.Adapter = (*Adapter)(nil)
@@ -48,8 +50,8 @@ func New() *Adapter {
 		path = "git"
 	}
 	return &Adapter{
-		runner:   commandRunner{path: path, timeout: defaultGitTimeout},
-		lookPath: exec.LookPath, atomicWrite: atomicWriteConfig,
+		runner: commandRunner{path: path, timeout: defaultGitTimeout}, lookPath: exec.LookPath,
+		writeConfig: secureAtomicWrite, lockTimeout: 2 * time.Second,
 	}
 }
 

@@ -14,6 +14,7 @@ test('repository apply UI requires explicit confirmation and blocks unsafe rows'
   assert.match(diff, /target\.configPath \|\| target\.ConfigPath/)
   assert.match(diff, /:disabled="!confirmed \|\| \(highRisk && !dangerousConfirmed\)/)
   assert.match(diff, /v-for="change in displayChanges\(plan\)"/)
+	assert.match(diff, /planChangeCount\(\[plan\]\)/)
   assert.match(diff, /\.diff-panel\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column/)
   assert.match(diff, /\.diff-plans\s*\{[^}]*flex:\s*1;/)
   assert.match(diff, /from 'lucide-vue-next'/)

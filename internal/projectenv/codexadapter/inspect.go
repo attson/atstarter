@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"os"
 	"path/filepath"
 
@@ -19,32 +18,29 @@ func (a *Adapter) Inspect(ctx context.Context, target projectenv.Target) (projec
 	if !normalizedPathEqual(expected, target.ConfigPath) {
 		return projectenv.Snapshot{}, unsafePathError(target.ConfigPath, "configuration path is outside the worktree target")
 	}
-	dir := filepath.Dir(target.ConfigPath)
-	if info, err := os.Lstat(dir); err == nil {
-		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-			return projectenv.Snapshot{}, unsafePathError(dir, "Codex configuration directory must be a real directory")
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return projectenv.Snapshot{}, unsafePathError(dir, err.Error())
+	secure, err := openSecureConfigDir(target.WorktreePath)
+	if err != nil {
+		return projectenv.Snapshot{}, unsafePathError(filepath.Dir(target.ConfigPath), err.Error())
 	}
+	defer secure.Close()
+	snapshot, _, err := inspectSecureConfig(ctx, target, secure)
+	return snapshot, err
+}
 
-	info, err := os.Lstat(target.ConfigPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return emptySnapshot(target), nil
+func inspectSecureConfig(ctx context.Context, target projectenv.Target, secure *secureConfigDir) (projectenv.Snapshot, os.FileMode, error) {
+	if err := ctx.Err(); err != nil {
+		return projectenv.Snapshot{}, 0, err
 	}
+	data, mode, exists, err := secure.readConfig()
 	if err != nil {
-		return projectenv.Snapshot{}, unsafePathError(target.ConfigPath, err.Error())
+		return projectenv.Snapshot{}, 0, unsafePathError(target.ConfigPath, err.Error())
 	}
-	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-		return projectenv.Snapshot{}, unsafePathError(target.ConfigPath, "Codex configuration must be a regular file")
-	}
-	data, err := os.ReadFile(target.ConfigPath)
-	if err != nil {
-		return projectenv.Snapshot{}, unsafePathError(target.ConfigPath, err.Error())
+	if !exists {
+		return emptySnapshot(target), 0o600, nil
 	}
 	parsed, err := parseDocument(data)
 	if err != nil {
-		return projectenv.Snapshot{}, err
+		return projectenv.Snapshot{}, 0, err
 	}
 	values := make(map[string][]projectenv.OriginValue)
 	for _, key := range projectenv.SupportedCodexKeys {
@@ -57,7 +53,7 @@ func (a *Adapter) Inspect(ctx context.Context, target projectenv.Target) (projec
 	return projectenv.Snapshot{
 		Target: target, Values: values, Fingerprint: configFingerprint(true, data), Issues: []projectenv.Issue{},
 		Exists: true, NativeContent: append([]byte(nil), data...),
-	}, nil
+	}, mode, nil
 }
 
 func emptySnapshot(target projectenv.Target) projectenv.Snapshot {

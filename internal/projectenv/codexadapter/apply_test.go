@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"rootyard/internal/projectenv"
 )
@@ -208,7 +209,7 @@ func TestApplyPreservesExistingModeAndOriginalOnAtomicWriteFailure(t *testing.T)
 
 	before, _ := os.ReadFile(path)
 	failing := New()
-	failing.atomicWrite = func(string, []byte, os.FileMode) error { return errors.New("injected write failure") }
+	failing.writeConfig = func(*secureConfigDir, []byte, os.FileMode) error { return errors.New("injected write failure") }
 	failedPlan := planForProject(t, failing, repo, projectenv.FieldMap{"model": {Mode: projectenv.ModeSet, Value: "failed"}})
 	failed := failing.Apply(context.Background(), failedPlan)
 	if failed.Status != projectenv.ApplyFailed {
@@ -235,4 +236,75 @@ func TestApplyKeepsLinkedWorktreeCodexConfigsIndependent(t *testing.T) {
 	linkedData, _ := os.ReadFile(linkedPlan.Target.ConfigPath)
 	assertBytesEqual(t, mainData, []byte("model = \"main-model\"\n"))
 	assertBytesEqual(t, linkedData, []byte("model = \"linked-model\"\n"))
+}
+
+func TestApplyRecoversFromStaleLockFile(t *testing.T) {
+	repo := makeRepository(t)
+	adapter := New()
+	plan := planForProject(t, adapter, repo, projectenv.FieldMap{
+		"model": {Mode: projectenv.ModeSet, Value: "planned"},
+	})
+	stalePath := filepath.Join(repo, ".rootyard-codex-config.lock")
+	if err := os.WriteFile(stalePath, []byte("stale"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	result := adapter.Apply(ctx, plan)
+	if result.Status != projectenv.ApplySuccess {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestApplyTimesOutWaitingForLock(t *testing.T) {
+	repo := makeRepository(t)
+	adapter := New()
+	adapter.lockTimeout = 30 * time.Millisecond
+	plan := planForProject(t, adapter, repo, projectenv.FieldMap{
+		"model": {Mode: projectenv.ModeSet, Value: "planned"},
+	})
+	unlock, err := projectenv.AcquireFileLock(context.Background(), projectenv.AdapterFileLockPath("codex", plan.Target.ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+
+	result := adapter.Apply(context.Background(), plan)
+	if result.Status != projectenv.ApplyFailed || len(result.Issues) != 1 || result.Issues[0].Code != projectenv.ErrLockTimeout {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestApplyRejectsCodexDirectorySwap(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("directory replacement timing differs on Windows")
+	}
+	repo := makeRepository(t)
+	path := writeCodexConfig(t, repo, "model = \"before\"\n")
+	adapter := New()
+	plan := planForProject(t, adapter, repo, projectenv.FieldMap{
+		"model": {Mode: projectenv.ModeSet, Value: "after"},
+	})
+	originalDir := filepath.Join(repo, ".codex-original")
+	replacementDir := filepath.Join(repo, ".codex")
+	adapter.beforeWrite = func() {
+		if err := os.Rename(filepath.Dir(path), originalDir); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(replacementDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result := adapter.Apply(context.Background(), plan)
+	if result.Status != projectenv.ApplyFailed {
+		t.Fatalf("result = %+v", result)
+	}
+	if _, err := os.Stat(filepath.Join(replacementDir, "config.toml")); !os.IsNotExist(err) {
+		t.Fatalf("replacement directory was written: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(originalDir, "config.toml"))
+	if err != nil || string(data) != "model = \"before\"\n" {
+		t.Fatalf("original config changed: %q, %v", data, err)
+	}
 }

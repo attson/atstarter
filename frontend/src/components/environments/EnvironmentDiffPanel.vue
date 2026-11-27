@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldAlert } from 'lucide-vue-next'
 import AppButton from '../ui/AppButton.vue'
 import AppIcon from '../ui/AppIcon.vue'
-import { adapterChangeCounts, planChangeCount, plansHaveIssueCode, sharedTargetConflict, summarizeApplyResults } from '../../projectEnvironmentUi.js'
+import { planChangeCount, plansHaveIssueCode, sharedTargetConflict, summarizeApplyResults } from '../../projectEnvironmentUi.js'
 
 const props = defineProps({
   plans: { type: Array, required: true },
@@ -14,7 +14,6 @@ const emit = defineEmits(['apply', 'close', 'repreview'])
 const confirmed = ref(false)
 const dangerousConfirmed = ref(false)
 const changes = computed(() => planChangeCount(props.plans))
-const adapterCounts = computed(() => adapterChangeCounts(props.plans))
 const highRisk = computed(() => plansHaveIssueCode(props.plans, 'dangerous_codex_permissions'))
 const blockers = computed(() => props.plans.flatMap((plan) => plan.blockers || plan.Blockers || []))
 const summary = computed(() => summarizeApplyResults(props.results))
@@ -86,7 +85,7 @@ watch(() => props.plans, () => {
         <div v-for="plan in group.plans" :key="`${planAdapter(plan)}-${(plan.target || plan.Target).id || (plan.target || plan.Target).ID}`" class="adapter-plan">
           <div class="adapter-heading">
             <strong>{{ planAdapter(plan) }}</strong>
-            <span>{{ adapterCounts[planAdapter(plan)] || 0 }} changes</span>
+            <span>{{ planChangeCount([plan]) }} changes</span>
           </div>
           <code class="config-path" :title="configPath(plan)">{{ configPath(plan) }}</code>
           <div v-if="sharedTargetConflict(plan)" class="shared-conflict">

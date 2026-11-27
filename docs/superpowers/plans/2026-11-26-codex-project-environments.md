@@ -886,22 +886,22 @@ Commit: `fix: serialize environment state mutations`
 - Produces: bounded advisory adapter lock acquisition with typed `lock_timeout` failures and no stale sentinel deadlock.
 - Produces: Codex inspection/write operations relative to held no-follow worktree and `.codex` directory handles, with directory identity revalidation before replacement.
 
-- [ ] **Step 1: Add failing stale-lock, timeout, and directory-swap tests**
+- [x] **Step 1: Add failing stale-lock, timeout, and directory-swap tests**
 
 Pre-create old sentinel files and prove Git/Codex apply no longer hangs. Hold the advisory lock and assert apply returns a typed timeout within the adapter bound. Add an apply hook that swaps `.codex` after inspection and assert neither the replacement directory nor an outside symlink target is written.
 
-- [ ] **Step 2: Run focused apply tests and verify failure**
+- [x] **Step 2: Run focused apply tests and verify failure**
 
 Run: `/Users/attson/sdk/go1.23.12/bin/go test ./internal/projectenv/codexadapter ./internal/projectenv/gitadapter -run 'TestApply(RecoversFromStaleLockFile|TimesOutWaitingForLock|RejectsCodexDirectorySwap)' -count=1`
 
-- [ ] **Step 3: Replace sentinel locks and path-based Codex I/O**
+- [x] **Step 3: Replace sentinel locks and path-based Codex I/O**
 
 Expose bounded advisory lock acquisition from `projectenv` and use hashed lock files under the OS temporary lock directory, so crash remnants are harmless. On Unix use `openat`/`renameat` with `O_NOFOLLOW` and retained directory descriptors; on Windows use reparse-point checks plus directory identity validation. Revalidate the held `.codex` directory against the held worktree directory immediately before replacing `config.toml`.
 
-- [ ] **Step 4: Run adapter, race, full, frontend, and diff checks**
+- [x] **Step 4: Run adapter, race, full, frontend, and diff checks**
 
 Run Go adapter tests, `go test -race ./internal/projectenv/...`, `go test ./...`, all frontend tests, `npm run build`, and `git diff --check`.
 
-- [ ] **Step 5: Commit the hardening and request final review**
+- [x] **Step 5: Commit the hardening and request final review**
 
 Commit: `fix: harden environment adapter persistence`

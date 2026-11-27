@@ -35,10 +35,11 @@ func (a *Adapter) Apply(ctx context.Context, plan projectenv.ChangePlan) project
 		return result
 	}
 
-	lockPath := currentTarget.ConfigPath + ".lock"
-	unlock, err := acquireConfigLock(ctx, lockPath)
+	lockCtx, cancelLock := context.WithTimeout(ctx, adapterLockTimeout(a.lockTimeout))
+	defer cancelLock()
+	unlock, err := projectenv.AcquireFileLock(lockCtx, projectenv.AdapterFileLockPath(a.Name(), currentTarget.ID))
 	if err != nil {
-		return failedApplyResult(result, projectenv.ErrApplyFailed, "acquire Git configuration lock", err.Error())
+		return failedApplyResult(result, errorCode(err, projectenv.ErrApplyFailed), "acquire Git configuration lock", err.Error())
 	}
 	defer unlock()
 
@@ -138,26 +139,19 @@ func (a *Adapter) Apply(ctx context.Context, plan projectenv.ChangePlan) project
 	return result
 }
 
-func acquireConfigLock(ctx context.Context, path string) (func(), error) {
-	for {
-		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-		if err == nil {
-			_ = file.Close()
-			return func() { _ = os.Remove(path) }, nil
-		}
-		if !errors.Is(err, os.ErrExist) {
-			return nil, err
-		}
-		timer := time.NewTimer(10 * time.Millisecond)
-		select {
-		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
-			return nil, ctx.Err()
-		case <-timer.C:
-		}
+func adapterLockTimeout(timeout time.Duration) time.Duration {
+	if timeout <= 0 {
+		return 2 * time.Second
 	}
+	return timeout
+}
+
+func errorCode(err error, fallback projectenv.ErrorCode) projectenv.ErrorCode {
+	var typed *projectenv.Error
+	if errors.As(err, &typed) {
+		return typed.Code
+	}
+	return fallback
 }
 
 func (a *Adapter) verifyTemporaryConfig(ctx context.Context, dir, path string, desired map[string]projectenv.FieldIntent) error {

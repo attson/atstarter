@@ -3,9 +3,6 @@ package codexadapter
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
-	"runtime"
 	"slices"
 	"time"
 
@@ -27,13 +24,20 @@ func (a *Adapter) Apply(ctx context.Context, plan projectenv.ChangePlan) project
 		return blockedResult(result, projectenv.ErrInvalidRepository, "Codex project target changed after preview", currentTarget.WorktreePath)
 	}
 
-	unlock, err := acquireConfigLock(ctx, filepath.Join(currentTarget.WorktreePath, ".rootyard-codex-config.lock"))
+	lockCtx, cancelLock := context.WithTimeout(ctx, adapterLockTimeout(a.lockTimeout))
+	defer cancelLock()
+	unlock, err := projectenv.AcquireFileLock(lockCtx, projectenv.AdapterFileLockPath(a.Name(), currentTarget.ID))
 	if err != nil {
-		return failedResult(result, projectenv.ErrApplyFailed, "acquire Codex configuration lock", err.Error())
+		return failedResult(result, errorCode(err, projectenv.ErrApplyFailed), "acquire Codex configuration lock", err.Error())
 	}
 	defer unlock()
 
-	current, err := a.Inspect(ctx, currentTarget)
+	secure, err := openSecureConfigDir(currentTarget.WorktreePath)
+	if err != nil {
+		return blockedResult(result, projectenv.ErrUnsafeCodexConfigPath, "open Codex configuration directory", err.Error())
+	}
+	defer secure.Close()
+	current, mode, err := inspectSecureConfig(ctx, currentTarget, secure)
 	if err != nil {
 		return blockedErrorResult(result, err)
 	}
@@ -69,23 +73,16 @@ func (a *Adapter) Apply(ctx context.Context, plan projectenv.ChangePlan) project
 		return failedResult(result, projectenv.ErrInvalidCodexConfig, "verify proposed Codex configuration", err.Error())
 	}
 
-	mode := os.FileMode(0o600)
-	createdDir := false
-	if current.Exists {
-		info, statErr := os.Stat(currentTarget.ConfigPath)
-		if statErr != nil {
-			return failedResult(result, projectenv.ErrApplyFailed, "inspect Codex configuration mode", statErr.Error())
-		}
-		mode = info.Mode().Perm()
-	} else {
-		createdDir, err = ensureConfigDirectory(filepath.Dir(currentTarget.ConfigPath))
+	if !current.Exists {
+		_, err = secure.ensureConfigDir()
 		if err != nil {
 			return failedResult(result, projectenv.ErrApplyFailed, "create Codex configuration directory", err.Error())
 		}
-		if _, statErr := os.Lstat(currentTarget.ConfigPath); statErr == nil || !errors.Is(statErr, os.ErrNotExist) {
-			if createdDir {
-				_ = os.Remove(filepath.Dir(currentTarget.ConfigPath))
-			}
+		_, _, appeared, readErr := secure.readConfig()
+		if readErr != nil {
+			return failedResult(result, projectenv.ErrApplyFailed, "re-inspect Codex project configuration", readErr.Error())
+		}
+		if appeared {
 			result.Status = projectenv.ApplyStale
 			result.Issues = append(result.Issues, projectenv.Issue{
 				Code: projectenv.ErrStalePlan, Message: "Codex project configuration appeared after preview",
@@ -94,10 +91,22 @@ func (a *Adapter) Apply(ctx context.Context, plan projectenv.ChangePlan) project
 			return result
 		}
 	}
-	if err := a.atomicWrite(currentTarget.ConfigPath, proposed, mode); err != nil {
-		if createdDir {
-			_ = os.Remove(filepath.Dir(currentTarget.ConfigPath))
-		}
+	if a.beforeWrite != nil {
+		a.beforeWrite()
+	}
+	latest, _, latestExists, err := secure.readConfig()
+	if err != nil {
+		return failedResult(result, projectenv.ErrApplyFailed, "re-inspect Codex project configuration", err.Error())
+	}
+	if configFingerprint(latestExists, latest) != current.Fingerprint {
+		result.Status = projectenv.ApplyStale
+		result.Issues = append(result.Issues, projectenv.Issue{
+			Code: projectenv.ErrStalePlan, Message: "Codex project configuration changed after preview",
+			Path: currentTarget.ConfigPath, Blocking: true,
+		})
+		return result
+	}
+	if err := a.writeConfig(secure, proposed, mode); err != nil {
 		return failedResult(result, projectenv.ErrApplyFailed, "write Codex project configuration", err.Error())
 	}
 	result.Status = projectenv.ApplySuccess
@@ -154,90 +163,19 @@ func verifyDesired(doc document, desired map[string]projectenv.FieldIntent) erro
 	return nil
 }
 
-func ensureConfigDirectory(dir string) (bool, error) {
-	err := os.Mkdir(dir, 0o700)
-	if err == nil {
-		return true, nil
+func adapterLockTimeout(timeout time.Duration) time.Duration {
+	if timeout <= 0 {
+		return 2 * time.Second
 	}
-	if !errors.Is(err, os.ErrExist) {
-		return false, err
-	}
-	info, err := os.Lstat(dir)
-	if err != nil {
-		return false, err
-	}
-	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
-		return false, errors.New("Codex configuration directory is not a real directory")
-	}
-	return false, nil
+	return timeout
 }
 
-func atomicWriteConfig(path string, data []byte, mode os.FileMode) (returnErr error) {
-	dir := filepath.Dir(path)
-	temp, err := os.CreateTemp(dir, ".rootyard-codex-config-*")
-	if err != nil {
-		return err
+func errorCode(err error, fallback projectenv.ErrorCode) projectenv.ErrorCode {
+	var typed *projectenv.Error
+	if errors.As(err, &typed) {
+		return typed.Code
 	}
-	tempPath := temp.Name()
-	defer func() {
-		_ = temp.Close()
-		if returnErr != nil {
-			_ = os.Remove(tempPath)
-		}
-	}()
-	if err := temp.Chmod(mode.Perm()); err != nil {
-		return err
-	}
-	if _, err := temp.Write(data); err != nil {
-		return err
-	}
-	if err := temp.Sync(); err != nil {
-		return err
-	}
-	if err := temp.Close(); err != nil {
-		return err
-	}
-	if err := replaceConfigFile(tempPath, path); err != nil {
-		return err
-	}
-	if err := syncConfigDirectory(dir); err != nil {
-		return err
-	}
-	return nil
-}
-
-func acquireConfigLock(ctx context.Context, path string) (func(), error) {
-	for {
-		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-		if err == nil {
-			_ = file.Close()
-			return func() { _ = os.Remove(path) }, nil
-		}
-		if !errors.Is(err, os.ErrExist) {
-			return nil, err
-		}
-		timer := time.NewTimer(10 * time.Millisecond)
-		select {
-		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
-			return nil, ctx.Err()
-		case <-timer.C:
-		}
-	}
-}
-
-func syncConfigDirectory(dir string) error {
-	if runtime.GOOS == "windows" {
-		return nil
-	}
-	file, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	return file.Sync()
+	return fallback
 }
 
 func blockedErrorResult(result projectenv.ApplyResult, err error) projectenv.ApplyResult {

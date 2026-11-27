@@ -5,13 +5,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"rootyard/internal/projectenv"
 )
 
 type Adapter struct {
-	runner   Runner
-	programs ProgramRunner
+	runner      Runner
+	programs    ProgramRunner
+	lockTimeout time.Duration
 }
 
 var _ projectenv.Adapter = (*Adapter)(nil)
@@ -22,8 +24,9 @@ func New() *Adapter {
 		path = "git"
 	}
 	return &Adapter{
-		runner:   commandRunner{path: path, timeout: defaultGitTimeout},
-		programs: execProgramRunner{timeout: defaultGitTimeout},
+		runner:      commandRunner{path: path, timeout: defaultGitTimeout},
+		programs:    execProgramRunner{timeout: defaultGitTimeout},
+		lockTimeout: 2 * time.Second,
 	}
 }
 
