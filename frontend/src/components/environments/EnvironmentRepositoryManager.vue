@@ -40,6 +40,18 @@ function statusLabel(status) {
   return Object.hasOwn(statusKeys, status) ? t(statusKeys[status]) : status
 }
 
+function repositoryStatusLabel(repository) {
+  const status = repositoryStatus(repository)
+  const adapters = valueFor(repository, 'adapters', 'Adapters', null)
+  const nativeStatuses = adapters && Object.keys(adapters).length
+    ? Object.values(adapters).map((adapter) => valueFor(adapter, 'status', 'Status', ''))
+    : [valueFor(repository, 'status', 'Status', '')]
+  if (repositoryBlockers(repository).length || nativeStatuses.some((native) => statuses.slice(1).includes(native))) {
+    return statusLabel(status)
+  }
+  return nativeStatuses.filter(Boolean).join(', ') || statusLabel(status)
+}
+
 function valueFor(value, lower, upper, fallback) {
   return value?.[lower] ?? value?.[upper] ?? fallback
 }
@@ -129,7 +141,7 @@ function preview() {
           <code v-for="alias in aliases(repository)" :key="alias.path || alias.Path" :title="alias.path || alias.Path">{{ alias.path || alias.Path }}</code>
         </div>
         <span>{{ (repository.matchingRuleIds || repository.MatchingRuleIDs || []).length }}</span>
-        <span class="repository-status" :class="repositoryStatus(repository)">{{ statusLabel(repositoryStatus(repository)) }}</span>
+        <span class="repository-status" :class="repositoryStatus(repository)">{{ repositoryStatusLabel(repository) }}</span>
         <div v-if="blockers(repository).length" class="repository-blockers">
           <span v-for="(blocker, index) in blockers(repository)" :key="index">{{ blocker.message || blocker.Message }}</span>
         </div>

@@ -171,6 +171,20 @@ test('version 2 repository status and blockers aggregate adapter states', () => 
   assert.equal(repositoryStatus({ adapters: { git: { status: 'failed', blockers: [{ code: 'apply_failed' }] }, codex: { status: 'blocked' } } }), 'failed')
 })
 
+test('unknown repository statuses keep existing safety, filtering and selection semantics', () => {
+  const repositories = [
+    { id: 'legacy', status: 'future-status' },
+    { TargetID: 'adapter', Adapters: { codex: { Status: 'future-status' } } },
+  ]
+  for (const repository of repositories) assert.equal(repositoryStatus(repository), 'pending')
+  assert.deepEqual(filterEnvironmentRepositories(repositories, { status: 'pending' }), repositories)
+  assert.deepEqual(filterEnvironmentRepositories(repositories, { status: 'consistent' }), [])
+  assert.deepEqual([...selectAllRepositories(repositories)], ['legacy', 'adapter'])
+  assert.deepEqual([...toggleRepositorySelection(new Set(), 'legacy', repositories)], ['legacy'])
+  assert.equal(repositoryStatus({ adapters: { git: { status: 'failed' }, codex: { status: 'future-status' } } }), 'failed')
+  assert.equal(repositoryStatus({ adapters: { git: { status: 'future-status', blockers: [{ code: 'native-blocker' }] } } }), 'blocked')
+})
+
 test('summarizes rules repositories pending changes and blockers', () => {
   const document = normalizeEnvironmentDocument({ config: { version: 1, rules: [{ id: 'one' }, { id: 'two' }] } })
   const state = {

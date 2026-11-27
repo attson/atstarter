@@ -180,6 +180,62 @@ test('repository filters localize display statuses while selection and raw diagn
   } finally { host.unmount() }
 })
 
+for (const [shape, repository] of [
+  ['legacy', { id: 'native', status: 'future-status @ {native}|原始\n ' }],
+  ['Go legacy', { ID: 'native', Status: 'future-status @ {native}|原始\n ' }],
+  ['per-adapter', { targetId: 'native', adapters: { codex: { status: 'future-status @ {native}|原始\n ' } } }],
+  ['Go per-adapter', { TargetID: 'native', Adapters: { codex: { Status: 'future-status @ {native}|原始\n ' } } }],
+  ['unknown adapter with an unspecified peer', { targetId: 'native', adapters: { codex: { status: 'future-status @ {native}|原始\n ' }, git: {} } }],
+]) {
+  test(`${shape} repository preserves an unknown native display status in both locales`, async () => {
+    const snapshot = structuredClone(repository)
+    const host = mountEnvironment('EnvironmentRepositoryManager.vue', { state: { repositories: [repository] }, selection: new Set() })
+    try {
+      const status = () => host.find((element) => element.props.class?.includes('repository-status'))
+      for (const locale of ['en', 'zh-CN', 'en']) {
+        host.i18n.global.locale.value = locale
+        await vue.nextTick()
+        assert.equal(status()?.text, 'future-status @ {native}|原始\n ')
+        assert.ok(status().props.class.includes('pending'), 'severity stays pending')
+        assert.equal(host.find((element) => element.type === 'input' && element.props.type === 'checkbox').props.disabled, false)
+      }
+      host.state.status = 'pending'
+      await vue.nextTick()
+      assert.ok(status(), 'filtering continues to use the existing pending safety status')
+      host.state.status = 'consistent'
+      await vue.nextTick()
+      assert.equal(status(), undefined)
+      assert.deepEqual(repository, snapshot)
+    } finally { host.unmount() }
+  })
+}
+
+test('known mixed adapter statuses retain worst-severity display when another adapter status is unknown', async () => {
+  const host = mountEnvironment('EnvironmentRepositoryManager.vue', {
+    state: { repositories: [{ targetId: 'mixed', adapters: { git: { status: 'consistent' }, codex: { status: 'future-status' } } }] },
+    selection: new Set(),
+  })
+  try {
+    for (const [known, english, chinese] of [
+      ['failed', 'Failed', '失败'], ['blocked', 'Blocked', '已阻止'],
+      ['drifted', 'Drifted', '有偏差'], ['pending', 'Pending', '待处理'], ['consistent', 'Consistent', '一致'],
+    ]) {
+      host.props.state.repositories[0].adapters.git.status = known
+      for (const [locale, expected] of [['en', english], ['zh-CN', chinese]]) {
+        host.i18n.global.locale.value = locale
+        await vue.nextTick()
+        const status = host.find((element) => element.props.class?.includes('repository-status'))
+        assert.equal(status.text, expected)
+        assert.ok(status.props.class.includes(known))
+      }
+    }
+    host.props.state.repositories[0].adapters = { codex: { status: 'future-status', blockers: [{ message: raw }] } }
+    await vue.nextTick()
+    assert.equal(host.find((element) => element.props.class?.includes('repository-status')).text, '已阻止')
+    assert.equal(host.find((element) => element.type === 'input' && element.props.type === 'checkbox').props.disabled, true)
+  } finally { host.unmount() }
+})
+
 test('rule defaults, open delete confirmation and save feedback follow locale without rewriting rule data', async () => {
   const rule = { id: 'rule', name: raw, path: '/srv/原始 @ {x}|', git: {}, codex: {}, presetId: '', recursive: true, autoDiscover: false }
   const document = { revision: 'rev', config: { defaults: { git: {}, codex: {} }, presets: [], rules: [rule] } }
