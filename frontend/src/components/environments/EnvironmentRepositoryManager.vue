@@ -40,16 +40,20 @@ function statusLabel(status) {
   return Object.hasOwn(statusKeys, status) ? t(statusKeys[status]) : status
 }
 
-function repositoryStatusLabel(repository) {
-  const status = repositoryStatus(repository)
+function repositoryStatusPresentation(repository) {
   const adapters = valueFor(repository, 'adapters', 'Adapters', null)
   const nativeStatuses = adapters && Object.keys(adapters).length
     ? Object.values(adapters).map((adapter) => valueFor(adapter, 'status', 'Status', ''))
     : [valueFor(repository, 'status', 'Status', '')]
-  if (repositoryBlockers(repository).length || nativeStatuses.some((native) => statuses.slice(1).includes(native))) {
-    return statusLabel(status)
+  return {
+    labelKey: statusKeys[repositoryStatus(repository)],
+    unknownCodes: [...new Set(nativeStatuses.filter((native) => native && !statuses.slice(1).includes(native)))],
   }
-  return nativeStatuses.filter(Boolean).join(', ') || statusLabel(status)
+}
+
+function repositoryStatusLabel(repository) {
+  const presentation = repositoryStatusPresentation(repository)
+  return [t(presentation.labelKey), ...presentation.unknownCodes].join(' · ')
 }
 
 function valueFor(value, lower, upper, fallback) {
