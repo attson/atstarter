@@ -15,6 +15,7 @@ export function editorPhrases(t) {
     'Go to line': t('files.gotoLine'),
     go: t('files.editorSearch.go'),
     'Control character': t('files.editorSearch.controlCharacter'),
+    'Selection deleted': t('files.editorSearch.selectionDeleted'),
     'current match': t('files.editorSearch.currentMatch'),
     'on line': t('files.editorSearch.onLine'),
     'replaced match on line $': t('files.editorSearch.replacedMatch'),

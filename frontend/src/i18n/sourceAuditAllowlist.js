@@ -3,17 +3,13 @@
 // e.g. "Rootyard product name", "native config key", or "shell path example".
 // Do not use regular expressions, globs, substring matching, or blanket reasons.
 export const SOURCE_AUDIT_ALLOWLIST = [
-  { file: 'components/environments/EnvironmentDiffPanel.vue', text: '×', reason: 'This existing close symbol stays unchanged; its accessible label is translated at render time.' },
   { file: 'App.vue', text: 'Rootyard', reason: 'Rootyard is the product display name and remains unchanged in every locale.' },
   { file: 'components/AddProjectDialog.vue', text: '/home/attson/GolandProjects/rootyard', reason: 'This literal example is a filesystem path, which remains raw in every locale.' },
-  { file: 'components/GroupTreeNode.vue', text: '✓', reason: 'This check mark is the existing selected-command indicator, independent of locale.' },
-  { file: 'components/BranchSwitcher.vue', text: '●', reason: 'This dot is the existing dirty-worktree indicator, independent of locale.' },
-  { file: 'components/ScanDialog.vue', text: '✓', reason: 'This check mark is the existing selected-candidate indicator, independent of locale.' },
-  { file: 'components/ScanDialog.vue', text: '—', reason: 'This em dash indicates an absent detected command without introducing presentation words.' },
-  { file: 'components/ComposeDetail.vue', text: ',', reason: 'This comma separates raw Docker port mappings in their existing order; it contains no presentation words.' },
-  { file: 'components/FileBrowser.vue', text: '›', reason: 'This existing chevron expands the file tree; its translated title supplies the presentation copy.' },
-  { file: 'components/FileBrowser.vue', text: '‹', reason: 'This existing chevron collapses the file tree; its translated title supplies the presentation copy.' },
-  { file: 'components/fileExplorer/EditorStatusBar.vue', text: 'UTF-8', reason: 'UTF-8 is the document encoding identifier and must remain unchanged in every locale.' },
-  { file: 'components/fileExplorer/EditorTabs.vue', text: '●', reason: 'This existing dot indicates unsaved edits; its translated title supplies the presentation copy.' },
-  { file: 'components/fileExplorer/EditorToolbar.vue', text: '/', reason: 'This slash separates raw relative-path segments and must remain unchanged in every locale.' },
+  { file: 'components/fileExplorer/EditorStatusBar.vue', text: 'UTF-8', reason: 'UTF-8 is the native document encoding identifier and remains unchanged in every locale.' },
+  { file: 'components/ProjectDetail.vue', text: 'running', reason: 'Native RunStatus.State enum value checked before translating the corresponding status label.' },
+  { file: 'components/ProjectDetail.vue', text: 'exited', reason: 'Native RunStatus.State enum value checked before translating the corresponding status label.' },
+  { file: 'components/ProjectDetail.vue', text: 'error', reason: 'Native RunStatus.State enum value checked before translating the corresponding status label.' },
+  { file: 'components/ProjectDetail.vue', text: 'stopped', reason: 'Native RunStatus.State enum value checked before translating the corresponding status label.' },
+  { file: 'projectEnvironmentUi.js', text: 'description', reason: 'Native environment-preset config field key used to read the original user-owned description.' },
+  { file: 'projectEnvironmentUi.js', text: 'Description', reason: 'Go-shaped native environment-preset config field key used to read the original user-owned description.' },
 ]

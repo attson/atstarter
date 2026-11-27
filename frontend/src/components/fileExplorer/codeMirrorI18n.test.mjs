@@ -2,9 +2,35 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Compartment, EditorState } from '@codemirror/state'
 import { SearchQuery, getSearchQuery, search, setSearchQuery } from '@codemirror/search'
+import { deleteCharBackward } from '@codemirror/commands'
+import { EditorView } from '@codemirror/view'
 import { createI18n } from 'vue-i18n'
 import en from '../../i18n/messages/en.js'
 import zhCN from '../../i18n/messages/zh-CN.js'
+
+test('deleting a selection announces its removal in the active locale through the installed command', async () => {
+  const { editorPhrases } = await import('./codeMirrorI18n.js')
+  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en, 'zh-CN': zhCN } })
+  for (const [locale, expected] of [['zh-CN', '已删除选中内容'], ['en', 'Selection deleted']]) {
+    i18n.global.locale.value = locale
+    const selected = '选中 @ {name}|'
+    const announcements = []
+    const target = {
+      state: EditorState.create({
+        doc: `keep ${selected} tail`, selection: { anchor: 5, head: 5 + selected.length },
+        extensions: [EditorState.phrases.of(editorPhrases(i18n.global.t))],
+      }),
+      dispatch(transaction) {
+        this.state = transaction.state
+        announcements.push(...transaction.effects.filter((effect) => effect.is(EditorView.announce)).map((effect) => effect.value))
+      },
+    }
+    assert.equal(deleteCharBackward(target), true)
+    assert.equal(target.state.doc.toString(), 'keep  tail')
+    assert.equal(target.state.selection.main.head, 5)
+    assert.deepEqual(announcements, [expected])
+  }
+})
 
 function panelRedrawBoundary(kind, { externalFocus = false, connected = true } = {}) {
   const document = { activeElement: null }

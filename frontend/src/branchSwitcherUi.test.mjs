@@ -63,6 +63,32 @@ function mountSwitcher(native, running = false) {
   }
 }
 
+test('detached HEAD labels follow locale changes while branch names and hashes stay raw', async () => {
+  const head = 'abc123 @ {name}|原始'
+  const native = { ListProjectBranches: async () => ({ repo: true, detached: true, head, local: [], remote: [] }) }
+  const host = mountSwitcher(native)
+  try {
+    await host.state.load()
+    await vue.nextTick()
+    assert.ok(host.visibleText().includes(`detached @ ${head}`))
+    host.i18n.global.locale.value = 'zh-CN'
+    await vue.nextTick()
+    assert.ok(host.visibleText().includes(`分离 HEAD @ ${head}`))
+    host.state.data.head = ''
+    await vue.nextTick()
+    assert.ok(host.visibleText().includes('分离 HEAD'))
+    host.i18n.global.locale.value = 'en'
+    await vue.nextTick()
+    assert.ok(host.visibleText().includes('detached'))
+    host.state.data = { repo: true, branch: '分支 @ {name}|raw', detached: false }
+    for (const locale of ['zh-CN', 'en']) {
+      host.i18n.global.locale.value = locale
+      await vue.nextTick()
+      assert.ok(host.visibleText().includes('分支 @ {name}|raw'))
+    }
+  } finally { host.unmount() }
+})
+
 test('branch read and checkout errors preserve native details and translate only absent details', async () => {
   let rejection
   const calls = []

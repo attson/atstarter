@@ -49,11 +49,12 @@ export function allBranchNames(data) {
   return [...(data?.local || [])]
 }
 
-// branchPillLabel 决定分支标签上显示什么。非仓库返回空串,前端据此整个隐藏。
-export function branchPillLabel(status) {
-  if (!status?.repo) return ''
-  if (status.detached) return status.head ? `detached @ ${status.head}` : 'detached'
-  return status.branch || ''
+// Keep branch names and hashes raw; the component translates the state label.
+export function branchPillState(status) {
+  if (!status?.repo) return null
+  return status.detached
+    ? { kind: 'detached', value: status.head || '' }
+    : { kind: 'branch', value: status.branch || '' }
 }
 
 // checkoutWarnings 返回切换前值得提醒的事项。不阻止操作 —— git 自己会拒绝

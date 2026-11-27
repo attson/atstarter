@@ -49,15 +49,31 @@ export const AUDITED_UI_FILES = [
   'components/fileExplorer/MarkdownPreview.vue',
   'components/fileExplorer/MediaPreview.vue',
   'components/fileExplorer/PdfPreview.vue',
-  'components/fileExplorer/fileClipboard.js',
-  'components/fileExplorer/previewKind.ts',
-  'components/fileExplorer/codeMirrorI18n.js',
   'components/ui/AppButton.vue',
   'components/ui/AppIcon.vue',
   'components/ui/AppPill.vue',
   'components/ui/ThemeToggle.vue',
   'components/ui/ContextMenu.vue',
+  // Explicitly reviewed helpers that produce visible data or presentation
+  // metadata. Keep this list in sync with sourceAudit.test.mjs.
+  'appSettings.js',
+  'commandForms.js',
+  'components/fileExplorer/codeMirrorI18n.js',
+  'components/fileExplorer/editorTabs.js',
+  'components/fileExplorer/fileClipboard.js',
+  'components/fileExplorer/pathOps.js',
+  'components/fileExplorer/previewKind.ts',
+  'dockerState.js',
+  'envVars.js',
+  'gitBranches.js',
+  'groupMemberStatus.js',
   'i18n/shellPresentation.js',
+  'projectDetection.js',
+  'projectEnvironmentUi.js',
+  'projectTree.js',
+  'scriptComplete.js',
+  'typeLabel.js',
+  'workspaceRoots.js',
 ]
 
 const accessibleAttributes = new Set(['title', 'aria-label', 'alt', 'placeholder'])
@@ -76,7 +92,8 @@ function propertyName(node) {
 }
 
 function isPresentationTarget(node) {
-  if (presentationFields.has(propertyName(node))) return true
+  const name = propertyName(node)
+  if (presentationFields.has(name) || /(?:Label|Text|Title|Message|Description)$/.test(name || '')) return true
   return node?.type === 'MemberExpression' && propertyName(node) === 'value' && isPresentationTarget(node.object)
 }
 
@@ -95,7 +112,7 @@ export function findHardcodedPresentationCopy(source, filename) {
   const findings = []
   function add(offset, text, kind) {
     const trimmed = text.trim()
-    if (!trimmed) return
+    if (!/\p{L}/u.test(trimmed)) return
     findings.push({ offset, line: source.slice(0, offset).split('\n').length, text: trimmed, kind })
   }
 

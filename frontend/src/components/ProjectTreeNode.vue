@@ -50,7 +50,7 @@ function onContextMenu(node, event) {
       <span class="chev">
         <AppIcon :icon="isExpanded(node) ? ChevronDown : ChevronRight" :size="12" />
       </span>
-      <span class="dir-name">{{ node.label }}</span>
+      <span class="dir-name">{{ node.labelKey ? t(node.labelKey) : node.label }}</span>
       <span class="count">{{ node.count }}</span>
     </button>
     <div v-if="isExpanded(node)" class="children">

@@ -7,7 +7,7 @@ import AppIcon from './ui/AppIcon.vue'
 import {
   allBranchNames,
   branchGroups,
-  branchPillLabel,
+  branchPillState,
   canCreateFromQuery,
   checkoutWarnings,
   gitErrorDetail,
@@ -44,7 +44,12 @@ const rootRef = ref(null)
 // 关着的时候只保留上一次的 status,用来渲染标签文字。
 let loadToken = 0
 
-const label = computed(() => branchPillLabel(data.value))
+const label = computed(() => {
+  const pill = branchPillState(data.value)
+  if (!pill) return ''
+  if (pill.kind === 'branch') return pill.value
+  return pill.value ? t('branches.detachedAt', { head: pill.value }) : t('branches.detached')
+})
 const groups = computed(() => branchGroups(data.value, query.value))
 const warnings = computed(() => checkoutWarnings(data.value, props.running))
 const trimmedQuery = computed(() => query.value.trim())

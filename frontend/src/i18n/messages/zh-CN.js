@@ -190,6 +190,8 @@ export default {
     addSelected: '加入选中',
   },
   branches: {
+    detached: '分离 HEAD',
+    detachedAt: "分离 HEAD {'@'} {head}",
     dirty: '工作区有未提交改动',
     switch: '切换分支',
     search: '筛选或输入新分支名',
@@ -232,6 +234,7 @@ export default {
       "replaceAll": "全部替换",
       "go": "跳转",
       "controlCharacter": "控制字符",
+      "selectionDeleted": "已删除选中内容",
       "currentMatch": "当前匹配",
       "onLine": "所在行",
       "replacedMatch": "已替换第 $ 行的匹配",

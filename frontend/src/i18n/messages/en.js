@@ -190,6 +190,8 @@ export default {
     addSelected: 'Add selected',
   },
   branches: {
+    detached: 'detached',
+    detachedAt: "detached {'@'} {head}",
     dirty: 'Working tree has uncommitted changes',
     switch: 'Switch branch',
     search: 'Filter or enter a new branch name',
@@ -232,6 +234,7 @@ export default {
       "replaceAll": "replace all",
       "go": "go",
       "controlCharacter": "Control character",
+      "selectionDeleted": "Selection deleted",
       "currentMatch": "current match",
       "onLine": "on line",
       "replacedMatch": "replaced match on line $",

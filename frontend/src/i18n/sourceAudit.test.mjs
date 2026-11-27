@@ -1,8 +1,62 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
+import { relative, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { AUDITED_UI_FILES, findHardcodedPresentationCopy } from './sourceAudit.js'
 import { SOURCE_AUDIT_ALLOWLIST } from './sourceAuditAllowlist.js'
+
+// These helpers shape visible values, choices, labels, summaries, or validation
+// metadata. Raw domain values still pass through unchanged.
+const PRESENTATION_HELPERS = [
+  'appSettings.js',
+  'commandForms.js',
+  'components/fileExplorer/codeMirrorI18n.js',
+  'components/fileExplorer/editorTabs.js',
+  'components/fileExplorer/fileClipboard.js',
+  'components/fileExplorer/pathOps.js',
+  'components/fileExplorer/previewKind.ts',
+  'dockerState.js',
+  'envVars.js',
+  'gitBranches.js',
+  'groupMemberStatus.js',
+  'i18n/shellPresentation.js',
+  'projectDetection.js',
+  'projectEnvironmentUi.js',
+  'projectTree.js',
+  'scriptComplete.js',
+  'typeLabel.js',
+  'workspaceRoots.js',
+]
+
+test('audit coverage includes every Vue file without exclusions', async () => {
+  const sourceRoot = fileURLToPath(new URL('../', import.meta.url))
+  const vueFiles = (await readdir(sourceRoot, { recursive: true }))
+    .filter((file) => file.endsWith('.vue'))
+    .map((file) => relative(sourceRoot, resolve(sourceRoot, file)).split(sep).join('/'))
+    .sort()
+  assert.ok(vueFiles.length > 0)
+  assert.deepEqual(AUDITED_UI_FILES.filter((file) => file.endsWith('.vue')).sort(), vueFiles)
+})
+
+test('audit coverage explicitly includes every reviewed presentation helper', () => {
+  assert.deepEqual(AUDITED_UI_FILES.filter((file) => /\.[jt]s$/.test(file)).sort(), PRESENTATION_HELPERS)
+  assert.equal(new Set(AUDITED_UI_FILES).size, AUDITED_UI_FILES.length)
+  assert.ok(AUDITED_UI_FILES.every((file) => /\.(vue|js|ts)$/.test(file)))
+})
+
+test('symbols without presentation words need no translation exception', () => {
+  assert.deepEqual(findHardcodedPresentationCopy('<template><button>×</button><span>✓ ● — , › ‹ /</span></template>', 'Symbols.vue'), [])
+  assert.deepEqual(findHardcodedPresentationCopy('<template><button>✓ Save</button></template>', 'Words.vue'), [
+    { line: 1, text: '✓ Save', kind: 'template-text' },
+  ])
+})
+
+test('named label variables retain presentation context through fallback expressions', () => {
+  assert.deepEqual(findHardcodedPresentationCopy("const parentLabel = segments.at(-1) || 'Projects'", 'projectTree.js'), [
+    { line: 1, text: 'Projects', kind: 'presentation-field' },
+  ])
+})
 
 test('finds presentation copy but ignores domain codes and comments', () => {
   const source = `
@@ -156,48 +210,18 @@ test('allowlist entries require exact file/text strings and a concrete reason', 
 })
 
 test('audited UI files have no hardcoded presentation copy without an exact exception', async () => {
-  for (const file of [
-    'components/environments/CodexEnvironmentFieldEditor.vue',
-    'components/environments/EnvironmentDiffPanel.vue',
-    'components/environments/EnvironmentFieldEditor.vue',
-    'components/environments/EnvironmentOverview.vue',
-    'components/environments/EnvironmentPresetManager.vue',
-    'components/environments/EnvironmentRepositoryManager.vue',
-    'components/environments/EnvironmentRuleManager.vue',
-    'components/environments/EnvironmentWorkspace.vue',
-    'App.vue', 'components/ConfirmDialog.vue', 'components/DetectionSwitch.vue',
-    'components/SettingsDialog.vue', 'components/ui/AppButton.vue',
-    'components/ui/AppIcon.vue', 'components/ui/AppPill.vue',
-    'components/ui/ThemeToggle.vue', 'components/ui/ContextMenu.vue',
-    'components/AddProjectDialog.vue', 'components/EditProjectDialog.vue',
-    'components/ProjectList.vue', 'components/ProjectDetail.vue',
-    'components/ProjectTreeNode.vue', 'components/GroupDialog.vue',
-    'components/GroupDetail.vue', 'components/GroupTreeItem.vue',
-    'components/GroupTreeNode.vue', 'components/AddToGroupDialog.vue',
-    'components/CommandRow.vue', 'components/BranchSwitcher.vue',
-    'components/ScanDialog.vue',
-    'components/ComposeDetail.vue', 'components/ContainerPanel.vue',
-    'components/LogPanel.vue', 'components/UpdateBanner.vue',
-    'components/FileBrowser.vue', 'components/fileExplorer/BinaryBanner.vue',
-    'components/fileExplorer/CodeEditor.vue', 'components/fileExplorer/EditorPrefsPanel.vue',
-    'components/fileExplorer/EditorStatusBar.vue', 'components/fileExplorer/EditorTabs.vue',
-    'components/fileExplorer/EditorToolbar.vue', 'components/fileExplorer/FileConfirmDialog.vue',
-    'components/fileExplorer/FileEditor.vue', 'components/fileExplorer/FileTree.vue',
-    'components/fileExplorer/FileTreeNode.vue', 'components/fileExplorer/ImagePreview.vue',
-    'components/fileExplorer/InlineEditRow.vue', 'components/fileExplorer/MarkdownPreview.vue',
-    'components/fileExplorer/MediaPreview.vue', 'components/fileExplorer/PdfPreview.vue',
-    'components/fileExplorer/fileClipboard.js', 'components/fileExplorer/previewKind.ts',
-    'components/fileExplorer/codeMirrorI18n.js',
-  ]) assert.ok(AUDITED_UI_FILES.includes(file), `Missing audit coverage: ${file}`)
-  assert.equal(new Set(AUDITED_UI_FILES).size, AUDITED_UI_FILES.length)
   const unmatched = []
+  const matchedExceptions = new Set()
   for (const file of AUDITED_UI_FILES) {
     const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8')
     for (const finding of findHardcodedPresentationCopy(source, file)) {
-      if (!SOURCE_AUDIT_ALLOWLIST.some((entry) => entry.file === file && entry.text === finding.text)) {
+      const exception = SOURCE_AUDIT_ALLOWLIST.find((entry) => entry.file === file && entry.text === finding.text)
+      if (exception) matchedExceptions.add(exception)
+      else {
         unmatched.push(`${file}:${finding.line} [${finding.kind}] ${JSON.stringify(finding.text)}`)
       }
     }
   }
   assert.deepEqual(unmatched, [], `Localize this copy or add a specific, reasoned exception:\n${unmatched.join('\n')}`)
+  assert.deepEqual(SOURCE_AUDIT_ALLOWLIST.filter((entry) => !matchedExceptions.has(entry)), [], 'Remove stale exceptions')
 })

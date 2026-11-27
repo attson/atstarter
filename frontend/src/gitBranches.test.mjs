@@ -4,7 +4,7 @@ import * as gitBranches from './gitBranches.js'
 import {
   allBranchNames,
   branchGroups,
-  branchPillLabel,
+  branchPillState,
   canCreateFromQuery,
   checkoutWarnings,
   validateBranchName,
@@ -48,12 +48,12 @@ test('branchGroups 容忍空数据', () => {
   assert.deepEqual(branchGroups({}), [])
 })
 
-test('branchPillLabel 区分普通分支、detached 与非仓库', () => {
-  assert.equal(branchPillLabel(data), 'main')
-  assert.equal(branchPillLabel({ repo: true, detached: true, head: 'abc1234' }), 'detached @ abc1234')
-  assert.equal(branchPillLabel({ repo: true, detached: true }), 'detached')
-  assert.equal(branchPillLabel({ repo: false }), '')
-  assert.equal(branchPillLabel(null), '')
+test('branchPillState separates stable Git states from raw names and hashes', () => {
+  assert.deepEqual(branchPillState(data), { kind: 'branch', value: 'main' })
+  assert.deepEqual(branchPillState({ repo: true, detached: true, head: 'abc1234' }), { kind: 'detached', value: 'abc1234' })
+  assert.deepEqual(branchPillState({ repo: true, detached: true }), { kind: 'detached', value: '' })
+  assert.equal(branchPillState({ repo: false }), null)
+  assert.equal(branchPillState(null), null)
 })
 
 test('validateBranchName 挡住 git 会拒绝的名字', () => {

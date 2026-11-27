@@ -27,6 +27,7 @@ function makeDirectory(label, path) {
     type: 'directory',
     id: 'dir:' + path,
     label,
+    labelKey: label ? undefined : 'navigation.projects',
     path,
     count: 0,
     children: [],
@@ -62,8 +63,9 @@ function worktreeInfo(path) {
 function ensureImmediateParent(rootMap, project) {
   const segments = pathSegments(project.path)
   segments.pop()
-  const parentLabel = segments[segments.length - 1] || 'Projects'
-  const parentPath = segments.join('/') || parentLabel
+  const parentLabel = segments[segments.length - 1] || ''
+  // Preserve the existing fallback grouping/expansion ID; it is not UI copy.
+  const parentPath = segments.join('/') || 'Projects'
 
   if (!rootMap.has(parentPath)) {
     rootMap.set(parentPath, makeDirectory(parentLabel, parentPath))
@@ -111,8 +113,8 @@ function addNormalProject(rootMap, project, status) {
 function sortTree(nodes) {
   nodes.sort((a, b) => {
     if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
-    const aLabel = a.type === 'directory' ? a.label : a.project.name
-    const bLabel = b.type === 'directory' ? b.label : b.project.name
+    const aLabel = a.type === 'directory' ? a.label || a.path : a.project.name
+    const bLabel = b.type === 'directory' ? b.label || b.path : b.project.name
     return aLabel.localeCompare(bLabel)
   })
   for (const node of nodes) {

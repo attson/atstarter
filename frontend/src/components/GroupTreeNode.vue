@@ -52,7 +52,7 @@ function lineFor(command) {
       <span class="chevron">
         <AppIcon :icon="isExpanded(node) ? ChevronDown : ChevronRight" :size="12" />
       </span>
-      <span class="dir-name">{{ node.label }}</span>
+      <span class="dir-name">{{ node.labelKey ? t(node.labelKey) : node.label }}</span>
       <span class="count">{{ node.count }}</span>
     </button>
     <template v-if="isExpanded(node)">
