@@ -1,6 +1,6 @@
 // gitBranches:分支选择器的纯逻辑。后端 internal/git 返回 Branches
 // ({ repo, branch, detached, dirty, head, local[], remote[] }),这里只做
-// 过滤、分组、命名校验和提醒文案。
+// 过滤、分组、命名校验和稳定的提醒代码。
 
 // 与 internal/git 的 validateName 保持同一套规则。前端先挡一道是为了即时反馈,
 // 后端那道才是真正的闸 —— 两边都不能省。
@@ -8,17 +8,17 @@ const INVALID_CHARS = /[ \t~^:?*[\\]/
 
 export function validateBranchName(name, existing = []) {
   const trimmed = (name || '').trim()
-  if (!trimmed) return '分支名不能为空'
-  if (trimmed.startsWith('-')) return '分支名不能以 - 开头'
-  if (INVALID_CHARS.test(trimmed)) return '分支名不能包含空格或 ~ ^ : ? * [ \\'
+  if (!trimmed) return { code: 'empty', values: {} }
+  if (trimmed.startsWith('-')) return { code: 'leadingDash', values: {} }
+  if (INVALID_CHARS.test(trimmed)) return { code: 'invalidCharacters', values: {} }
   if (trimmed.startsWith('/') || trimmed.endsWith('/') || trimmed.includes('//')) {
-    return '分支名不能以 / 开头或结尾,也不能包含 //'
+    return { code: 'slash', values: {} }
   }
   if (trimmed.startsWith('.') || trimmed.includes('..') || trimmed.endsWith('.lock')) {
-    return '分支名不能以 . 开头、包含 .. 或以 .lock 结尾'
+    return { code: 'dot', values: {} }
   }
-  if (trimmed.includes('@{')) return '分支名不能包含 @{'
-  if (existing.includes(trimmed)) return '分支已存在'
+  if (trimmed.includes('@{')) return { code: 'reflog', values: {} }
+  if (existing.includes(trimmed)) return { code: 'exists', values: { name: trimmed } }
   return ''
 }
 
@@ -38,8 +38,8 @@ export function branchGroups(data, query = '') {
     kind: 'remote',
     current: false,
   }))
-  if (local.length) groups.push({ id: 'local', label: '本地分支', items: local })
-  if (remote.length) groups.push({ id: 'remote', label: '远端分支', items: remote })
+  if (local.length) groups.push({ id: 'local', items: local })
+  if (remote.length) groups.push({ id: 'remote', items: remote })
   return groups
 }
 
@@ -60,8 +60,8 @@ export function branchPillLabel(status) {
 // 真正危险的切换,这里只是让用户心里有数。
 export function checkoutWarnings(status, running) {
   const warnings = []
-  if (status?.dirty) warnings.push('工作区有未提交改动,git 可能拒绝切换。')
-  if (running) warnings.push('项目正在运行,切换分支不会自动重启进程。')
+  if (status?.dirty) warnings.push('dirty')
+  if (running) warnings.push('running')
   return warnings
 }
 
@@ -71,4 +71,10 @@ export function canCreateFromQuery(data, query) {
   const trimmed = (query || '').trim()
   if (!trimmed) return false
   return validateBranchName(trimmed, allBranchNames(data)) === ''
+}
+
+// Wails may reject with a string instead of an Error. Never trim or wrap Git stderr.
+export function gitErrorDetail(error) {
+  if (typeof error === 'string') return error
+  return typeof error?.message === 'string' ? error.message : ''
 }

@@ -1,8 +1,11 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
 import { buildProjectTree } from '../projectTree'
 import GroupTreeNode from './GroupTreeNode.vue'
 import AppButton from './ui/AppButton.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({ show: Boolean, group: Object, projects: Array })
 const emit = defineEmits(['save', 'close'])
@@ -65,7 +68,7 @@ function save() {
     .map((option) => ({ projectId: option.project.id, commandId: option.command.id || 'default' }))
   emit('save', {
     id: props.group ? props.group.id : '',
-    name: name.value.trim() || 'New group',
+    name: name.value.trim() || t('groups.newName'),
     items,
   })
 }
@@ -80,14 +83,14 @@ function toggleOption(key) {
     <div class="mask" v-if="show" @click.self="emit('close')">
       <Transition name="dlg-pop" appear>
         <div class="dialog">
-          <h3>{{ group ? '编辑分组' : '新建分组' }}</h3>
-          <label>名称<input v-model="name" placeholder="Local dev stack" /></label>
+          <h3>{{ t(group ? 'groups.editTitle' : 'groups.newTitle') }}</h3>
+          <label>{{ t('common.name') }}<input v-model="name" :placeholder="t('groups.nameHint')" /></label>
 
-          <div class="commands-head">选择要启动的项目命令</div>
+          <div class="commands-head">{{ t('groups.chooseCommands') }}</div>
           <input
             v-model="query"
             class="option-search"
-            placeholder="搜索项目名称、路径或命令…"
+            :placeholder="t('projects.search')"
           />
           <div class="options">
             <GroupTreeNode
@@ -102,13 +105,13 @@ function toggleOption(key) {
               @toggle-dir="toggleDir"
             />
             <div v-if="projectTree.length === 0" class="options-empty">
-              没有匹配的项目
+              {{ t('projects.noMatches') }}
             </div>
           </div>
 
           <div class="btns">
-            <AppButton variant="secondary" @click="emit('close')">取消</AppButton>
-            <AppButton variant="primary" @click="save">保存</AppButton>
+            <AppButton variant="secondary" @click="emit('close')">{{ t('common.cancel') }}</AppButton>
+            <AppButton variant="primary" @click="save">{{ t('common.save') }}</AppButton>
           </div>
         </div>
       </Transition>

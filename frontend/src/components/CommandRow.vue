@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, nextTick, ref, watch } from 'vue'
 import { FolderOpen } from 'lucide-vue-next'
 import { PickDirectoryFrom, ListPackageScripts } from '../../wailsjs/go/main/App'
@@ -8,6 +9,8 @@ import { scriptCompleteContext, filterScripts, applyScript } from '../scriptComp
 
 // cmd 是 commandFormsForProject 产出的表单对象,直接就地修改(与 EditProjectDialog
 // 里 v-model 到数组元素的既有写法一致),不走 update:modelValue。
+const { t } = useI18n()
+
 const props = defineProps({
   cmd: { type: Object, required: true },
   projectPath: { type: String, default: '' },
@@ -114,23 +117,23 @@ async function pickDir() {
 <template>
   <div class="command-row">
     <div class="command-top">
-      <input v-model="cmd.name" placeholder="Name" />
+      <input v-model="cmd.name" :placeholder="t('common.name')" />
       <AppButton
         :variant="cmd.isDefault ? 'primary' : 'secondary'"
         size="sm"
         @click="emit('set-default')"
-      >Default</AppButton>
+      >{{ t('commands.default') }}</AppButton>
       <AppButton
         variant="secondary"
         size="sm"
         :disabled="!canRemove"
         @click="emit('remove')"
-      >Remove</AppButton>
+      >{{ t('common.remove') }}</AppButton>
     </div>
 
     <div class="field-with-action">
       <input v-model="cmd.cwd" :placeholder="projectPath" :title="cmd.cwd || projectPath" />
-      <button type="button" class="action-btn" title="选择工作目录" @click="pickDir">
+      <button type="button" class="action-btn" :title="t('commands.chooseDirectory')" @click="pickDir">
         <AppIcon :icon="FolderOpen" :size="14" />
       </button>
     </div>
@@ -138,7 +141,7 @@ async function pickDir() {
     <div class="field-with-suggest">
       <input
         v-model="cmd.line"
-        placeholder="如 pnpm run dev 或 go run main.go serve"
+        :placeholder="t('commands.lineHint')"
         autocomplete="off"
         spellcheck="false"
         @input="refresh"
@@ -163,7 +166,7 @@ async function pickDir() {
     <textarea
       v-model="cmd.envText"
       spellcheck="false"
-      placeholder="环境变量,每行一个: KEY=value"
+      :placeholder="t('commands.environmentHint')"
     />
   </div>
 </template>

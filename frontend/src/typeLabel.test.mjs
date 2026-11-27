@@ -19,7 +19,7 @@ test('leaves other types unchanged', () => {
   assert.equal(typeLabel('compose'), 'compose')
 })
 
-test('falls back to unknown for empty', () => {
-  assert.equal(typeLabel(''), 'unknown')
-  assert.equal(typeLabel(undefined), 'unknown')
+test('leaves empty types empty for the presentation layer to translate', () => {
+  assert.equal(typeLabel(''), '')
+  assert.equal(typeLabel(undefined), '')
 })

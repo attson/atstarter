@@ -161,6 +161,13 @@ test('audited UI files have no hardcoded presentation copy without an exact exce
     'components/SettingsDialog.vue', 'components/ui/AppButton.vue',
     'components/ui/AppIcon.vue', 'components/ui/AppPill.vue',
     'components/ui/ThemeToggle.vue', 'components/ui/ContextMenu.vue',
+    'components/AddProjectDialog.vue', 'components/EditProjectDialog.vue',
+    'components/ProjectList.vue', 'components/ProjectDetail.vue',
+    'components/ProjectTreeNode.vue', 'components/GroupDialog.vue',
+    'components/GroupDetail.vue', 'components/GroupTreeItem.vue',
+    'components/GroupTreeNode.vue', 'components/AddToGroupDialog.vue',
+    'components/CommandRow.vue', 'components/BranchSwitcher.vue',
+    'components/ScanDialog.vue',
   ]) assert.ok(AUDITED_UI_FILES.includes(file), `Missing audit coverage: ${file}`)
   assert.equal(new Set(AUDITED_UI_FILES).size, AUDITED_UI_FILES.length)
   const unmatched = []

@@ -1,7 +1,10 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { ChevronRight, ChevronDown } from 'lucide-vue-next'
 import AppIcon from './ui/AppIcon.vue'
 import { typeLabel } from '../typeLabel.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   node: Object,
@@ -72,7 +75,7 @@ function onContextMenu(node, event) {
       :style="{ paddingLeft: `${4 + level * 12}px` }"
       role="button"
       tabindex="0"
-      :title="isMissing(node) ? '项目路径已不存在' : undefined"
+      :title="isMissing(node) ? t('projects.missingPath') : undefined"
       @click="emit('select', node.project.id)"
       @contextmenu.prevent="onContextMenu(node, $event)"
       @keydown.enter.prevent="emit('select', node.project.id)"
@@ -90,8 +93,8 @@ function onContextMenu(node, event) {
         <span :class="['status-dot', stateClass((node.status || {}).State)]" />
         <span class="project-name">{{ node.project.name }}</span>
         <span v-if="hasChildren(node)" class="count">{{ node.count }}</span>
-        <span v-else-if="isMissing(node)" class="type-pill missing-pill">missing</span>
-        <span v-else class="type-pill">{{ typeLabel(node.project.detectedType) }}</span>
+        <span v-else-if="isMissing(node)" class="type-pill missing-pill">{{ t('status.missing') }}</span>
+        <span v-else class="type-pill">{{ typeLabel(node.project.detectedType) || t('status.unknown') }}</span>
       </span>
     </div>
     <div v-if="hasChildren(node) && isExpanded(node)" class="children">

@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
 import { FolderOpen } from 'lucide-vue-next'
 import { ScanWorkspaces, AddScanned, PickDirectory, GetWorkspaces, SetWorkspaces } from '../../wailsjs/go/main/App'
@@ -8,6 +9,8 @@ import DetectionSwitch from './DetectionSwitch.vue'
 import { typeLabel } from '../typeLabel.js'
 import { applyDetectionOption, canIgnoreComposeDetection, hasDetectionSwitch, ignoreComposeDetections } from '../projectDetection.js'
 import { inferWorkspaceRoots, parseWorkspaceRoots } from '../workspaceRoots.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   show: Boolean,
@@ -76,31 +79,31 @@ watch(() => props.show, loadRoots, { immediate: true })
     <div class="mask" v-if="show" @click.self="emit('close')">
       <Transition name="dlg-pop" appear>
         <div class="dialog">
-          <h3>扫描工作区</h3>
+          <h3>{{ t('scan.title') }}</h3>
           <textarea v-model="rootsText" rows="3"
-            placeholder="每行一个根目录，支持 ~，如&#10;~/GolandProjects&#10;~/WebstormProjects"></textarea>
+            :placeholder="t('scan.rootsHint')"></textarea>
           <div class="root-actions">
             <AppButton variant="secondary" @click="pickDir">
               <template #icon><AppIcon :icon="FolderOpen" :size="14" /></template>
-              选择文件夹
+              {{ t('common.chooseFolder') }}
             </AppButton>
-            <AppButton variant="primary" @click="scan">扫描</AppButton>
+            <AppButton variant="primary" @click="scan">{{ t('navigation.scan') }}</AppButton>
           </div>
           <div v-if="canIgnoreCompose" class="bulk-actions">
-            <AppButton variant="secondary" size="sm" @click="ignoreAllCompose">全部忽略 compose</AppButton>
+            <AppButton variant="secondary" size="sm" @click="ignoreAllCompose">{{ t('scan.ignoreCompose') }}</AppButton>
           </div>
           <div class="results">
             <button v-for="c in candidates" :key="c.id" :class="['row', { selected: checked[c.id] }]" @click="toggle(c.id)">
               <span class="check-mark">{{ checked[c.id] ? '✓' : '' }}</span>
               <span class="nm">{{ c.name }}</span>
               <DetectionSwitch v-if="hasDetectionSwitch(c)" :project="c" @switch="switchCandidate(c, $event)" />
-              <span v-else class="ty" :class="{ unknown: c.detectedType === 'unknown' }">{{ typeLabel(c.detectedType) }}</span>
+              <span v-else class="ty" :class="{ unknown: c.detectedType === 'unknown' }">{{ typeLabel(c.detectedType) || t('status.unknown') }}</span>
               <code>{{ [c.command, ...(c.args || [])].join(' ').trim() || '—' }}</code>
             </button>
           </div>
           <div class="btns">
-            <AppButton variant="secondary" @click="emit('close')">取消</AppButton>
-            <AppButton variant="primary" @click="add">加入选中</AppButton>
+            <AppButton variant="secondary" @click="emit('close')">{{ t('common.cancel') }}</AppButton>
+            <AppButton variant="primary" @click="add">{{ t('scan.addSelected') }}</AppButton>
           </div>
         </div>
       </Transition>

@@ -1,9 +1,12 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { ref, watch } from 'vue'
 import AppButton from './ui/AppButton.vue'
 import CommandRow from './CommandRow.vue'
 import { commandFormsForProject, blankCommandForm } from '../commandForms.js'
 import { envTextToMap } from '../envVars.js'
+
+const { t } = useI18n()
 
 const props = defineProps({ project: Object, show: Boolean })
 const emit = defineEmits(['save', 'close'])
@@ -52,11 +55,11 @@ function setDefault(index) {
     <div class="mask" v-if="show" @click.self="emit('close')">
       <Transition name="dlg-pop" appear>
         <div class="dialog">
-          <h3>编辑项目</h3>
-          <label>名称<input v-model="name" /></label>
+          <h3>{{ t('projects.editTitle') }}</h3>
+          <label>{{ t('common.name') }}<input v-model="name" /></label>
           <div class="commands-head">
-            <span>启动命令</span>
-            <AppButton variant="secondary" size="sm" @click="addCommand">Add command</AppButton>
+            <span>{{ t('commands.launchCommands') }}</span>
+            <AppButton variant="secondary" size="sm" @click="addCommand">{{ t('commands.add') }}</AppButton>
           </div>
           <div class="command-list">
             <CommandRow
@@ -70,8 +73,8 @@ function setDefault(index) {
             />
           </div>
           <div class="btns">
-            <AppButton variant="secondary" @click="emit('close')">取消</AppButton>
-            <AppButton variant="primary" @click="save">保存</AppButton>
+            <AppButton variant="secondary" @click="emit('close')">{{ t('common.cancel') }}</AppButton>
+            <AppButton variant="primary" @click="save">{{ t('common.save') }}</AppButton>
           </div>
         </div>
       </Transition>

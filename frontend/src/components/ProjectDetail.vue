@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, ref, watch } from 'vue'
 import { Play, Square, RotateCcw, Pencil, FolderPlus, ChevronDown, ChevronUp, Trash2 } from 'lucide-vue-next'
 import LogPanel from './LogPanel.vue'
@@ -10,6 +11,8 @@ import AppIcon from './ui/AppIcon.vue'
 import DetectionSwitch from './DetectionSwitch.vue'
 import { typeLabel } from '../typeLabel.js'
 import { hasDetectionSwitch } from '../projectDetection.js'
+
+const { t } = useI18n()
 
 const props = defineProps({ project: Object, status: Object, selectedCommandId: String, missing: { type: Boolean, default: false } })
 const emit = defineEmits(['start', 'stop', 'restart', 'edit', 'command-change', 'add-to-group', 'switch-type', 'remove'])
@@ -44,6 +47,10 @@ const commandLine = computed(() => selectedCommand.value
 )
 
 const state = computed(() => (props.status || {}).State || 'stopped')
+const stateText = computed(() => ['running', 'exited', 'error', 'stopped'].includes(state.value)
+  ? t(`status.${state.value}`)
+  : state.value
+)
 const pillVariant = computed(() => {
   if (state.value === 'running') return 'running'
   if (state.value === 'exited') return 'exited'
@@ -67,22 +74,22 @@ function chooseCommand(command) {
       <div class="info">
         <div class="title-line">
           <h1>{{ project.name }}</h1>
-          <AppPill :variant="pillVariant" :dot="state === 'running'">{{ state }}</AppPill>
+          <AppPill :variant="pillVariant" :dot="state === 'running'">{{ stateText }}</AppPill>
           <DetectionSwitch v-if="hasDetectionSwitch(project)" :project="project" @switch="emit('switch-type', $event)" />
-          <AppPill v-else variant="neutral">{{ typeLabel(project.detectedType) }}</AppPill>
+          <AppPill v-else variant="neutral">{{ typeLabel(project.detectedType) || t('status.unknown') }}</AppPill>
           <BranchSwitcher :project="project" :running="state === 'running'" />
-          <AppPill v-if="missing" variant="error" title="项目路径已不存在">missing</AppPill>
+          <AppPill v-if="missing" variant="error" :title="t('projects.missingPath')">{{ t('status.missing') }}</AppPill>
         </div>
         <div class="path" :title="project.path">{{ project.path }}</div>
         <div v-if="missing" class="missing-notice">
-          <span>路径已不存在,项目配置(命令 / 分组归属)仍保留。可点右侧「移除项目」清理。</span>
+          <span>{{ t('projects.missingNotice') }}</span>
           <AppButton variant="danger" size="sm" @click="emit('remove')">
             <template #icon><AppIcon :icon="Trash2" :size="13" /></template>
-            移除项目
+            {{ t('projects.remove') }}
           </AppButton>
         </div>
         <div class="command-box">
-          <span class="cmd-label">CMD</span>
+          <span class="cmd-label">{{ t('commands.shortLabel') }}</span>
           <div class="command-picker">
             <button class="command-trigger" @click="commandMenuOpen = !commandMenuOpen">
               <span>{{ selectedCommand && selectedCommand.name }}</span>
@@ -102,21 +109,21 @@ function chooseCommand(command) {
           <code>{{ commandLine }}</code>
           <AppButton class="command-edit" variant="secondary" size="sm" @click="emit('edit')">
             <template #icon><AppIcon :icon="Pencil" :size="13" /></template>
-            Edit
+            {{ t('common.edit') }}
           </AppButton>
         </div>
       </div>
       <div class="btns">
         <AppButton variant="secondary" size="sm" @click="emit('add-to-group')">
           <template #icon><AppIcon :icon="FolderPlus" :size="13" /></template>
-          Add Group
+          {{ t('groups.addTo') }}
         </AppButton>
         <div class="run-controls">
           <AppButton
             variant="danger"
             size="sm"
             iconOnly
-            title="Stop"
+            :title="t('common.stop')"
             :disabled="(status || {}).State !== 'running'"
             @click="emit('stop', selectedCommand.id)"
           >
@@ -126,7 +133,7 @@ function chooseCommand(command) {
             variant="secondary"
             size="sm"
             iconOnly
-            title="Restart"
+            :title="t('common.restart')"
             :disabled="(status || {}).State !== 'running'"
             @click="emit('restart', selectedCommand.id)"
           >
@@ -136,7 +143,7 @@ function chooseCommand(command) {
             variant="success"
             size="sm"
             iconOnly
-            title="Start"
+            :title="t('common.start')"
             :disabled="(status || {}).State === 'running'"
             @click="emit('start', selectedCommand.id)"
           >
@@ -146,8 +153,8 @@ function chooseCommand(command) {
       </div>
     </div>
     <div class="detail-tabs">
-      <button class="tab" :class="{ active: detailTab === 'logs' }" @click="detailTab = 'logs'">日志</button>
-      <button class="tab" :class="{ active: detailTab === 'files' }" @click="detailTab = 'files'">文件</button>
+      <button class="tab" :class="{ active: detailTab === 'logs' }" @click="detailTab = 'logs'">{{ t('projects.logs') }}</button>
+      <button class="tab" :class="{ active: detailTab === 'files' }" @click="detailTab = 'files'">{{ t('projects.files') }}</button>
     </div>
     <div class="detail-tab-body">
       <LogPanel v-show="detailTab === 'logs'" :projectId="selectedRunId" :status="status" :active="detailTab === 'logs'" />
@@ -156,8 +163,8 @@ function chooseCommand(command) {
   </section>
   <section class="detail empty" v-else>
     <div>
-      <h2>选择一个项目</h2>
-      <p>从左侧目录树选择项目后查看命令、状态和实时日志。</p>
+      <h2>{{ t('projects.selectTitle') }}</h2>
+      <p>{{ t('projects.selectDescription') }}</p>
     </div>
   </section>
 </template>

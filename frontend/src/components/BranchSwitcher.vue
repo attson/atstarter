@@ -1,4 +1,5 @@
 <script setup>
+import { useI18n } from 'vue-i18n'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { Check, ChevronDown, GitBranch, Loader2, Plus } from 'lucide-vue-next'
 import AppPill from './ui/AppPill.vue'
@@ -9,6 +10,7 @@ import {
   branchPillLabel,
   canCreateFromQuery,
   checkoutWarnings,
+  gitErrorDetail,
   validateBranchName,
 } from '../gitBranches.js'
 import {
@@ -16,6 +18,8 @@ import {
   CreateProjectBranch,
   ListProjectBranches,
 } from '../../wailsjs/go/main/App'
+
+const { t } = useI18n()
 
 const props = defineProps({
   project: { type: Object, default: null },
@@ -27,7 +31,11 @@ const data = ref(null)
 const open = ref(false)
 const loading = ref(false)
 const busy = ref(false)
-const error = ref('')
+const error = ref(null)
+const errorMessage = computed(() => error.value
+  ? error.value.detail || t(error.value.fallback)
+  : ''
+)
 const query = ref('')
 const searchInput = ref(null)
 const rootRef = ref(null)
@@ -41,9 +49,10 @@ const groups = computed(() => branchGroups(data.value, query.value))
 const warnings = computed(() => checkoutWarnings(data.value, props.running))
 const trimmedQuery = computed(() => query.value.trim())
 const showCreate = computed(() => canCreateFromQuery(data.value, trimmedQuery.value))
-const createError = computed(() =>
-  trimmedQuery.value ? validateBranchName(trimmedQuery.value, allBranchNames(data.value)) : '',
-)
+const createError = computed(() => {
+  const result = trimmedQuery.value ? validateBranchName(trimmedQuery.value, allBranchNames(data.value)) : ''
+  return result ? t(`branches.validation.${result.code}`, result.values) : ''
+})
 const empty = computed(() => !loading.value && !groups.value.length && !showCreate.value)
 
 async function load() {
@@ -54,7 +63,7 @@ async function load() {
   }
   const token = ++loadToken
   loading.value = true
-  error.value = ''
+  error.value = null
   try {
     const result = await ListProjectBranches(projectId)
     if (token !== loadToken) return
@@ -62,7 +71,7 @@ async function load() {
   } catch (err) {
     if (token !== loadToken) return
     data.value = null
-    error.value = err?.message || '读取分支失败'
+    error.value = { detail: gitErrorDetail(err), fallback: 'branches.readFallback' }
   } finally {
     if (token === loadToken) loading.value = false
   }
@@ -75,7 +84,7 @@ async function toggleOpen() {
   }
   open.value = true
   query.value = ''
-  error.value = ''
+  error.value = null
   await load()
   await nextTick()
   searchInput.value?.focus()
@@ -89,7 +98,7 @@ function close() {
 async function runCheckout(action) {
   if (busy.value) return
   busy.value = true
-  error.value = ''
+  error.value = null
   try {
     data.value = await action()
     close()
@@ -97,7 +106,7 @@ async function runCheckout(action) {
   } catch (err) {
     // git 自己的错误消息最准确("Your local changes ... would be overwritten"),
     // 原样展示,不要包装成"切换失败"。
-    error.value = err?.message || '切换分支失败'
+    error.value = { detail: gitErrorDetail(err), fallback: 'branches.checkoutFallback' }
   } finally {
     busy.value = false
   }
@@ -165,12 +174,12 @@ onBeforeUnmount(() => {
       clickable
       :active="open"
       data-test="branch-pill"
-      :title="data?.dirty ? '工作区有未提交改动' : '切换分支'"
+      :title="t(data?.dirty ? 'branches.dirty' : 'branches.switch')"
       @click="toggleOpen"
     >
       <AppIcon :icon="GitBranch" :size="11" />
       {{ label }}
-      <span v-if="data?.dirty" class="dirty-dot" title="工作区有未提交改动">●</span>
+      <span v-if="data?.dirty" class="dirty-dot" :title="t('branches.dirty')">●</span>
       <AppIcon :icon="ChevronDown" :size="11" />
     </AppPill>
 
@@ -181,24 +190,24 @@ onBeforeUnmount(() => {
         class="branch-search"
         data-test="branch-search"
         type="search"
-        placeholder="筛选或输入新分支名"
+        :placeholder="t('branches.search')"
         autocomplete="off"
         spellcheck="false"
         @keydown="onSearchKey"
       >
 
       <div v-if="warnings.length" class="branch-warnings">
-        <div v-for="w in warnings" :key="w">{{ w }}</div>
+        <div v-for="w in warnings" :key="w">{{ t(`branches.warning.${w}`) }}</div>
       </div>
 
-      <div v-if="error" class="branch-error" data-test="branch-error">{{ error }}</div>
+      <div v-if="errorMessage" class="branch-error" data-test="branch-error">{{ errorMessage }}</div>
 
       <div class="branch-list">
         <div v-if="loading" class="branch-state">
-          <AppIcon :icon="Loader2" :size="12" class="spin" /> 读取分支…
+          <AppIcon :icon="Loader2" :size="12" class="spin" /> {{ t('branches.loading') }}
         </div>
         <template v-for="group in groups" :key="group.id">
-          <div class="branch-group">{{ group.label }}</div>
+          <div class="branch-group">{{ t(`branches.group.${group.id}`) }}</div>
           <button
             v-for="item in group.items"
             :key="group.id + ':' + item.name"
@@ -212,11 +221,11 @@ onBeforeUnmount(() => {
             <AppIcon v-if="item.current" :icon="Check" :size="12" />
             <span v-else class="branch-item-spacer" />
             <span class="branch-item-name">{{ item.name }}</span>
-            <span v-if="item.kind === 'remote'" class="branch-item-tag">远端</span>
+            <span v-if="item.kind === 'remote'" class="branch-item-tag">{{ t('branches.remote') }}</span>
           </button>
         </template>
-        <div v-if="empty && !error" class="branch-state">
-          {{ createError || (data?.repo ? '没有匹配分支。' : '该项目不是 git 仓库。') }}
+        <div v-if="empty && !errorMessage" class="branch-state">
+          {{ createError || t(data?.repo ? 'branches.noMatches' : 'branches.notRepository') }}
         </div>
       </div>
 
@@ -229,7 +238,7 @@ onBeforeUnmount(() => {
         @click="createBranch"
       >
         <AppIcon :icon="Plus" :size="12" />
-        从当前 HEAD 新建「{{ trimmedQuery }}」
+        {{ t('branches.create', { name: trimmedQuery }) }}
       </button>
     </div>
   </div>

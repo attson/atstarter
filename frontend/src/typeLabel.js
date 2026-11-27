@@ -2,6 +2,6 @@
 // The backend stores fine-grained values like "node-pnpm" or "java-maven";
 // the UI just shows the tool part ("pnpm", "maven").
 export function typeLabel(type) {
-  if (!type) return 'unknown'
+  if (!type) return ''
   return type.replace(/^(node|java)-/, '')
 }
