@@ -109,7 +109,7 @@ func TestAppSettingsDefaultsAndSave(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if defaults.LogFontFamily != "monospace" || defaults.LogFontSize != 11 || defaults.LogLetterSpacing != 0 {
+	if defaults.Language != "system" || defaults.LogFontFamily != "monospace" || defaults.LogFontSize != 11 || defaults.LogLetterSpacing != 0 {
 		t.Fatalf("unexpected defaults: %+v", defaults)
 	}
 
@@ -118,20 +118,46 @@ func TestAppSettingsDefaultsAndSave(t *testing.T) {
 		t.Fatal(err)
 	}
 	saved, err := app.SaveAppSettings(AppSettings{
-		Shell: shell, LogFontFamily: "JetBrains Mono", LogFontSize: 13, LogLetterSpacing: 1,
+		Language: "en", Shell: shell, LogFontFamily: "JetBrains Mono", LogFontSize: 13, LogLetterSpacing: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if saved.Shell != shell || saved.LogFontFamily != "JetBrains Mono" || saved.LogFontSize != 13 || saved.LogLetterSpacing != 1 {
+	if saved.Language != "en" || saved.Shell != shell || saved.LogFontFamily != "JetBrains Mono" || saved.LogFontSize != 13 || saved.LogLetterSpacing != 1 {
 		t.Fatalf("saved settings = %+v", saved)
 	}
 	reloaded, err := app.GetAppSettings()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reloaded.Shell != shell || reloaded.LogFontFamily != "JetBrains Mono" {
+	if reloaded.Language != "en" || reloaded.Shell != shell || reloaded.LogFontFamily != "JetBrains Mono" {
 		t.Fatalf("reloaded settings = %+v", reloaded)
+	}
+}
+
+func TestAppSettingsLanguageDefaultsAndNormalizes(t *testing.T) {
+	app := newTestApp(t)
+	defaults, err := app.GetAppSettings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if defaults.Language != "system" {
+		t.Fatalf("default language = %q, want system", defaults.Language)
+	}
+
+	for _, tc := range []struct{ input, want string }{
+		{"system", "system"}, {"zh-CN", "zh-CN"}, {"en", "en"},
+		{"", "system"}, {"fr", "system"}, {" EN ", "system"},
+	} {
+		saved, err := app.SaveAppSettings(AppSettings{
+			Language: tc.input, LogFontFamily: "monospace", LogFontSize: 11,
+		})
+		if err != nil {
+			t.Fatalf("SaveAppSettings(%q): %v", tc.input, err)
+		}
+		if saved.Language != tc.want {
+			t.Fatalf("SaveAppSettings(%q).Language = %q, want %q", tc.input, saved.Language, tc.want)
+		}
 	}
 }
 

@@ -129,7 +129,7 @@ func TestResetProjectsClearsProjectsAndGroupsButKeepsWorkspaces(t *testing.T) {
 
 func TestSetSettingsRoundTrips(t *testing.T) {
 	s := newTestStore(t)
-	want := AppSettings{Shell: "/usr/bin/zsh", LogFontFamily: "JetBrains Mono", LogFontSize: 13, LogLetterSpacing: 1}
+	want := AppSettings{Shell: "/usr/bin/zsh", LogFontFamily: "JetBrains Mono", LogFontSize: 13, LogLetterSpacing: 1, Language: "zh-CN"}
 	if err := s.SetSettings(want); err != nil {
 		t.Fatal(err)
 	}

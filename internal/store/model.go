@@ -59,6 +59,7 @@ type LaunchGroup struct {
 
 // AppSettings 是跨项目生效的应用偏好。零值保持旧配置兼容。
 type AppSettings struct {
+	Language         string `json:"language,omitempty"`
 	Shell            string `json:"shell,omitempty"`
 	LogFontFamily    string `json:"logFontFamily,omitempty"`
 	LogFontSize      int    `json:"logFontSize,omitempty"`

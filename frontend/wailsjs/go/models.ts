@@ -220,6 +220,7 @@ export namespace git {
 export namespace main {
 
 	export class AppSettings {
+	    language: string;
 	    shell: string;
 	    autoShell: string;
 	    availableShells: string[];
@@ -233,6 +234,7 @@ export namespace main {
 
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.language = source["language"];
 	        this.shell = source["shell"];
 	        this.autoShell = source["autoShell"];
 	        this.availableShells = source["availableShells"];

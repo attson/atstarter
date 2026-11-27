@@ -65,6 +65,7 @@ type LaunchResult struct {
 }
 
 type AppSettings struct {
+	Language         string   `json:"language"`
 	Shell            string   `json:"shell"`
 	AutoShell        string   `json:"autoShell"`
 	AvailableShells  []string `json:"availableShells"`
@@ -92,9 +93,19 @@ func appSettingsFromConfig(settings store.AppSettings) AppSettings {
 		letterSpacing = 0
 	}
 	return AppSettings{
-		Shell: strings.TrimSpace(settings.Shell), AutoShell: runner.DefaultShell(),
+		Language: normalizeLanguagePreference(settings.Language),
+		Shell:    strings.TrimSpace(settings.Shell), AutoShell: runner.DefaultShell(),
 		AvailableShells: runner.AvailableShells(), LogFontFamily: fontFamily,
 		LogFontSize: fontSize, LogLetterSpacing: letterSpacing,
+	}
+}
+
+func normalizeLanguagePreference(value string) string {
+	switch value {
+	case "system", "zh-CN", "en":
+		return value
+	default:
+		return "system"
 	}
 }
 
@@ -921,6 +932,7 @@ func (a *App) GetAppSettings() (AppSettings, error) {
 
 // SaveAppSettings 校验并保存跨项目应用偏好。
 func (a *App) SaveAppSettings(settings AppSettings) (AppSettings, error) {
+	settings.Language = normalizeLanguagePreference(settings.Language)
 	settings.Shell = strings.TrimSpace(settings.Shell)
 	settings.LogFontFamily = strings.TrimSpace(settings.LogFontFamily)
 	if err := runner.ValidateShell(settings.Shell); err != nil {
@@ -936,7 +948,8 @@ func (a *App) SaveAppSettings(settings AppSettings) (AppSettings, error) {
 		return AppSettings{}, errors.New("log letter spacing must be between 0 and 4")
 	}
 	persisted := store.AppSettings{
-		Shell: settings.Shell, LogFontFamily: settings.LogFontFamily,
+		Language: settings.Language,
+		Shell:    settings.Shell, LogFontFamily: settings.LogFontFamily,
 		LogFontSize: settings.LogFontSize, LogLetterSpacing: settings.LogLetterSpacing,
 	}
 	if err := a.store.SetSettings(persisted); err != nil {
